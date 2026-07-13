@@ -83,7 +83,12 @@ function removeRow(row) {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('휴무일 관리', filtered.value.length)
+  mockExcelDownload('휴무일 관리', filtered.value, [
+    { key: 'date', label: '일자' },
+    { key: 'name', label: '휴무일명' },
+    { key: 'type', label: '구분' },
+    { key: 'note', label: '비고' },
+  ])
 }
 </script>
 

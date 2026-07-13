@@ -48,7 +48,19 @@ function toggleAll() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('테스트 라이브러리', filtered.value.length)
+  mockExcelDownload('테스트 라이브러리', filtered.value, [
+    { key: 'id', label: '라이브러리ID' },
+    { key: 'type', label: '유형' },
+    { key: 'round', label: '차수' },
+    { key: 'title', label: '시나리오명' },
+    { key: 'systemPath', label: '시스템경로' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'sourceProject', label: '출처프로젝트' },
+    { key: 'caseCount', label: '케이스수' },
+    { key: 'stepCount', label: '절차수' },
+    { key: 'registeredAt', label: '등록일' },
+    { key: 'registeredBy', label: '등록자' },
+  ])
 }
 </script>
 

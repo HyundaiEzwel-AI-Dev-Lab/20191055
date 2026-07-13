@@ -1,6 +1,6 @@
 <script setup>
 // PAG-M-DAS-06 실적관리
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   performanceMeta,
   performanceSummary,
@@ -15,7 +15,7 @@ import {
   scheduleStatusClass,
 } from '@/data/performance'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
-import { mockExcelDownload } from '@/utils/excelDownload'
+import { mockExcelDownload, flattenPersonProjects } from '@/utils/excelDownload'
 
 const filterExpanded = ref(false)
 const filters = ref({
@@ -43,6 +43,17 @@ const showCharts = computed(() => {
   return !f.project && !f.member && !f.initiator && !f.devType && !f.summary
 })
 
+const barsFilled = ref(false)
+onMounted(() => {
+  requestAnimationFrame(() => {
+    setTimeout(() => { barsFilled.value = true }, 60)
+  })
+})
+
+function pct(count, total) {
+  return total ? Math.round((count / total) * 100) : 0
+}
+
 const filteredRecords = computed(() => {
   const f = appliedFilters.value
   return performanceRecords.filter((row) => {
@@ -62,14 +73,21 @@ const filteredRecords = computed(() => {
 function buildConicGradient(items) {
   const total = items.reduce((s, i) => s + i.count, 0)
   if (!total) return 'conic-gradient(var(--lnb-line) 0 100%)'
+  const gap = 2.4 // deg, 세그먼트 사이 여백
   let acc = 0
-  const stops = items.map((item) => {
-    const start = (acc / total) * 100
+  const parts = []
+  items.forEach((item, i) => {
+    const start = (acc / total) * 360
     acc += item.count
-    const end = (acc / total) * 100
-    return `${item.color} ${start}% ${end}%`
+    const end = (acc / total) * 360
+    const segStart = i === 0 ? start : start + gap / 2
+    const segEnd = i === items.length - 1 ? end : end - gap / 2
+    parts.push(`${item.color} ${segStart}deg ${segEnd}deg`)
+    if (i < items.length - 1) {
+      parts.push(`var(--lnb-side) ${segEnd}deg ${segEnd + gap}deg`)
+    }
   })
-  return `conic-gradient(${stops.join(', ')})`
+  return `conic-gradient(${parts.join(', ')})`
 }
 
 function resetFilters() {
@@ -93,7 +111,40 @@ function search() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('실적 관리', filteredRecords.value.length)
+  const rows = flattenPersonProjects(filteredRecords.value, (person, proj) => ({
+    no: person.no,
+    dept: person.dept,
+    name: person.name,
+    empId: person.empId,
+    position: person.position,
+    projectCount: person.projectCount,
+    totalMd: person.totalMd,
+    projectName: proj?.name || '-',
+    md: proj?.md ?? '-',
+    openDate: proj?.openDate || '-',
+    taskCount: proj?.taskCount ?? '-',
+    delayCount: proj?.delayedCount ?? proj?.delayCount ?? '-',
+    planMd: proj?.planMd ?? '-',
+    execMd: proj?.execMd ?? '-',
+    scheduleStatus: proj?.scheduleStatus || '-',
+  }))
+  mockExcelDownload('실적 관리', rows, [
+    { key: 'no', label: 'No.' },
+    { key: 'dept', label: '부서' },
+    { key: 'name', label: '담당자' },
+    { key: 'empId', label: '사번' },
+    { key: 'position', label: '직급' },
+    { key: 'projectCount', label: '투입 프로젝트' },
+    { key: 'totalMd', label: '투입 공수 합계' },
+    { key: 'projectName', label: '프로젝트명' },
+    { key: 'md', label: '공수' },
+    { key: 'openDate', label: '오픈일' },
+    { key: 'taskCount', label: '참여 업무 수' },
+    { key: 'delayCount', label: '경과 수' },
+    { key: 'planMd', label: '계획 공수' },
+    { key: 'execMd', label: '실행 공수' },
+    { key: 'scheduleStatus', label: '계획 준수' },
+  ])
 }
 
 function onMonthPresetChange() {
@@ -203,21 +254,25 @@ function onMonthPresetChange() {
 
     <!-- 실적 요약 -->
     <section class="kpi-row card pad">
-      <div class="kpi">
+      <div class="kpi kpi--neutral">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">수행 프로젝트</span>
         <span class="kpi__num">{{ performanceSummary.projectCount }}<small>건</small></span>
       </div>
-      <div class="kpi">
+      <div class="kpi kpi--orange">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">장기프로젝트</span>
-        <span class="kpi__num kpi__num--orange">{{ performanceSummary.longTermProjects }}<small>건</small></span>
+        <span class="kpi__num">{{ performanceSummary.longTermProjects }}<small>건</small></span>
       </div>
-      <div class="kpi">
+      <div class="kpi kpi--violet">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">평균 개발 공수</span>
         <span class="kpi__num">{{ performanceSummary.avgDevWorkload }}<small>M</small></span>
       </div>
-      <div class="kpi">
+      <div class="kpi kpi--blue">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">인당 프로젝트</span>
-        <span class="kpi__num kpi__num--blue">{{ performanceSummary.projectsPerPerson }}<small>건</small></span>
+        <span class="kpi__num">{{ performanceSummary.projectsPerPerson }}<small>건</small></span>
       </div>
     </section>
 
@@ -236,6 +291,7 @@ function onMonthPresetChange() {
             <li v-for="item in initiators" :key="item.label" class="legend__item">
               <span class="legend__sw" :style="{ background: item.color }"></span>
               {{ item.label }}
+              <span class="legend__pct">{{ pct(item.count, initiatorTotal) }}%</span>
               <b>{{ item.count }}</b>
             </li>
           </ul>
@@ -255,6 +311,7 @@ function onMonthPresetChange() {
             <li v-for="item in devTypes" :key="item.label" class="legend__item">
               <span class="legend__sw" :style="{ background: item.color }"></span>
               {{ item.label }}
+              <span class="legend__pct">{{ pct(item.count, devTypeTotal) }}%</span>
               <b>{{ item.count }}</b>
             </li>
           </ul>
@@ -267,7 +324,10 @@ function onMonthPresetChange() {
           <div v-for="item in summaries" :key="item.label" class="hbar__row">
             <span class="hbar__lab">{{ item.label }}</span>
             <div class="hbar__track">
-              <span class="hbar__fill" :style="{ width: `${(item.count / summaryMax) * 100}%` }"></span>
+              <span
+                class="hbar__fill"
+                :style="{ width: barsFilled ? `${(item.count / summaryMax) * 100}%` : '0%' }"
+              ></span>
             </div>
             <span class="hbar__val">{{ item.count }}</span>
           </div>
@@ -408,7 +468,8 @@ function onMonthPresetChange() {
 .card {
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
-  border-radius: 10px;
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
 .pad {
@@ -416,10 +477,23 @@ function onMonthPresetChange() {
 }
 
 .sec-title {
+  position: relative;
   margin: 0 0 12px;
+  padding-left: 10px;
   font-size: 13px;
   font-weight: 700;
   color: var(--lnb-txt);
+}
+
+.sec-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--teal);
 }
 
 .filter {
@@ -532,29 +606,45 @@ function onMonthPresetChange() {
 
 .kpi-row {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
 .kpi {
   flex: 1;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 10px;
-  padding: 14px 16px;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  transition: transform var(--transition-fast);
+}
+
+.kpi:hover {
+  transform: translateY(-2px);
+}
+
+.kpi__dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-bottom: 10px;
 }
 
 .kpi__lab {
+  display: block;
   font-size: 11.5px;
-  color: var(--lnb-muted);
+  color: currentColor;
+  opacity: 0.75;
+  font-weight: 600;
 }
 
 .kpi__num {
   display: block;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 800;
-  margin-top: 2px;
-  color: var(--lnb-logo);
+  margin-top: 4px;
+  color: currentColor;
 }
 
 .kpi__num small {
@@ -563,8 +653,10 @@ function onMonthPresetChange() {
   margin-left: 2px;
 }
 
-.kpi__num--blue { color: var(--blue); }
-.kpi__num--orange { color: var(--orange); }
+.kpi--neutral { background: #eef1f5; color: var(--lnb-logo); }
+.kpi--orange { background: var(--orange-bg); color: var(--orange); }
+.kpi--violet { background: #f2effe; color: #7c5cf0; }
+.kpi--blue { background: var(--blue-bg); color: var(--blue); }
 
 .dash-grid {
   display: grid;
@@ -588,11 +680,33 @@ function onMonthPresetChange() {
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
+  filter: drop-shadow(0 6px 14px rgba(20, 30, 45, 0.12));
+  animation: donut-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes donut-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82) rotate(-50deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+.donut::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
 }
 
 .donut__hole {
   position: absolute;
-  inset: 26px;
+  inset: 34px;
   background: var(--lnb-side);
   border-radius: 50%;
   display: flex;
@@ -627,6 +741,13 @@ function onMonthPresetChange() {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: background var(--transition-fast);
+}
+
+.legend__item:hover {
+  background: var(--lnb-hover);
 }
 
 .legend__item b {
@@ -634,10 +755,15 @@ function onMonthPresetChange() {
   font-weight: 700;
 }
 
+.legend__pct {
+  color: var(--lnb-muted);
+  font-size: 11px;
+}
+
 .legend__sw {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
@@ -665,15 +791,17 @@ function onMonthPresetChange() {
   flex: 1;
   height: 18px;
   background: #f0f3f4;
-  border-radius: 5px;
+  border-radius: 9px;
   overflow: hidden;
 }
 
 .hbar__fill {
   display: block;
   height: 100%;
-  background: var(--teal);
-  border-radius: 5px;
+  background: linear-gradient(90deg, var(--teal), var(--teal-600));
+  border-radius: 9px;
+  box-shadow: 0 0 10px rgba(17, 154, 138, 0.45);
+  transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hbar__val {
@@ -836,7 +964,7 @@ function onMonthPresetChange() {
     flex-wrap: wrap;
   }
   .kpi {
-    min-width: calc(50% - 7px);
+    min-width: calc(50% - 6px);
   }
 }
 </style>

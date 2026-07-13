@@ -113,7 +113,20 @@ function onBulkRegister() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload(`시나리오 관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`, filteredList.value.length)
+  const label = `시나리오 관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`
+  mockExcelDownload(label, filteredList.value, [
+    { key: 'reqId', label: '요구사항ID' },
+    { key: 'executionType', label: '수행유형' },
+    { key: 'systemPath', label: '시스템경로' },
+    { key: 'screenPath', label: '화면경로' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'caseId', label: '케이스ID' },
+    { key: 'caseName', label: '케이스명' },
+    { key: 'round', label: '차수' },
+    { key: 'planDate', label: '계획일' },
+    { key: 'stepCount', label: '절차수' },
+    { key: 'note', label: '비고' },
+  ])
 }
 
 function onBulkConfirm(items) {

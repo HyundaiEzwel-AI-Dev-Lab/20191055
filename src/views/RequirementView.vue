@@ -279,7 +279,21 @@ function onScreenSetting() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('요구사항 관리', filteredList.value.length)
+  mockExcelDownload('요구사항 관리', filteredList.value, [
+    { key: 'reqId', label: '요구사항ID' },
+    { key: 'systemPath', label: '시스템/업무' },
+    { key: 'screenPath', label: '화면경로' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'name', label: '요구사항명' },
+    { key: 'reqType', label: '요건유형' },
+    { key: 'status', label: '상태' },
+    { key: 'priority', label: '우선순위' },
+    { key: 'confirmRequester', label: '요청자확정' },
+    { key: 'confirmTech', label: '테크확정' },
+    { key: 'issueCount', label: '이슈수' },
+    { key: 'registeredBy', label: '등록자' },
+    { key: 'registeredAt', label: '등록일시' },
+  ])
 }
 
 function onPageSizeChange() {

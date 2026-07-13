@@ -32,7 +32,23 @@ function goWbs() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('프로젝트 대시보드', data.value?.details?.length ?? 0)
+  mockExcelDownload(
+    '프로젝트 대시보드',
+    (data.value?.details || []).map((row) => ({
+      ...row,
+      planPeriod: `${row.planStart || '-'} ~ ${row.planEnd || '-'}`,
+      execPeriod: `${row.execStart || '-'} ~ ${row.execEnd || '진행중'}`,
+    })),
+    [
+      { key: 'taskType', label: '업무유형' },
+      { key: 'assignee', label: '담당자' },
+      { key: 'planPeriod', label: '계획일정' },
+      { key: 'execPeriod', label: '실행일정' },
+      { key: 'execRate', label: '실행 공정률(%)' },
+      { key: 'planDiff', label: '계획대비' },
+      { key: 'compliance', label: '계획준수' },
+    ],
+  )
 }
 </script>
 

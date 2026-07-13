@@ -85,7 +85,22 @@ function onDefectSave(updates) {
 }
 
 function onExcelDownload() {
-  mockExcelDownload(`결함 관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`, filteredList.value.length)
+  const label = `결함 관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`
+  mockExcelDownload(label, filteredList.value, [
+    { key: 'defectId', label: '결함ID' },
+    { key: 'caseId', label: '케이스' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'round', label: '차수' },
+    { key: 'stepNo', label: '절차' },
+    { key: 'title', label: '결함제목' },
+    { key: 'grade', label: '등급' },
+    { key: 'occurrencePhase', label: '발생시점' },
+    { key: 'deployStatus', label: '배포상태' },
+    { key: 'status', label: '조치상태' },
+    { key: 'tester', label: '테스터' },
+    { key: 'assignee', label: '담당자' },
+    { key: 'registeredAt', label: '등록일' },
+  ])
 }
 </script>
 

@@ -1,1 +1,0 @@
-import{_ as t,c as a,a as s,l as c}from"./index-m09h5EfD.js";const o={},r={class:"page-content"};function n(l,e){return c(),a("div",r,[...e[0]||(e[0]=[s("h1",{class:"page-title"},"프로젝트 이력",-1),s("div",{class:"page-placeholder"},"프로젝트 이력 화면 (C단계에서 구현)",-1)])])}const _=t(o,[["render",n]]);export{_ as default};

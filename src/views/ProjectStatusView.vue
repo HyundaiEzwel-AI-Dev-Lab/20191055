@@ -100,7 +100,19 @@ function onJiraClick(jira) {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('프로젝트 현황', filteredProjects.value.length)
+  mockExcelDownload('프로젝트 현황', filteredProjects.value, [
+    { key: 'no', label: 'No.' },
+    { key: 'projectId', label: '프로젝트ID' },
+    { key: 'name', label: '프로젝트명' },
+    { key: 'stage', label: '처리단계' },
+    { key: 'progress', label: '공정률(%)' },
+    { key: 'scheduledOpenDate', label: '오픈예정일' },
+    { key: 'actualOpenDate', label: '오픈일' },
+    { key: 'requestDept', label: '요청부서' },
+    { key: 'devDept', label: '담당개발부서' },
+    { key: 'itVoc', label: 'IT-VOC' },
+    { key: 'jira', label: 'JIRA' },
+  ])
 }
 
 function onPageSizeChange() {

@@ -35,7 +35,33 @@ function onFileChange(e) {
 }
 
 function downloadTemplate() {
-  mockExcelDownload('시나리오 일괄등록 양식')
+  mockExcelDownload(
+    '시나리오 일괄등록 양식',
+    [
+      {
+        caseId: 'TC-001',
+        caseName: '샘플 케이스명',
+        screenName: '화면명',
+        systemPath: 'FO>법인숙박',
+        screenPath: '여행레저>복지혜택',
+        round: '1차',
+        stepNo: 1,
+        procedure: '테스트 절차 입력',
+        expected: '예상결과 입력',
+      },
+    ],
+    [
+      { key: 'caseId', label: '케이스ID' },
+      { key: 'caseName', label: '케이스명' },
+      { key: 'screenName', label: '화면명' },
+      { key: 'systemPath', label: '시스템경로' },
+      { key: 'screenPath', label: '화면경로' },
+      { key: 'round', label: '차수' },
+      { key: 'stepNo', label: '절차NO' },
+      { key: 'procedure', label: '테스트절차' },
+      { key: 'expected', label: '예상결과' },
+    ],
+  )
 }
 
 function register() {

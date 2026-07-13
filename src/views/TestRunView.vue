@@ -147,7 +147,24 @@ function recalcRow(row) {
 }
 
 function onExcelDownload() {
-  mockExcelDownload(`테스트 수행 (${mode.value === 'uat' ? '운영' : 'DEV'})`, filtered.value.length)
+  const label = `테스트 수행 (${mode.value === 'uat' ? '운영' : 'DEV'})`
+  mockExcelDownload(label, filtered.value, [
+    { key: 'reqId', label: '요구사항ID' },
+    { key: 'executionType', label: '수행유형' },
+    { key: 'systemPath', label: '시스템경로' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'caseId', label: '케이스ID' },
+    { key: 'caseName', label: '케이스명' },
+    { key: 'planStart', label: '계획시작' },
+    { key: 'planEnd', label: '계획종료' },
+    { key: 'testerCount', label: '테스터수' },
+    { key: 'progress', label: '진척(%)' },
+    { key: 'result', label: '결과' },
+    { key: 'errorCount', label: '오류수' },
+    { key: 'fixDone', label: '조치완료' },
+    { key: 'fixPending', label: '조치대기' },
+    { key: 'lastExecutedAt', label: '최종수행일시' },
+  ])
 }
 </script>
 

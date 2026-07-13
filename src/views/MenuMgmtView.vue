@@ -68,7 +68,15 @@ function saveRows() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload(`화면코드_${selectedSystem.value}_${selectedBiz.value}`, rows.value.length)
+  mockExcelDownload(`화면코드_${selectedSystem.value}_${selectedBiz.value}`, rows.value, [
+    { key: 'id', label: '관리번호' },
+    { key: 'name', label: '화면명' },
+    { key: 'path', label: '화면경로' },
+    { key: 'useYn', label: '사용여부' },
+    { key: 'createdBy', label: '등록자' },
+    { key: 'createdAt', label: '등록일시' },
+    { key: 'updatedBy', label: '수정자' },
+  ])
 }
 </script>
 

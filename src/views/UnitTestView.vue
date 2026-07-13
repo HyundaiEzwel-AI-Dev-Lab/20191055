@@ -62,7 +62,18 @@ function openDetail(row) {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('단위테스트', filteredList.value.length)
+  mockExcelDownload('단위테스트', filteredList.value, [
+    { key: 'systemPath', label: '시스템/업무' },
+    { key: 'screenPath', label: '화면경로' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'taskType', label: '업무유형' },
+    { key: 'assignee', label: '담당자' },
+    { key: 'difficulty', label: '난이도' },
+    { key: 'testResult', label: '테스트결과' },
+    { key: 'testExecutedAt', label: '테스트수행일' },
+    { key: 'defectStatus', label: '결함상태' },
+    { key: 'memo', label: '메모' },
+  ])
 }
 
 function onDetailSave(payload) {

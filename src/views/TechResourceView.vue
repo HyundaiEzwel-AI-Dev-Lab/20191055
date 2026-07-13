@@ -13,7 +13,7 @@ import {
 } from '@/data/techResource'
 import DelayTaskModal from '@/components/dashboard/DelayTaskModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
-import { mockExcelDownload } from '@/utils/excelDownload'
+import { mockExcelDownload, flattenPersonProjects } from '@/utils/excelDownload'
 
 const router = useRouter()
 
@@ -97,7 +97,40 @@ function search() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('테크 리소스 관리', filteredRecords.value.length)
+  const rows = flattenPersonProjects(filteredRecords.value, (person, proj) => ({
+    no: person.no,
+    dept: person.dept,
+    name: person.name,
+    empId: person.empId,
+    position: person.position,
+    projectCount: person.projectCount,
+    totalPlanMd: person.totalPlanMd,
+    projectName: proj?.name || '-',
+    stage: proj?.stage || '-',
+    progress: proj?.progress ?? '-',
+    scheduledOpenDate: proj?.scheduledOpenDate || '-',
+    planMd: proj?.planMd ?? '-',
+    taskCount: proj?.taskCount ?? '-',
+    execProgress: proj?.execProgress ?? '-',
+    scheduleStatus: proj?.scheduleStatus || '-',
+  }))
+  mockExcelDownload('테크 리소스 관리', rows, [
+    { key: 'no', label: 'No.' },
+    { key: 'dept', label: '부서' },
+    { key: 'name', label: '담당자' },
+    { key: 'empId', label: '사번' },
+    { key: 'position', label: '직급' },
+    { key: 'projectCount', label: '진행 프로젝트' },
+    { key: 'totalPlanMd', label: '계획 공수 합' },
+    { key: 'projectName', label: '프로젝트명' },
+    { key: 'stage', label: '처리단계' },
+    { key: 'progress', label: '공정률(%)' },
+    { key: 'scheduledOpenDate', label: '오픈예정일' },
+    { key: 'planMd', label: '계획 공수' },
+    { key: 'taskCount', label: '담당 업무 수' },
+    { key: 'execProgress', label: '실행 공정률(%)' },
+    { key: 'scheduleStatus', label: '계획 준수' },
+  ])
 }
 
 function onDelayClick(personId, project) {
@@ -122,11 +155,14 @@ function formatExecProgress(progress) {
 
 <template>
   <div class="tech-resource">
-    <p class="tech-resource__hint">
-      {{ techResourceMeta.notice }}
-      <span class="tech-resource__hint-sub">{{ techResourceMeta.chartNotice }}</span>
-      · 조회시점 {{ techResourceMeta.queryTime }}
-    </p>
+    <div class="tech-resource__hint">
+      <span class="tech-resource__hint-icon">ⓘ</span>
+      <div class="tech-resource__hint-body">
+        <p>{{ techResourceMeta.notice }}</p>
+        <p>{{ techResourceMeta.chartNotice }}</p>
+        <p class="tech-resource__hint-time">조회시점 {{ techResourceMeta.queryTime }}</p>
+      </div>
+    </div>
 
     <!-- 검색조건 -->
     <section class="filter card">
@@ -184,21 +220,25 @@ function formatExecProgress(progress) {
 
     <!-- 현황 분석 KPI -->
     <section class="kpi-row card pad">
-      <div class="kpi">
+      <div class="kpi kpi--neutral">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">조회 인원</span>
         <span class="kpi__num">{{ techResourceSummary.queryCount }}<small>명</small></span>
       </div>
-      <div class="kpi">
+      <div class="kpi kpi--blue">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">투입 인원</span>
-        <span class="kpi__num kpi__num--blue">{{ techResourceSummary.assignedCount }}<small>명</small></span>
+        <span class="kpi__num">{{ techResourceSummary.assignedCount }}<small>명</small></span>
       </div>
-      <div class="kpi">
+      <div class="kpi kpi--teal">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">투입율</span>
-        <span class="kpi__num kpi__num--teal">{{ techResourceSummary.assignmentRate }}<small>%</small></span>
+        <span class="kpi__num">{{ techResourceSummary.assignmentRate }}<small>%</small></span>
       </div>
-      <div class="kpi">
+      <div class="kpi kpi--orange">
+        <span class="kpi__dot"></span>
         <span class="kpi__lab">진행 프로젝트</span>
-        <span class="kpi__num kpi__num--orange">{{ techResourceSummary.projectCount }}<small>건</small></span>
+        <span class="kpi__num">{{ techResourceSummary.projectCount }}<small>건</small></span>
       </div>
     </section>
 
@@ -350,28 +390,50 @@ function formatExecProgress(progress) {
 }
 
 .tech-resource__hint {
-  margin: 0 0 14px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--lnb-muted);
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: var(--r-pill);
-  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: var(--teal-50);
+  border: 1px solid var(--teal-100);
+  border-radius: 10px;
 }
 
-.tech-resource__hint-sub {
-  display: block;
-  margin-top: 2px;
-  font-size: 10.5px;
+.tech-resource__hint-icon {
+  flex-shrink: 0;
+  width: 18px;
+  line-height: 1.5;
+  font-size: 13px;
+  color: var(--teal-600);
+}
+
+.tech-resource__hint-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tech-resource__hint-body p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--lnb-txt);
+}
+
+.tech-resource__hint-time {
+  margin-top: 4px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--lnb-muted) !important;
 }
 
 .card {
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
-  border-radius: 10px;
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
 .pad {
@@ -379,15 +441,28 @@ function formatExecProgress(progress) {
 }
 
 .sec-title {
+  position: relative;
   margin: 0 0 12px;
+  padding-left: 10px;
   font-size: 13px;
   font-weight: 700;
   color: var(--lnb-txt);
 }
 
+.sec-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--teal);
+}
+
 .filter {
   padding: 14px 16px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .filter__row {
@@ -480,29 +555,45 @@ function formatExecProgress(progress) {
 
 .kpi-row {
   display: flex;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .kpi {
   flex: 1;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  transition: transform var(--transition-fast);
+}
+
+.kpi:hover {
+  transform: translateY(-2px);
+}
+
+.kpi__dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-bottom: 10px;
 }
 
 .kpi__lab {
+  display: block;
   font-size: 11.5px;
-  color: var(--lnb-muted);
+  color: currentColor;
+  opacity: 0.75;
+  font-weight: 600;
 }
 
 .kpi__num {
   display: block;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 800;
-  margin-top: 2px;
-  color: var(--lnb-logo);
+  margin-top: 4px;
+  color: currentColor;
 }
 
 .kpi__num small {
@@ -511,9 +602,10 @@ function formatExecProgress(progress) {
   margin-left: 2px;
 }
 
-.kpi__num--blue { color: var(--blue); }
-.kpi__num--teal { color: var(--teal-600); }
-.kpi__num--orange { color: var(--orange); }
+.kpi--neutral { background: #eef1f5; color: var(--lnb-logo); }
+.kpi--blue { background: var(--blue-bg); color: var(--blue); }
+.kpi--teal { background: var(--teal-50); color: var(--teal-600); }
+.kpi--orange { background: var(--orange-bg); color: var(--orange); }
 
 .listcard {
   overflow: hidden;
@@ -670,7 +762,7 @@ function formatExecProgress(progress) {
 .bar i {
   display: block;
   height: 100%;
-  background: var(--teal);
+  background: linear-gradient(90deg, var(--teal), var(--teal-600));
 }
 
 .stbadge {
@@ -741,7 +833,7 @@ function formatExecProgress(progress) {
     flex-wrap: wrap;
   }
   .kpi {
-    min-width: calc(50% - 5px);
+    min-width: calc(50% - 6px);
   }
 }
 </style>

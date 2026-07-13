@@ -112,7 +112,16 @@ function search() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('메인 대시보드', filteredProjects.value.length)
+  mockExcelDownload('메인 대시보드', filteredProjects.value, [
+    { key: 'no', label: 'No.' },
+    { key: 'stage', label: '처리단계' },
+    { key: 'name', label: '프로젝트명' },
+    { key: 'progress', label: '공정률(%)' },
+    { key: 'scheduledOpenDate', label: '오픈예정일' },
+    { key: 'actualOpenDate', label: '오픈일' },
+    { key: 'requestDept', label: '요청부서' },
+    { key: 'devDept', label: '담당개발부서' },
+  ])
 }
 
 function onProjectClick(row) {

@@ -76,7 +76,23 @@ function openDetail(row) {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('프로젝트 변경이력', filteredList.value.length)
+  mockExcelDownload(
+    '프로젝트 변경이력',
+    filteredList.value.map((row) => ({
+      ...row,
+      changeSummary: (row.changeLines || [])
+        .map((line) => `${line.label}: ${line.before || '-'} → ${line.after || '-'}`)
+        .join(' / '),
+    })),
+    [
+      { key: 'category', label: '변경구분' },
+      { key: 'item', label: '변경항목' },
+      { key: 'changedAt', label: '변경일시' },
+      { key: 'changedBy', label: '변경자' },
+      { key: 'changedByDept', label: '부서' },
+      { key: 'changeSummary', label: '변경내용' },
+    ],
+  )
 }
 
 function displayNo(index) {

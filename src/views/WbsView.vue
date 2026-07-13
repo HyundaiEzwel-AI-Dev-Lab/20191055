@@ -182,7 +182,22 @@ function onCopy() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('WBS 관리', filteredTasks.value.length)
+  mockExcelDownload('WBS 관리', filteredTasks.value, [
+    { key: 'wbsId', label: 'WBS ID' },
+    { key: 'systemPath', label: '시스템경로' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'requirementName', label: '요구사항' },
+    { key: 'taskType', label: '업무유형' },
+    { key: 'assigneeDisplay', label: '담당자' },
+    { key: 'status', label: '상태' },
+    { key: 'planStart', label: '계획시작' },
+    { key: 'planEnd', label: '계획종료' },
+    { key: 'execStart', label: '실행시작' },
+    { key: 'execEnd', label: '실행종료' },
+    { key: 'planProgress', label: '계획공정률(%)' },
+    { key: 'execProgress', label: '실행공정률(%)' },
+    { key: 'scheduleStatus', label: '일정상태' },
+  ])
 }
 
 function confirmCopy() {

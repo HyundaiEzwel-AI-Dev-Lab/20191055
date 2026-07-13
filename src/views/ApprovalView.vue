@@ -101,7 +101,19 @@ function goProject() {
 }
 
 function onExcelDownload() {
-  mockExcelDownload('신청 승인 관리', filtered.value.length)
+  mockExcelDownload('신청 승인 관리', filtered.value, [
+    { key: 'id', label: 'NO' },
+    { key: 'status', label: '승인상태' },
+    { key: 'type', label: '요청유형' },
+    { key: 'projectName', label: '프로젝트명' },
+    { key: 'openDate', label: '오픈예정일' },
+    { key: 'before', label: '변경전' },
+    { key: 'after', label: '변경후' },
+    { key: 'requester', label: '요청자' },
+    { key: 'requestDate', label: '요청일자' },
+    { key: 'approveDate', label: '승인일자' },
+    { key: 'reason', label: '요청사유' },
+  ])
 }
 </script>
 
