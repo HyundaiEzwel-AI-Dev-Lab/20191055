@@ -1,6 +1,6 @@
 <script setup>
 // PAG-M-DAS-01 메인 대시보드 / 전체 프로젝트 현황
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   dashboardMeta,
@@ -46,6 +46,18 @@ const devTypeTotal = computed(() => devTypes.reduce((s, i) => s + i.count, 0))
 const summaryMax = computed(() => Math.max(...summaries.map((s) => s.count), 1))
 const gaugePercent = computed(() => `${(completionRate / 2).toFixed(1)}%`)
 
+// 로드 시 막대가 0에서 채워지는 진입 애니메이션
+const barsFilled = ref(false)
+onMounted(() => {
+  requestAnimationFrame(() => {
+    setTimeout(() => { barsFilled.value = true }, 60)
+  })
+})
+
+function pct(count, total) {
+  return total ? Math.round((count / total) * 100) : 0
+}
+
 const filteredProjects = computed(() => {
   const f = appliedFilters.value
   return dashboardProjects.filter((p) => {
@@ -63,14 +75,21 @@ const filteredProjects = computed(() => {
 function buildConicGradient(items) {
   const total = items.reduce((s, i) => s + i.count, 0)
   if (!total) return 'conic-gradient(var(--lnb-line) 0 100%)'
+  const gap = 2.4 // deg, 세그먼트 사이 여백
   let acc = 0
-  const stops = items.map((item) => {
-    const start = (acc / total) * 100
+  const parts = []
+  items.forEach((item, i) => {
+    const start = (acc / total) * 360
     acc += item.count
-    const end = (acc / total) * 100
-    return `${item.color} ${start}% ${end}%`
+    const end = (acc / total) * 360
+    const segStart = i === 0 ? start : start + gap / 2
+    const segEnd = i === items.length - 1 ? end : end - gap / 2
+    parts.push(`${item.color} ${segStart}deg ${segEnd}deg`)
+    if (i < items.length - 1) {
+      parts.push(`var(--lnb-side) ${segEnd}deg ${segEnd + gap}deg`)
+    }
   })
-  return `conic-gradient(${stops.join(', ')})`
+  return `conic-gradient(${parts.join(', ')})`
 }
 
 function resetFilters() {
@@ -204,25 +223,30 @@ function onOverdueClick(row) {
       <section class="card pad">
         <h3 class="sec-title">처리단계</h3>
         <div class="kpi-row">
-          <div class="kpi">
+          <div class="kpi kpi--neutral">
+            <span class="kpi__dot"></span>
             <span class="kpi__lab">전체</span>
             <span class="kpi__num">{{ stageKpi.total }}</span>
           </div>
-          <div class="kpi">
+          <div class="kpi kpi--gray">
+            <span class="kpi__dot"></span>
             <span class="kpi__lab">접수</span>
-            <span class="kpi__num kpi__num--gray">{{ stageKpi.received }}</span>
+            <span class="kpi__num">{{ stageKpi.received }}</span>
           </div>
-          <div class="kpi">
+          <div class="kpi kpi--blue">
+            <span class="kpi__dot"></span>
             <span class="kpi__lab">진행중</span>
-            <span class="kpi__num kpi__num--blue">{{ stageKpi.inProgress }}</span>
+            <span class="kpi__num">{{ stageKpi.inProgress }}</span>
           </div>
-          <div class="kpi">
+          <div class="kpi kpi--green">
+            <span class="kpi__dot"></span>
             <span class="kpi__lab">완료</span>
-            <span class="kpi__num kpi__num--green">{{ stageKpi.completed }}</span>
+            <span class="kpi__num">{{ stageKpi.completed }}</span>
           </div>
-          <div class="kpi">
+          <div class="kpi kpi--red">
+            <span class="kpi__dot"></span>
             <span class="kpi__lab">반려</span>
-            <span class="kpi__num kpi__num--red">{{ stageKpi.rejected }}</span>
+            <span class="kpi__num">{{ stageKpi.rejected }}</span>
           </div>
         </div>
       </section>
@@ -253,6 +277,7 @@ function onOverdueClick(row) {
             <li v-for="item in initiators" :key="item.label" class="legend__item">
               <span class="legend__sw" :style="{ background: item.color }"></span>
               {{ item.label }}
+              <span class="legend__pct">{{ pct(item.count, initiatorTotal) }}%</span>
               <b>{{ item.count }}</b>
             </li>
           </ul>
@@ -272,6 +297,7 @@ function onOverdueClick(row) {
             <li v-for="item in devTypes" :key="item.label" class="legend__item">
               <span class="legend__sw" :style="{ background: item.color }"></span>
               {{ item.label }}
+              <span class="legend__pct">{{ pct(item.count, devTypeTotal) }}%</span>
               <b>{{ item.count }}</b>
             </li>
           </ul>
@@ -286,7 +312,7 @@ function onOverdueClick(row) {
             <div class="hbar__track">
               <span
                 class="hbar__fill"
-                :style="{ width: `${(item.count / summaryMax) * 100}%` }"
+                :style="{ width: barsFilled ? `${(item.count / summaryMax) * 100}%` : '0%' }"
               ></span>
             </div>
             <span class="hbar__val">{{ item.count }}</span>
@@ -405,7 +431,8 @@ function onOverdueClick(row) {
 .card {
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
-  border-radius: 10px;
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
 .pad {
@@ -413,10 +440,23 @@ function onOverdueClick(row) {
 }
 
 .sec-title {
+  position: relative;
   margin: 0 0 12px;
+  padding-left: 10px;
   font-size: 13px;
   font-weight: 700;
   color: var(--lnb-txt);
+}
+
+.sec-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--teal);
 }
 
 /* 필터 */
@@ -538,37 +578,54 @@ function onOverdueClick(row) {
   grid-template-columns: repeat(3, 1fr);
 }
 
-/* KPI */
+/* KPI — 소프트 컬러 스탯 카드 */
 .kpi-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .kpi {
   flex: 1;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  transition: transform var(--transition-fast);
+}
+
+.kpi:hover {
+  transform: translateY(-2px);
+}
+
+.kpi__dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-bottom: 10px;
 }
 
 .kpi__lab {
+  display: block;
   font-size: 11.5px;
-  color: var(--lnb-muted);
+  color: currentColor;
+  opacity: 0.75;
+  font-weight: 600;
 }
 
 .kpi__num {
   display: block;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 800;
-  margin-top: 2px;
-  color: var(--lnb-logo);
+  margin-top: 4px;
+  color: currentColor;
 }
 
-.kpi__num--blue { color: var(--blue); }
-.kpi__num--green { color: var(--green); }
-.kpi__num--red { color: var(--red); }
-.kpi__num--gray { color: var(--gray); }
+.kpi--neutral { background: #eef1f5; color: var(--lnb-logo); }
+.kpi--gray { background: var(--gray-bg); color: var(--gray); }
+.kpi--blue { background: var(--blue-bg); color: var(--blue); }
+.kpi--green { background: var(--green-bg); color: var(--green); }
+.kpi--red { background: var(--red-bg); color: var(--red); }
 
 /* 게이지 */
 .gauge-card {
@@ -587,6 +644,7 @@ function onOverdueClick(row) {
   height: 84px;
   position: relative;
   overflow: hidden;
+  animation: donut-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .gauge__arc {
@@ -599,14 +657,15 @@ function onOverdueClick(row) {
     #eef1f3 var(--p) 50%,
     transparent 50%
   );
+  filter: drop-shadow(0 6px 14px rgba(20, 30, 45, 0.12));
 }
 
 .gauge__hole {
   position: absolute;
-  left: 18px;
-  right: 18px;
+  left: 26px;
+  right: 26px;
   bottom: 0;
-  top: 18px;
+  top: 26px;
   background: var(--lnb-side);
   border-radius: 150px 150px 0 0;
   display: flex;
@@ -634,11 +693,33 @@ function onOverdueClick(row) {
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
+  filter: drop-shadow(0 6px 14px rgba(20, 30, 45, 0.12));
+  animation: donut-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes donut-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82) rotate(-50deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+.donut::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
 }
 
 .donut__hole {
   position: absolute;
-  inset: 26px;
+  inset: 34px;
   background: var(--lnb-side);
   border-radius: 50%;
   display: flex;
@@ -673,6 +754,13 @@ function onOverdueClick(row) {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: background var(--transition-fast);
+}
+
+.legend__item:hover {
+  background: var(--lnb-hover);
 }
 
 .legend__item b {
@@ -680,10 +768,15 @@ function onOverdueClick(row) {
   font-weight: 700;
 }
 
+.legend__pct {
+  color: var(--lnb-muted);
+  font-size: 11px;
+}
+
 .legend__sw {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
@@ -712,15 +805,17 @@ function onOverdueClick(row) {
   flex: 1;
   height: 18px;
   background: #f0f3f4;
-  border-radius: 5px;
+  border-radius: 9px;
   overflow: hidden;
 }
 
 .hbar__fill {
   display: block;
   height: 100%;
-  background: var(--teal);
-  border-radius: 5px;
+  background: linear-gradient(90deg, var(--teal), var(--teal-600));
+  border-radius: 9px;
+  box-shadow: 0 0 10px rgba(17, 154, 138, 0.45);
+  transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hbar__val {

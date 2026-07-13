@@ -11,6 +11,11 @@ import InboxCalendar from '@/components/inbox/InboxCalendar.vue'
 
 const viewMode = ref('card') // card | calendar
 
+const avatarPalette = ['#119a8a', '#7c5cf0', '#f59e0b', '#ec4899', '#3b82f6', '#22c55e']
+function avatarColor(i) {
+  return avatarPalette[i % avatarPalette.length]
+}
+
 // ---- 카드형: 진행중 프로젝트 롤링 ----
 const projectPage = ref(0)
 const PROJECTS_PER_PAGE = 3
@@ -51,24 +56,67 @@ function nextWaiting() {
     <!-- 상단 요약 바 -->
     <div class="summary">
       <div class="summary__stats">
-        <div class="summary__item">
-          <span class="k">진행 프로젝트</span><b>{{ summary.progressProjects }}</b><span class="u">건</span>
+        <div class="stat-chip stat-chip--brand">
+          <span class="stat-chip__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+            </svg>
+          </span>
+          <div class="stat-chip__body">
+            <b>{{ summary.progressProjects }}</b>
+            <span>진행 프로젝트</span>
+          </div>
         </div>
-        <span class="summary__divider"></span>
-        <div class="summary__item">
-          <span class="k">내 할 일</span><b>{{ summary.myTasks }}</b><span class="u">건</span>
+        <div class="stat-chip stat-chip--blue">
+          <span class="stat-chip__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3.5" y="5" width="4" height="4" rx="1" />
+              <path d="M10.5 7h10" />
+              <rect x="3.5" y="15" width="4" height="4" rx="1" />
+              <path d="M10.5 17h10" />
+            </svg>
+          </span>
+          <div class="stat-chip__body">
+            <b>{{ summary.myTasks }}</b>
+            <span>내 할 일</span>
+          </div>
         </div>
-        <span class="summary__divider"></span>
-        <div class="summary__item">
-          <span class="k">금주 마감</span><b>{{ summary.weekDue }}</b><span class="u">건</span>
+        <div class="stat-chip stat-chip--orange">
+          <span class="stat-chip__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M12 7.5V12l3 2" />
+            </svg>
+          </span>
+          <div class="stat-chip__body">
+            <b>{{ summary.weekDue }}</b>
+            <span>금주 마감</span>
+          </div>
         </div>
-        <span class="summary__divider"></span>
-        <div class="summary__item">
-          <span class="k">대기</span><b>{{ summary.waiting }}</b><span class="u">건</span>
+        <div class="stat-chip stat-chip--gray">
+          <span class="stat-chip__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M10 9v6M14 9v6" />
+            </svg>
+          </span>
+          <div class="stat-chip__body">
+            <b>{{ summary.waiting }}</b>
+            <span>대기</span>
+          </div>
         </div>
-        <span class="summary__divider"></span>
-        <div class="summary__item summary__item--danger">
-          <span class="k">지연</span><b class="r">{{ summary.delayed }}</b><span class="u">건</span>
+        <div class="stat-chip stat-chip--red">
+          <span class="stat-chip__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round" />
+              <path d="M12 9.5v4" stroke-linecap="round" />
+              <circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <div class="stat-chip__body">
+            <b>{{ summary.delayed }}</b>
+            <span>지연</span>
+          </div>
         </div>
       </div>
       <div class="summary__sp"></div>
@@ -91,7 +139,7 @@ function nextWaiting() {
         </div>
 
         <div v-if="progressProjects.length" class="pcards">
-          <div v-for="p in pagedProjects" :key="p.id" class="pcard">
+          <div v-for="p in pagedProjects" :key="p.id" class="pcard" :class="p.stageType">
             <div class="pcard__top">
               <span class="pcard__dday">{{ p.openDate }} ( {{ p.dday }} )</span>
               <span class="stbadge" :class="p.stageType">{{ p.stage }}</span>
@@ -102,9 +150,40 @@ function nextWaiting() {
               <span class="pct">{{ p.progress }}%</span>
             </div>
             <div class="pcard__stats">
-              <div><span>배정</span><b>{{ p.members }}</b></div>
-              <div><span>업무</span><b>{{ p.tasks }}</b></div>
-              <div><span>완료</span><b>{{ p.done }}</b></div>
+              <div class="mini-stat mini-stat--assign">
+                <div class="avatar-stack">
+                  <span
+                    v-for="(person, i) in p.assignees.slice(0, 3)"
+                    :key="i"
+                    class="avatar-stack__item"
+                    :style="{ background: avatarColor(i) }"
+                  >{{ person.charAt(0) }}</span>
+                  <span v-if="p.members > 3" class="avatar-stack__item avatar-stack__more">
+                    +{{ p.members - 3 }}
+                  </span>
+                </div>
+                <span class="mini-stat__lab">배정</span>
+              </div>
+              <div class="mini-stat mini-stat--task">
+                <div class="mini-stat__row">
+                  <svg class="mini-stat__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="4" width="14" height="17" rx="2" />
+                    <path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" />
+                    <path d="M8.5 11h7M8.5 14.5h7M8.5 18h4" />
+                  </svg>
+                  <span class="mini-stat__num">{{ p.tasks }}</span>
+                </div>
+                <span class="mini-stat__lab">업무</span>
+              </div>
+              <div class="mini-stat mini-stat--done">
+                <div class="mini-stat__row">
+                  <svg class="mini-stat__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6">
+                    <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="mini-stat__num">{{ p.done }}</span>
+                </div>
+                <span class="mini-stat__lab">완료</span>
+              </div>
             </div>
           </div>
         </div>
@@ -184,51 +263,73 @@ function nextWaiting() {
   gap: 18px;
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 12px 16px;
   font-size: 13px;
   color: var(--lnb-txt);
   margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
 }
 .summary__stats {
   display: flex;
   align-items: center;
-  gap: 20px;
-}
-.summary__divider {
-  width: 1px;
-  height: 16px;
-  background: var(--lnb-line);
-}
-.summary__item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  white-space: nowrap;
-}
-.summary__item--danger {
-  padding: 3px 10px;
-  border-radius: 20px;
-  background: var(--red-bg);
-}
-.summary__item .k {
-  color: var(--lnb-muted);
-}
-.summary__item .u {
-  color: var(--lnb-muted);
-  font-size: 12px;
-}
-.summary__item b {
-  font-size: 16px;
-  color: var(--lnb-logo);
-  font-weight: 800;
-}
-.summary__item b.r {
-  color: var(--red);
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .summary__sp {
   flex: 1;
 }
+
+/* 요약 스탯 칩 */
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 160px;
+  box-sizing: border-box;
+  padding: 7px 14px 7px 10px;
+  border-radius: 12px;
+  transition: transform 0.15s;
+}
+.stat-chip:hover {
+  transform: translateY(-2px);
+}
+.stat-chip__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.6);
+}
+.stat-chip__icon svg {
+  width: 16px;
+  height: 16px;
+}
+.stat-chip__body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.stat-chip__body b {
+  font-size: 17px;
+  font-weight: 800;
+}
+.stat-chip__body span {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+.stat-chip--brand { background: #eef1f5; color: var(--lnb-logo); }
+.stat-chip--brand .stat-chip__icon { color: var(--lnb-logo); }
+.stat-chip--blue { background: var(--blue-bg); color: var(--blue); }
+.stat-chip--orange { background: var(--orange-bg); color: var(--orange); }
+.stat-chip--gray { background: var(--gray-bg); color: var(--gray); }
+.stat-chip--red { background: var(--red-bg); color: var(--red); }
 .viewtoggle {
   display: inline-flex;
   border: 1px solid var(--lnb-line);
@@ -294,15 +395,22 @@ function nextWaiting() {
 .pcard {
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-left: 4px solid var(--lnb-line);
+  border-radius: 14px;
+  padding: 16px 18px;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .pcard:hover {
-  border-color: var(--lnb-logo);
-  box-shadow: 0 2px 8px rgba(20, 40, 50, 0.08);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
+.pcard.recv { border-left-color: var(--gray); }
+.pcard.prog { border-left-color: var(--blue); }
+.pcard.test { border-left-color: var(--orange); }
+.pcard.done { border-left-color: var(--green); }
+.pcard.rej { border-left-color: var(--red); }
 .pcard__top {
   display: flex;
   align-items: center;
@@ -318,49 +426,105 @@ function nextWaiting() {
   font-weight: 700;
   line-height: 1.4;
   margin-bottom: 12px;
+  min-height: 2.8em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .pcard__prog {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .bar {
   flex: 1;
-  height: 6px;
+  height: 8px;
   background: #eef1f3;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .bar i {
   display: block;
   height: 100%;
-  background: var(--lnb-logo);
+  background: linear-gradient(90deg, var(--teal), var(--lnb-logo));
+  border-radius: 8px;
 }
 .pct {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 800;
   color: var(--lnb-logo);
   width: 38px;
   text-align: right;
 }
 .pcard__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.mini-stat {
   display: flex;
-  gap: 18px;
-  border-top: 1px solid var(--lnb-line);
-  padding-top: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 9px;
+  background: var(--lnb-hover);
+  min-height: 52px;
 }
-.pcard__stats div {
-  font-size: 12px;
-  color: var(--lnb-muted);
+.mini-stat__row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
-.pcard__stats b {
+.mini-stat__icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.mini-stat__num {
+  font-size: 15px;
+  font-weight: 800;
   color: var(--lnb-logo);
-  margin-left: 6px;
-  font-size: 13px;
+}
+.mini-stat__lab {
+  font-size: 10.5px;
+  color: var(--lnb-muted);
+  font-weight: 600;
+}
+.mini-stat--assign { background: #eef1f5; }
+.mini-stat--task { background: var(--blue-bg); }
+.mini-stat--task .mini-stat__num,
+.mini-stat--task .mini-stat__icon { color: var(--blue); }
+.mini-stat--done { background: var(--green-bg); }
+.mini-stat--done .mini-stat__num,
+.mini-stat--done .mini-stat__icon { color: var(--green); }
+
+/* 배정 아바타 스택 */
+.avatar-stack {
+  display: flex;
+  align-items: center;
+}
+.avatar-stack__item {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #eef1f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #fff;
+  margin-left: -6px;
+}
+.avatar-stack__item:first-child {
+  margin-left: 0;
+}
+.avatar-stack__more {
+  background: var(--lnb-logo) !important;
 }
 
 /* 상태 뱃지 */

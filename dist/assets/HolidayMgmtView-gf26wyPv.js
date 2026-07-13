@@ -1,1 +1,0 @@
-import{_ as t,c as a,a as s,l as c}from"./index-BVo8R0EM.js";const o={},n={class:"page-content"};function r(l,e){return c(),a("div",n,[...e[0]||(e[0]=[s("h1",{class:"page-title"},"휴무일 관리",-1),s("div",{class:"page-placeholder"},"PAG-M-SYS-07 휴무일 관리 (C단계에서 구현)",-1)])])}const i=t(o,[["render",r]]);export{i as default};

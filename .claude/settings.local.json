@@ -13,7 +13,19 @@
       "Bash(node shot12.mjs)",
       "Bash(node shot13.mjs)",
       "Bash(node shot14.mjs)",
-      "Bash(node shot15.mjs)"
+      "Bash(node shot15.mjs)",
+      "Bash(node shot.mjs ./contrast-inbox.png)",
+      "Bash(node shot3.mjs ./contrast-perf.png)",
+      "Bash(node shot16.mjs)",
+      "Skill(dataviz)",
+      "Skill(dataviz:*)",
+      "Bash(node scripts/validate_palette.js \"#119a8a,#7c5cf0,#f59e0b,#ec4899\" --mode light --surface \"#ffffff\")",
+      "Bash(node scripts/validate_palette.js \"#119a8a,#7c5cf0\" --mode light --surface \"#ffffff\")",
+      "Bash(node scripts/validate_palette.js \"#119a8a,#7c5cf0,#f5a524,#ec4899\" --mode light --surface \"#ffffff\")",
+      "Bash(node shot.mjs ./inbox-cards-v2.png)",
+      "Bash(node shot.mjs ./inbox-avatars.png)",
+      "Bash(node shot.mjs ./inbox-summary-v2.png)",
+      "Bash(node shot.mjs ./inbox-summary-equal.png)"
     ]
   }
 }

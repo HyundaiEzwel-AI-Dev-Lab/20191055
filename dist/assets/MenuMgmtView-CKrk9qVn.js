@@ -1,1 +1,0 @@
-import{_ as t,c as a,a as s,l as c}from"./index-BVo8R0EM.js";const o={},n={class:"page-content"};function r(l,e){return c(),a("div",n,[...e[0]||(e[0]=[s("h1",{class:"page-title"},"메뉴 관리",-1),s("div",{class:"page-placeholder"},"메뉴 관리 화면 (C단계에서 구현)",-1)])])}const d=t(o,[["render",r]]);export{d as default};

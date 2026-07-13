@@ -6,7 +6,7 @@
   --lnb-txt: #2b2f36;
   --lnb-muted: #9aa0a8;
   --lnb-icon: #7c828b;
-  --lnb-line: #ededf1;
+  --lnb-line: #d7dbe0;
   --lnb-branch: #d6dade;
   --lnb-active-border: #e6e8ec;
   --lnb-dark: #1f2430;
@@ -27,7 +27,7 @@
   --color-surface: var(--lnb-side);
   --color-field: var(--lnb-hover);
   --color-border: var(--lnb-line);
-  --color-border-2: #f0f0f2;
+  --color-border-2: #e2e5e9;
   --color-text: var(--lnb-txt);
   --color-text-2: #52525b;
   --color-text-muted: var(--lnb-muted);
