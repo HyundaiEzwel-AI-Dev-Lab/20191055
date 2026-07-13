@@ -1,6 +1,7 @@
 <script setup>
 // PAG-S-REQ-04/06 요구사항 등록·상세
 import { computed, reactive, watch } from 'vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import {
   requirementTypes,
   registerTaskTypes,
@@ -113,291 +114,204 @@ function save() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div v-if="modelValue" class="modal-scrim" @mousedown.self="close">
-      <div class="modal" role="dialog">
-        <div class="modal__head">
-          <span class="modal__title">{{ title }}</span>
-          <button type="button" class="modal__close" aria-label="닫기" @click="close">✕</button>
+  <BaseModal :title="title" :visible="modelValue" wide @close="close">
+    <section class="section">
+      <h3 class="section__title">요구사항 기본 정보</h3>
+      <div class="frow">
+        <div class="fld">
+          <label>요구사항 ID</label>
+          <div class="inp inp--ro">{{ form.reqId }}</div>
         </div>
-
-        <div class="modal__body">
-          <section class="section">
-            <h3 class="section__title">요구사항 기본 정보</h3>
-            <div class="frow">
-              <div class="fld">
-                <label>요구사항 ID</label>
-                <div class="inp inp--ro">{{ form.reqId }}</div>
-              </div>
-              <div class="fld fld--wide">
-                <label class="fld--req">요구사항명</label>
-                <input
-                  v-model="form.name"
-                  class="inp"
-                  type="text"
-                  maxlength="100"
-                  :disabled="!canEdit || isConfirmed"
-                />
-              </div>
-            </div>
-
-            <div class="fld">
-              <label class="fld--req">요구사항 원안</label>
-              <textarea
-                v-model="form.original"
-                class="textarea"
-                rows="4"
-                maxlength="2000"
-                placeholder="현업에서 발의한 개발 요청사항 입력"
-                :disabled="isEdit"
-              />
-            </div>
-
-            <div class="fld">
-              <label>요구사항 분석</label>
-              <textarea
-                v-model="form.analysis"
-                class="textarea"
-                rows="4"
-                maxlength="2000"
-                placeholder="테크(기획/개발)에서 상세 분석/정의한 내용 입력"
-                :disabled="!canEdit || isConfirmed"
-              />
-            </div>
-
-            <div class="fld">
-              <label class="fld--req">구분</label>
-              <div class="seg">
-                <button
-                  v-for="t in requirementTypes"
-                  :key="t"
-                  type="button"
-                  class="seg__btn"
-                  :class="{ 'seg__btn--on': form.reqType === t }"
-                  :disabled="isEdit"
-                  @click="form.reqType = t"
-                >
-                  {{ t }}
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section class="section">
-            <h3 class="section__title">업무범주</h3>
-            <div class="frow frow--3">
-              <div class="fld fld--req">
-                <label>시스템구분</label>
-                <select
-                  v-model="form.system"
-                  class="inp"
-                  :disabled="!canEdit || isConfirmed"
-                  @change="onSystemChange"
-                >
-                  <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-                </select>
-              </div>
-              <div class="fld fld--req">
-                <label>업무구분</label>
-                <select
-                  v-model="form.bizCategory"
-                  class="inp"
-                  :disabled="!canEdit || isConfirmed"
-                >
-                  <option v-for="b in bizOptions" :key="b" :value="b">{{ b }}</option>
-                </select>
-              </div>
-              <div class="fld">
-                <label>화면(메뉴)</label>
-                <input
-                  v-model="form.screenMenu"
-                  class="inp"
-                  type="text"
-                  :disabled="!canEdit || isConfirmed"
-                />
-              </div>
-            </div>
-            <div class="fld fld--req">
-              <label>업무유형</label>
-              <div class="chips">
-                <button
-                  v-for="t in registerTaskTypes"
-                  :key="t"
-                  type="button"
-                  class="chip-btn"
-                  :class="{ 'chip-btn--on': form.taskTypes.includes(t) }"
-                  :disabled="!canEdit || isConfirmed"
-                  @click="toggleTaskType(t)"
-                >
-                  {{ t }}
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section class="section">
-            <h3 class="section__title">추가 정보</h3>
-            <div class="frow frow--2">
-              <div class="fld">
-                <label>상태</label>
-                <div class="seg">
-                  <button
-                    v-for="s in ['접수', '수용', '반려']"
-                    :key="s"
-                    type="button"
-                    class="seg__btn"
-                    :class="{ 'seg__btn--on': form.status === s }"
-                    :disabled="!canEdit || isConfirmed"
-                    @click="form.status = s"
-                  >
-                    {{ s }}
-                  </button>
-                </div>
-              </div>
-              <div class="fld">
-                <label>우선순위</label>
-                <div class="seg">
-                  <button
-                    v-for="p in ['낮음', '보통', '높음']"
-                    :key="p"
-                    type="button"
-                    class="seg__btn"
-                    :class="{ 'seg__btn--on': form.priority === p }"
-                    :disabled="!canEdit || isConfirmed"
-                    @click="form.priority = p"
-                  >
-                    {{ p }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="confirm-row">
-              <label class="confirm-item">
-                <input
-                  v-model="form.confirmRequester"
-                  type="checkbox"
-                  :disabled="!canEdit || form.status === '접수' || isConfirmed"
-                />
-                요건확정 (요청자)
-              </label>
-              <label class="confirm-item">
-                <input
-                  v-model="form.confirmTech"
-                  type="checkbox"
-                  :disabled="!canEdit || form.status === '접수' || isConfirmed"
-                />
-                요건확정 (테크)
-              </label>
-            </div>
-
-            <div class="fld">
-              <label>비고</label>
-              <textarea
-                v-model="form.memo"
-                class="textarea"
-                rows="2"
-                maxlength="500"
-                :disabled="!canEdit || isConfirmed"
-              />
-              <span class="count">{{ memoCount }} / 500자</span>
-            </div>
-          </section>
+        <div class="fld fld--wide">
+          <label class="fld--req">요구사항명</label>
+          <input
+            v-model="form.name"
+            class="inp"
+            type="text"
+            maxlength="100"
+            :disabled="!canEdit || isConfirmed"
+          />
         </div>
+      </div>
 
-        <div class="modal__foot">
-          <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <div class="fld">
+        <label class="fld--req">요구사항 원안</label>
+        <textarea
+          v-model="form.original"
+          class="textarea"
+          rows="4"
+          maxlength="2000"
+          placeholder="현업에서 발의한 개발 요청사항 입력"
+          :disabled="isEdit"
+        />
+      </div>
+
+      <div class="fld">
+        <label>요구사항 분석</label>
+        <textarea
+          v-model="form.analysis"
+          class="textarea"
+          rows="4"
+          maxlength="2000"
+          placeholder="테크(기획/개발)에서 상세 분석/정의한 내용 입력"
+          :disabled="!canEdit || isConfirmed"
+        />
+      </div>
+
+      <div class="fld">
+        <label class="fld--req">구분</label>
+        <div class="seg">
           <button
-            v-if="canEdit && !isConfirmed"
+            v-for="t in requirementTypes"
+            :key="t"
             type="button"
-            class="btn btn--primary"
-            @click="save"
+            class="seg__btn"
+            :class="{ 'seg__btn--on': form.reqType === t }"
+            :disabled="isEdit"
+            @click="form.reqType = t"
           >
-            {{ isEdit ? '수정' : '등록' }}
+            {{ t }}
           </button>
         </div>
       </div>
-    </div>
-  </Teleport>
+    </section>
+
+    <section class="section">
+      <h3 class="section__title">업무범주</h3>
+      <div class="frow frow--3">
+        <div class="fld fld--req">
+          <label>시스템구분</label>
+          <select
+            v-model="form.system"
+            class="inp"
+            :disabled="!canEdit || isConfirmed"
+            @change="onSystemChange"
+          >
+            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="fld fld--req">
+          <label>업무구분</label>
+          <select
+            v-model="form.bizCategory"
+            class="inp"
+            :disabled="!canEdit || isConfirmed"
+          >
+            <option v-for="b in bizOptions" :key="b" :value="b">{{ b }}</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>화면(메뉴)</label>
+          <input
+            v-model="form.screenMenu"
+            class="inp"
+            type="text"
+            :disabled="!canEdit || isConfirmed"
+          />
+        </div>
+      </div>
+      <div class="fld fld--req">
+        <label>업무유형</label>
+        <div class="chips">
+          <button
+            v-for="t in registerTaskTypes"
+            :key="t"
+            type="button"
+            class="chip-btn"
+            :class="{ 'chip-btn--on': form.taskTypes.includes(t) }"
+            :disabled="!canEdit || isConfirmed"
+            @click="toggleTaskType(t)"
+          >
+            {{ t }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section__title">추가 정보</h3>
+      <div class="frow frow--2">
+        <div class="fld">
+          <label>상태</label>
+          <div class="seg">
+            <button
+              v-for="s in ['접수', '수용', '반려']"
+              :key="s"
+              type="button"
+              class="seg__btn"
+              :class="{ 'seg__btn--on': form.status === s }"
+              :disabled="!canEdit || isConfirmed"
+              @click="form.status = s"
+            >
+              {{ s }}
+            </button>
+          </div>
+        </div>
+        <div class="fld">
+          <label>우선순위</label>
+          <div class="seg">
+            <button
+              v-for="p in ['낮음', '보통', '높음']"
+              :key="p"
+              type="button"
+              class="seg__btn"
+              :class="{ 'seg__btn--on': form.priority === p }"
+              :disabled="!canEdit || isConfirmed"
+              @click="form.priority = p"
+            >
+              {{ p }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="confirm-row">
+        <label class="confirm-item">
+          <input
+            v-model="form.confirmRequester"
+            type="checkbox"
+            :disabled="!canEdit || form.status === '접수' || isConfirmed"
+          />
+          요건확정 (요청자)
+        </label>
+        <label class="confirm-item">
+          <input
+            v-model="form.confirmTech"
+            type="checkbox"
+            :disabled="!canEdit || form.status === '접수' || isConfirmed"
+          />
+          요건확정 (테크)
+        </label>
+      </div>
+
+      <div class="fld">
+        <label>비고</label>
+        <textarea
+          v-model="form.memo"
+          class="textarea"
+          rows="2"
+          maxlength="500"
+          :disabled="!canEdit || isConfirmed"
+        />
+        <span class="count">{{ memoCount }} / 500자</span>
+      </div>
+    </section>
+
+    <template #footer>
+      <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <button
+        v-if="canEdit && !isConfirmed"
+        type="button"
+        class="btn btn--primary"
+        @click="save"
+      >
+        {{ isEdit ? '수정' : '등록' }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <style scoped>
-.modal-scrim {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-50: #e6f4f2;
-  --ink: #1f2a30;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --red: #e0524a;
-  --shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
-
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 30, 34, 0.34);
-  z-index: 1200;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 40px 16px;
-  font-family: var(--font-family);
-  color: var(--ink);
-}
-
-.modal {
-  width: 760px;
-  max-width: 96vw;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.modal__head {
-  display: flex;
-  align-items: center;
-  padding: 15px 18px;
-  border-bottom: 1px solid var(--line-2);
-  flex-shrink: 0;
-}
-
-.modal__title {
-  font-weight: 800;
-  font-size: 14px;
-}
-
-.modal__close {
-  margin-left: auto;
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.modal__body {
-  padding: 16px 18px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.modal__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 14px 18px;
-  border-top: 1px solid var(--line-2);
-  flex-shrink: 0;
-}
-
 .section {
   margin-bottom: 18px;
 }
@@ -440,23 +354,25 @@ function save() {
 
 .fld label {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--lnb-muted);
   font-weight: 600;
 }
 
 .inp {
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   border-radius: 7px;
   font-family: inherit;
   font-size: 12px;
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .inp--ro {
   background: var(--field);
-  color: var(--muted);
+  color: var(--lnb-muted);
+  display: flex;
+  align-items: center;
 }
 
 .inp:disabled,
@@ -468,7 +384,7 @@ function save() {
 .textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   border-radius: 8px;
   font-family: inherit;
   font-size: 13px;
@@ -478,13 +394,13 @@ function save() {
 
 .count {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--lnb-muted);
   text-align: right;
 }
 
 .seg {
   display: inline-flex;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -493,11 +409,11 @@ function save() {
   padding: 6px 12px;
   font-size: 12px;
   border: none;
-  border-right: 1px solid var(--line);
-  background: #fff;
+  border-right: 1px solid var(--lnb-line);
+  background: var(--lnb-side);
   cursor: pointer;
   font-family: inherit;
-  color: var(--ink);
+  color: var(--lnb-txt);
 }
 
 .seg__btn:last-child {
@@ -524,9 +440,9 @@ function save() {
 .chip-btn {
   height: 28px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
@@ -534,7 +450,7 @@ function save() {
 
 .chip-btn--on {
   background: var(--teal-50);
-  border-color: #cfe9e5;
+  border-color: var(--teal-100);
   color: var(--teal-600);
   font-weight: 700;
 }
@@ -556,31 +472,5 @@ function save() {
   gap: 6px;
   font-size: 12.5px;
   cursor: pointer;
-}
-
-.btn {
-  height: 32px;
-  padding: 0 18px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn--primary {
-  background: var(--teal);
-  color: #fff;
-}
-
-.btn--primary:hover {
-  background: var(--teal-600);
-}
-
-.btn--ghost {
-  background: #fff;
-  border-color: var(--line);
-  color: var(--ink);
 }
 </style>

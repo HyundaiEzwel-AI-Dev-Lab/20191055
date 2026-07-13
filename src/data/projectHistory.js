@@ -16,7 +16,7 @@ export const changePeriodOptions = [
   { label: '3개월', value: '3m', months: 3 },
   { label: '전체', value: 'all', months: null },
 ]
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 export const historyDevDeptOptions = [
   '전체',

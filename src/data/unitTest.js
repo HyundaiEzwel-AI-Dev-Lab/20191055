@@ -11,7 +11,7 @@ export const unitTestMeta = {
 }
 
 export const unitResultOptions = ['전체', '대기', '정상', '오류', '테스트불가', '개선필요']
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 const CURRENT_USER = '김현대'
 

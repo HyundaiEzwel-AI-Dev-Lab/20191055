@@ -12,7 +12,7 @@ export const statusOptions = ['전체', '접수', '수용', '반려']
 export const priorityOptions = ['전체', '낮음', '보통', '높음']
 export const confirmOptions = ['전체', '미확정', '확정']
 export const periodOptions = ['등록일', '수정일']
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 export const systemOptions = ['HIMS', 'HPAS', 'HCAS', 'HIMS(정산)', 'FO']
 export const bizCategoryMap = {

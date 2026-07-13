@@ -52,7 +52,7 @@ export const devDepts = [
   '인프라팀',
 ]
 
-export const stageOptions = ['전체', '접수', '협의중', '처리중', '테스트', '완료', '반려']
+export { stageFilterOptions as stageOptions } from './commonOptions'
 
 /** 프로젝트 목록 행 */
 export const dashboardProjects = [

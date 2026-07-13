@@ -2,6 +2,7 @@
 // POP-M-COM-03 비밀번호 재설정 (레이어 팝업)
 // figma: 19_팝업_비밀번호재설정.html / 기획서: 로그인.pdf (2/2)
 import { reactive, ref, computed, onBeforeUnmount } from 'vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import { findUserForReset } from '@/data/mockUsers'
 
 defineProps({
@@ -188,129 +189,179 @@ onBeforeUnmount(clearTimer)
 </script>
 
 <template>
+  <BaseModal title="비밀번호 재설정" :visible="modelValue" @close="close">
+    <div class="frow">
+      <div class="fld">
+        <label>이름</label>
+        <input v-model="form.name" class="inp" type="text" :disabled="codeSent" />
+      </div>
+      <div class="fld">
+        <label>사번 / ID</label>
+        <input v-model="form.empId" class="inp" type="text" :disabled="codeSent" />
+      </div>
+    </div>
+
+    <div class="divider" />
+
+    <div class="fld fld--gap">
+      <label>휴대전화 (- 제외)</label>
+      <div class="row">
+        <input v-model="form.phone" class="inp" type="text" :disabled="codeSent" />
+        <button v-if="!codeSent" type="button" class="btn btn--ghost btn--sm" @click="sendCode">
+          인증번호
+        </button>
+        <button v-else type="button" class="btn btn--ghost btn--sm" @click="resend">재발송</button>
+      </div>
+    </div>
+
+    <div v-if="codeSent" class="fld fld--gap-sm">
+      <label>인증번호</label>
+      <div class="row">
+        <input
+          v-model="form.code"
+          class="inp"
+          type="text"
+          maxlength="6"
+          :disabled="verified"
+        />
+        <span v-if="!verified" class="timer">{{ timerLabel }}</span>
+        <button
+          type="button"
+          class="btn btn--ghost btn--sm"
+          :disabled="verified"
+          @click="verify"
+        >
+          인증
+        </button>
+      </div>
+    </div>
+    <div v-if="verified" class="okmsg">✓ 인증에 성공하셨습니다.</div>
+
+    <template v-if="verified">
+      <div class="divider" />
+
+      <div class="fld fld--gap">
+        <label>신규 비밀번호</label>
+        <div class="inp inp--flex">
+          <input
+            v-model="form.next"
+            :type="showNext ? 'text' : 'password'"
+            placeholder="PASSWORD"
+            class="bare"
+          />
+          <span class="eye" @click="showNext = !showNext">
+            <svg
+              v-if="showNext"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 3l18 18" />
+              <path
+                d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3"
+              />
+              <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div class="fld fld--gap-lg">
+        <label>신규 비밀번호 확인</label>
+        <div class="inp inp--flex">
+          <input
+            v-model="form.confirm"
+            :type="showConfirm ? 'text' : 'password'"
+            placeholder="PASSWORD"
+            class="bare"
+          />
+          <span class="eye" @click="showConfirm = !showConfirm">
+            <svg
+              v-if="showConfirm"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 3l18 18" />
+              <path
+                d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3"
+              />
+              <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      <div class="rule">
+        <b>비밀번호 생성 규칙</b><br />
+        · 영문/숫자/특수문자 포함 8자리 이상<br />
+        · 영문 대/소문자·숫자·특수문자 중 2종 이상 조합 필수<br />
+        · 동일 문자 연속 3회 이상 사용 불가<br />
+        · 공백 문자 사용 불가
+      </div>
+    </template>
+
+    <template #footer>
+      <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <button type="button" class="btn btn--primary" @click="save">저장</button>
+    </template>
+  </BaseModal>
+
   <Teleport to="body">
-    <div v-if="modelValue" class="modalScrim show" @mousedown.self="close">
-      <div class="modal" style="width:460px">
-        <div class="mh">
-          <span class="t">비밀번호 재설정</span>
-          <span class="close" @click="close">✕</span>
-        </div>
-
-        <div class="mb">
-          <div class="frow" style="grid-template-columns:1fr">
-            <div class="fld">
-              <label>이름</label>
-              <input v-model="form.name" class="inp w" type="text" :disabled="codeSent" />
-            </div>
-            <div class="fld">
-              <label>사번 / ID</label>
-              <input v-model="form.empId" class="inp w" type="text" :disabled="codeSent" />
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="fld" style="margin-bottom:10px">
-            <label>휴대전화 (- 제외)</label>
-            <div style="display:flex;gap:8px">
-              <input v-model="form.phone" class="inp w" type="text" style="flex:1" :disabled="codeSent" />
-              <button v-if="!codeSent" class="btn ghost sm" @click="sendCode">인증번호</button>
-              <button v-else class="btn ghost sm" @click="resend">재발송</button>
-            </div>
-          </div>
-
-          <div v-if="codeSent" class="fld" style="margin-bottom:6px">
-            <label>인증번호</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input v-model="form.code" class="inp w" type="text" maxlength="6" style="flex:1" :disabled="verified" />
-              <span v-if="!verified" class="timer">{{ timerLabel }}</span>
-              <button class="btn ghost sm" @click="verify" :disabled="verified">인증</button>
-            </div>
-          </div>
-          <div v-if="verified" class="okmsg">✓ 인증에 성공하셨습니다.</div>
-
-          <template v-if="verified">
-            <div class="divider"></div>
-
-            <div class="fld" style="margin-bottom:10px">
-              <label>신규 비밀번호</label>
-              <div class="inp w" style="justify-content:space-between">
-                <input
-                  v-model="form.next"
-                  :type="showNext ? 'text' : 'password'"
-                  placeholder="PASSWORD"
-                  class="bare"
-                />
-                <span class="eye" @click="showNext = !showNext">
-                  <svg v-if="showNext" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3l18 18" />
-                    <path d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3" />
-                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-            <div class="fld" style="margin-bottom:14px">
-              <label>신규 비밀번호 확인</label>
-              <div class="inp w" style="justify-content:space-between">
-                <input
-                  v-model="form.confirm"
-                  :type="showConfirm ? 'text' : 'password'"
-                  placeholder="PASSWORD"
-                  class="bare"
-                />
-                <span class="eye" @click="showConfirm = !showConfirm">
-                  <svg v-if="showConfirm" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3l18 18" />
-                    <path d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3" />
-                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-
-            <div class="card pad rule">
-              <b>비밀번호 생성 규칙</b><br />
-              · 영문/숫자/특수문자 포함 8자리 이상<br />
-              · 영문 대/소문자·숫자·특수문자 중 2종 이상 조합 필수<br />
-              · 동일 문자 연속 3회 이상 사용 불가<br />
-              · 공백 문자 사용 불가
-            </div>
-          </template>
-        </div>
-
-        <div class="mf">
-          <button class="btn ghost" @click="close">취소</button>
-          <button class="btn primary" @click="save">저장</button>
+    <div v-if="infoAlert.show" class="alert-scrim">
+      <div class="alert-box">
+        <p class="alert-box__msg">{{ infoAlert.message }}</p>
+        <div class="alert-box__actions">
+          <button type="button" class="btn btn--primary" @click="confirmInfo">확인</button>
         </div>
       </div>
+    </div>
 
-      <!-- 알럿 -->
-      <div v-if="infoAlert.show" class="alertScrim">
-        <div class="alertbox">
-          <p class="am">{{ infoAlert.message }}</p>
-          <div class="ab">
-            <button class="btn primary" @click="confirmInfo">확인</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 컨펌 -->
-      <div v-if="confirmDialog.show" class="alertScrim">
-        <div class="alertbox">
-          <p class="am">{{ confirmDialog.message }}</p>
-          <div class="ab">
-            <button class="btn ghost" @click="confirmDialog.show = false">취소</button>
-            <button class="btn primary" @click="acceptConfirm">확인</button>
-          </div>
+    <div v-if="confirmDialog.show" class="alert-scrim">
+      <div class="alert-box">
+        <p class="alert-box__msg">{{ confirmDialog.message }}</p>
+        <div class="alert-box__actions">
+          <button type="button" class="btn btn--ghost" @click="confirmDialog.show = false">
+            취소
+          </button>
+          <button type="button" class="btn btn--primary" @click="acceptConfirm">확인</button>
         </div>
       </div>
     </div>
@@ -318,113 +369,69 @@ onBeforeUnmount(clearTimer)
 </template>
 
 <style scoped>
-.modalScrim {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-100: #cfe9e5;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --red: #e0524a;
-  --green: #1f9d57;
-  --shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 30, 34, 0.34);
-  z-index: 1200;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 70px 16px;
-  font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  color: var(--ink);
-}
-
-.modal {
-  max-width: 92vw;
-  max-height: 84vh;
-  overflow: auto;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-}
-
-.mh {
-  display: flex;
-  align-items: center;
-  padding: 15px 18px;
-  border-bottom: 1px solid var(--line-2);
-}
-.mh .t {
-  font-weight: 800;
-  font-size: 14px;
-}
-.mh .close {
-  margin-left: auto;
-  color: var(--muted);
-  cursor: pointer;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mb {
-  padding: 18px;
-}
-.mf {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 14px 18px;
-  border-top: 1px solid var(--line-2);
-}
-
 .frow {
   display: grid;
   gap: 10px 14px;
 }
+
 .fld {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+
+.fld--gap {
+  margin-bottom: 10px;
+}
+
+.fld--gap-sm {
+  margin-bottom: 6px;
+}
+
+.fld--gap-lg {
+  margin-bottom: 14px;
+}
+
 .fld label {
   font-size: 11px;
   color: var(--muted);
   font-weight: 600;
 }
 
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .inp {
   height: 32px;
-  background: var(--field);
-  border: 1px solid var(--line);
+  width: 100%;
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
   border-radius: 7px;
   padding: 0 10px;
   display: flex;
   align-items: center;
-  color: var(--ink-2);
+  color: var(--lnb-txt);
   font-size: 12px;
-}
-.inp.w {
-  background: #fff;
-}
-input.inp {
   font-family: inherit;
-  width: 100%;
 }
+
+.inp--flex {
+  justify-content: space-between;
+}
+
 input.inp:focus {
   outline: none;
   border-color: var(--teal);
 }
+
 input.inp:disabled {
   background: var(--field);
   color: var(--muted);
 }
+
 .bare {
   flex: 1;
   border: none;
@@ -432,23 +439,26 @@ input.inp:disabled {
   outline: none;
   font-size: 12px;
   font-family: inherit;
-  color: var(--ink-2);
+  color: var(--lnb-txt);
 }
+
 .bare::placeholder {
   color: var(--muted);
 }
+
 .eye {
   cursor: pointer;
   color: var(--muted);
   display: flex;
   align-items: center;
 }
+
 .eye:hover {
-  color: var(--ink-2);
+  color: var(--lnb-txt);
 }
 
 .divider {
-  border-top: 1px solid var(--line-2);
+  border-top: 1px solid var(--lnb-line);
   margin: 14px 0;
 }
 
@@ -458,70 +468,24 @@ input.inp:disabled {
   font-weight: 700;
   white-space: nowrap;
 }
+
 .okmsg {
   font-size: 11px;
   color: var(--green);
   margin-bottom: 14px;
 }
 
-.card {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-.pad {
-  padding: 14px 16px;
-}
 .rule {
   background: var(--field);
+  border: 1px solid var(--lnb-line);
+  border-radius: 10px;
+  padding: 14px 16px;
   font-size: 11.5px;
-  color: var(--ink-2);
+  color: var(--lnb-txt);
   line-height: 1.9;
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: center;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-}
-.btn.sm {
-  height: 32px;
-  padding: 0 10px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.btn.primary {
-  background: var(--teal);
-  color: #fff;
-}
-.btn.primary:hover {
-  background: var(--teal-600);
-}
-.btn.ghost {
-  background: #fff;
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-}
-.btn.ghost:hover {
-  border-color: var(--teal-100);
-  color: var(--teal-600);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 알럿 / 컨펌 박스 */
-.alertScrim {
+.alert-scrim {
   position: fixed;
   inset: 0;
   background: rgba(18, 30, 34, 0.34);
@@ -530,27 +494,31 @@ input.inp:disabled {
   align-items: center;
   justify-content: center;
 }
-.alertbox {
+
+.alert-box {
   width: 330px;
   max-width: 90vw;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 14px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
   text-align: center;
   padding: 24px 22px 18px;
 }
-.alertbox .am {
+
+.alert-box__msg {
   font-size: 13.5px;
   line-height: 1.6;
   margin: 0;
   white-space: pre-line;
 }
-.alertbox .ab {
+
+.alert-box__actions {
   display: flex;
   gap: 8px;
   margin-top: 18px;
 }
-.alertbox .ab .btn {
+
+.alert-box__actions .btn {
   flex: 1;
 }
 </style>

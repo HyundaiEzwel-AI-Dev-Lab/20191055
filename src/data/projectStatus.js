@@ -30,8 +30,7 @@ export const devDepts = [
   '백오피스팀',
 ]
 
-export const stageOptions = ['전체', '접수', '협의중', '처리중', '테스트', '완료', '반려']
-export const pageSizeOptions = [20, 50, 100]
+export { stageFilterOptions as stageOptions, pageSizeOptions } from './commonOptions'
 
 const IN_PROGRESS_STAGES = ['협의중', '처리중', '테스트']
 

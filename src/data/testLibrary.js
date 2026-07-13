@@ -7,7 +7,7 @@ export const testLibraryMeta = {
 
 export const systemOptions = ['전체', 'FO', 'HIMS', 'HPAS', 'HCAS']
 export const typeOptions = ['전체', 'DEV', '운영']
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 export const libraryList = [
   {

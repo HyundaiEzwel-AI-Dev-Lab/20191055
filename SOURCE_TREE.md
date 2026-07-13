@@ -147,16 +147,8 @@ src/components/
 │   └── SubTabBar.vue                   # 2단 Tab UI
 │
 ├── ui/                                 # 재사용 UI
-│   ├── BaseButton.vue                  # 공통 버튼
 │   ├── BaseModal.vue                   # 공통 모달 셸
-│   ├── ExcelDownloadButton.vue         # 엑셀 다운로드 아이콘 버튼
-│   ├── StatusBadge.vue                 # 상태 뱃지
-│   ├── KpiCard.vue                     # KPI 카드
-│   ├── FilterBar.vue                   # 검색조건 바
-│   ├── DataTable.vue                   # 데이터 테이블
-│   ├── Pager.vue                       # 페이지네이션
-│   ├── ChipInput.vue                   # 칩 입력
-│   └── SegmentedControl.vue            # 세그먼트 컨트롤
+│   └── ExcelDownloadButton.vue         # 엑셀 다운로드 아이콘 버튼
 │
 ├── header/                             # 헤더 레이어 팝업 (POP-M-COM-04~07)
 │   ├── HeaderLayerModal.vue            # 헤더 팝업 공용 셸
@@ -191,9 +183,7 @@ src/components/
 │
 └── test/
     ├── UnitTestDetailModal.vue         # 단위테스트 상세
-    ├── ScenarioEditModal.vue           # 시나리오 편집
     ├── ScenarioBulkRegisterModal.vue   # 시나리오 일괄등록
-    ├── TestRunDetailModal.vue          # 테스트 수행 상세
     ├── TestErrorRegisterModal.vue      # 오류 등록
     └── DefectDetailModal.vue           # 결함 상세
 ```
@@ -204,8 +194,8 @@ src/components/
 
 ```
 src/data/
+├── commonOptions.js                    # pageSize·진행단계 공통 옵션
 ├── mockUsers.js                        # 로그인/비밀번호 재설정 사용자
-├── mockProjects.js                     # 프로젝트 목록 목업
 ├── sidebarMenu.js                      # LNB 메뉴 트리 정의
 ├── headerPopups.js                     # 검색·알림·내프로젝트·내정보 목업
 ├── inbox.js / inboxCalendar.js         # 내업무 카드/캘린더

@@ -1,7 +1,7 @@
 // PAG-S-INF-01 프로젝트 정보 목업
 // SB p.55~60, figma: 11_프로젝트정보.html
 
-export const stageOptions = ['접수', '협의중', '처리중', '테스트', '완료', '반려']
+export { projectStageOptions as stageOptions } from './commonOptions'
 
 export const initiatorOptions = ['고객사', '이지웰', '테크', '그룹사']
 export const devTypeOptions = ['신규', '개선']

@@ -1,6 +1,7 @@
 <script setup>
 // POP-S-INF-02 테스터 변경
 import { computed, ref, watch } from 'vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import { searchStaff } from '@/data/projectInfo'
 
 const props = defineProps({
@@ -81,162 +82,92 @@ function onAlertConfirm() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div v-if="modelValue" class="modal-scrim" @mousedown.self="close">
-      <div class="modal" role="dialog" aria-labelledby="tester-change-title">
-        <div class="modal__head">
-          <span id="tester-change-title" class="modal__title">테스터 변경</span>
-          <button type="button" class="modal__close" aria-label="닫기" @click="close">✕</button>
-        </div>
+  <BaseModal title="테스터 변경" :visible="modelValue" @close="close">
+    <div v-if="pendingChange" class="pending-box">
+      <p class="pending-box__title">현재 변경 예정 건이 존재합니다.</p>
+      <p class="pending-box__line">
+        {{ pendingChange.from.name }} / {{ pendingChange.from.dept }} / {{ pendingChange.from.empId }}
+        → {{ pendingChange.to.name }} / {{ pendingChange.to.dept }} / {{ pendingChange.to.empId }}
+      </p>
+      <p class="pending-box__meta">변경 적용일 : {{ pendingChange.applyDate }}</p>
+      <p class="pending-box__hint">새로운 변경을 저장하면 기존 예약은 변경됩니다.</p>
+    </div>
 
-        <div class="modal__body">
-          <div v-if="pendingChange" class="pending-box">
-            <p class="pending-box__title">현재 변경 예정 건이 존재합니다.</p>
-            <p class="pending-box__line">
-              {{ pendingChange.from.name }} / {{ pendingChange.from.dept }} / {{ pendingChange.from.empId }}
-              → {{ pendingChange.to.name }} / {{ pendingChange.to.dept }} / {{ pendingChange.to.empId }}
-            </p>
-            <p class="pending-box__meta">변경 적용일 : {{ pendingChange.applyDate }}</p>
-            <p class="pending-box__hint">새로운 변경을 저장하면 기존 예약은 변경됩니다.</p>
-          </div>
+    <div class="field">
+      <label class="field__label field__label--req">변경 대상</label>
+      <select v-model="targetId" class="field__select">
+        <option v-for="t in testers" :key="t.id" :value="t.id">
+          {{ t.name }} / {{ t.dept }} / {{ t.empId || '—' }}
+        </option>
+      </select>
+    </div>
 
-          <div class="field">
-            <label class="field__label field__label--req">변경 대상</label>
-            <select v-model="targetId" class="field__select">
-              <option v-for="t in testers" :key="t.id" :value="t.id">
-                {{ t.name }} / {{ t.dept }} / {{ t.empId || '—' }}
-              </option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="field__label field__label--req">변경 후 담당자</label>
-            <div class="search-wrap">
-              <input
-                v-model="searchKeyword"
-                class="field__input"
-                type="text"
-                placeholder="담당자 검색"
-                @input="onSearchInput"
-                @focus="showResults = searchKeyword.trim().length > 0"
-              />
-              <button
-                v-if="selectedStaff"
-                type="button"
-                class="search-wrap__clear"
-                @click="clearStaff"
-              >
-                ✕
-              </button>
-              <ul v-if="showResults" class="search-results">
-                <li v-if="!searchResults.length" class="search-results__empty">
-                  해당사항 없음
-                </li>
-                <li
-                  v-for="staff in searchResults"
-                  :key="staff.id"
-                  class="search-results__item"
-                  @mousedown.prevent="selectStaff(staff)"
-                >
-                  {{ staff.name }} / {{ staff.dept }} / {{ staff.empId }}
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="field">
-            <label class="field__label field__label--req">변경 적용일</label>
-            <input v-model="applyDate" class="field__input" type="date" :min="today" />
-          </div>
-
-          <ul class="info-list">
-            <li>변경 적용일 이전까지는 기존 테스트 담당자가 유지되고, 변경 적용일 이후에는 변경 후 담당자가 적용됩니다.</li>
-            <li>이미 완료 된 테스트 케이스 및 등록 된 결함의 담당자는 변경되지 않습니다.</li>
-          </ul>
-        </div>
-
-        <div class="modal__foot">
-          <button type="button" class="btn btn--primary" :disabled="!canSubmit" @click="submit">
-            변경하기
-          </button>
-        </div>
+    <div class="field">
+      <label class="field__label field__label--req">변경 후 담당자</label>
+      <div class="search-wrap">
+        <input
+          v-model="searchKeyword"
+          class="field__input"
+          type="text"
+          placeholder="담당자 검색"
+          @input="onSearchInput"
+          @focus="showResults = searchKeyword.trim().length > 0"
+        />
+        <button
+          v-if="selectedStaff"
+          type="button"
+          class="search-wrap__clear"
+          @click="clearStaff"
+        >
+          ✕
+        </button>
+        <ul v-if="showResults" class="search-results">
+          <li v-if="!searchResults.length" class="search-results__empty">
+            해당사항 없음
+          </li>
+          <li
+            v-for="staff in searchResults"
+            :key="staff.id"
+            class="search-results__item"
+            @mousedown.prevent="selectStaff(staff)"
+          >
+            {{ staff.name }} / {{ staff.dept }} / {{ staff.empId }}
+          </li>
+        </ul>
       </div>
+    </div>
 
-      <div v-if="showSavedAlert" class="alert-scrim">
-        <div class="alert-box">
-          <p>테스터 변경이 저장되었습니다.</p>
-          <button type="button" class="btn btn--primary" @click="onAlertConfirm">확인</button>
-        </div>
+    <div class="field">
+      <label class="field__label field__label--req">변경 적용일</label>
+      <input v-model="applyDate" class="field__input" type="date" :min="today" />
+    </div>
+
+    <ul class="info-list">
+      <li>변경 적용일 이전까지는 기존 테스트 담당자가 유지되고, 변경 적용일 이후에는 변경 후 담당자가 적용됩니다.</li>
+      <li>이미 완료 된 테스트 케이스 및 등록 된 결함의 담당자는 변경되지 않습니다.</li>
+    </ul>
+
+    <template #footer>
+      <button type="button" class="btn btn--primary" :disabled="!canSubmit" @click="submit">
+        변경하기
+      </button>
+    </template>
+  </BaseModal>
+
+  <Teleport to="body">
+    <div v-if="showSavedAlert" class="alert-scrim">
+      <div class="alert-box">
+        <p>테스터 변경이 저장되었습니다.</p>
+        <button type="button" class="btn btn--primary" @click="onAlertConfirm">확인</button>
       </div>
     </div>
   </Teleport>
 </template>
 
 <style scoped>
-.modal-scrim {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-50: #e6f4f2;
-  --ink: #1f2a30;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --orange: #e08a2b;
-  --orange-bg: #fcf0e1;
-  --shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
-
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 30, 34, 0.34);
-  z-index: 1200;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 70px 16px;
-  font-family: var(--font-family);
-  color: var(--ink);
-}
-
-.modal {
-  width: 520px;
-  max-width: 92vw;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.modal__head {
-  display: flex;
-  align-items: center;
-  padding: 15px 18px;
-  border-bottom: 1px solid var(--line-2);
-}
-
-.modal__title {
-  font-weight: 800;
-  font-size: 14px;
-}
-
-.modal__close {
-  margin-left: auto;
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.modal__body {
-  padding: 18px;
-}
-
 .pending-box {
   background: var(--orange-bg);
-  border: 1px solid #f0d4a8;
+  border: 1px solid var(--orange);
   border-radius: 10px;
   padding: 12px 14px;
   margin-bottom: 16px;
@@ -254,12 +185,12 @@ function onAlertConfirm() {
 .pending-box__meta,
 .pending-box__hint {
   margin: 0 0 4px;
-  color: var(--ink);
+  color: var(--lnb-txt);
 }
 
 .pending-box__hint {
   margin-top: 8px;
-  color: var(--muted);
+  color: var(--lnb-muted);
   font-size: 11px;
 }
 
@@ -272,12 +203,12 @@ function onAlertConfirm() {
   margin-bottom: 5px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--lnb-muted);
 }
 
 .field__label--req::after {
   content: ' *';
-  color: #e0524a;
+  color: var(--red);
 }
 
 .field__select,
@@ -285,11 +216,11 @@ function onAlertConfirm() {
   width: 100%;
   height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   border-radius: 7px;
   font-family: inherit;
   font-size: 12.5px;
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .search-wrap {
@@ -304,9 +235,9 @@ function onAlertConfirm() {
   width: 22px;
   height: 22px;
   border: none;
-  background: var(--line-2);
+  background: var(--lnb-hover);
   border-radius: 50%;
-  color: var(--muted);
+  color: var(--lnb-muted);
   cursor: pointer;
   font-size: 11px;
 }
@@ -316,13 +247,16 @@ function onAlertConfirm() {
   left: 0;
   right: 0;
   top: calc(100% + 4px);
-  background: #fff;
-  border: 1px solid var(--line);
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
   max-height: 160px;
   overflow-y: auto;
   z-index: 10;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .search-results__item {
@@ -338,7 +272,7 @@ function onAlertConfirm() {
 .search-results__empty {
   padding: 12px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--lnb-muted);
   text-align: center;
 }
 
@@ -346,40 +280,8 @@ function onAlertConfirm() {
   margin: 0;
   padding-left: 16px;
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--lnb-muted);
   line-height: 1.6;
-}
-
-.modal__foot {
-  display: flex;
-  justify-content: flex-end;
-  padding: 14px 18px;
-  border-top: 1px solid var(--line-2);
-}
-
-.btn {
-  height: 32px;
-  padding: 0 18px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn--primary {
-  background: var(--teal);
-  color: #fff;
-}
-
-.btn--primary:hover:not(:disabled) {
-  background: var(--teal-600);
-}
-
-.btn--primary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .alert-scrim {
@@ -389,16 +291,16 @@ function onAlertConfirm() {
   align-items: center;
   justify-content: center;
   background: rgba(18, 30, 34, 0.2);
-  z-index: 1210;
+  z-index: 1300;
 }
 
 .alert-box {
   width: 300px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 12px;
   padding: 24px 20px 18px;
   text-align: center;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
 }
 
 .alert-box p {

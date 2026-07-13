@@ -7,7 +7,7 @@ export const approvalMeta = {
 export const approvalStatusOptions = ['전체', '승인요청', '승인완료', '승인반려']
 export const requestTypeOptions = ['전체', '일정', '일시중단']
 export const dateTypeOptions = ['요청일', '승인일']
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 export const approvalList = [
   {

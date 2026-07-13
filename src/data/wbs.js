@@ -12,14 +12,7 @@ export const progressStatusOptions = ['전체', '대기', '진행중', '완료',
 export const scheduleComplianceOptions = ['전체', '정상', '경과', '단축']
 export const difficultyOptions = ['상', '중', '하']
 
-export const systemOptions = ['HIMS', 'HPAS', 'HCAS', 'HIMS(정산)', 'FO']
-export const bizCategoryMap = {
-  FO: ['상품', '주문클레임', '회원/로그인/SSO', '고객사/제도', '법인숙박'],
-  HIMS: ['프로모션', '정산', '상품'],
-  HPAS: ['결제', '정산'],
-  HCAS: ['법인숙박', '복지혜택'],
-  'HIMS(정산)': ['정산', '대사'],
-}
+export { systemOptions, bizCategoryMap } from './requirement'
 
 export const assigneeOptions = {
   기획: ['권현대', '이현대'],

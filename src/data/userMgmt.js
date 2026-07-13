@@ -7,7 +7,7 @@ export const userMgmtMeta = {
 export const deptOptions = ['전체', '테크기획팀', '플랫폼팀', '개발팀', '디자인팀', '개발(외주)', '웹기획팀']
 export const roleOptions = ['전체', '마스터', '관리자', '사용자', '미설정']
 export const statusOptions = ['전체', '재직', '휴직', '퇴직', '잠금']
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 export const userList = [
   {

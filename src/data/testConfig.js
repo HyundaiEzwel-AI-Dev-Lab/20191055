@@ -6,7 +6,6 @@ export const UAT_ROUNDS = ['전체', 'STG', '운영1차', '운영2차', '운영3
 export const bizCategoryOptions = ['전체', '상품', '주문클레임', '회원/로그인', '법인숙박', '복지혜택', '정산', '결제']
 export const systemOptions = ['전체', 'FO', 'HIMS', 'HPAS', 'HCAS']
 
-export const unitTestStatusOptions = ['전체', '대기', '정상', '오류', '테스트불가', '개선필요']
 export const unitTaskTypeOptions = ['전체', '퍼블리싱', '개발']
 
 export const testResultOptions = ['전체', '대기', '정상', '오류', '기타', '수정완료', '재처리요청']
@@ -18,7 +17,7 @@ export const defectStatusOptions = actionStatusOptions
 export const defectGradeOptions = ['전체', 'Critical', 'Major', 'Minor']
 export const deployStatusOptions = ['전체', 'DEV배포', 'STG배포', '운영배포']
 
-export const pageSizeOptions = [20, 50, 100]
+export { pageSizeOptions } from './commonOptions'
 
 /** DEV / 운영 route param → 화면 옵션 */
 export function getModeConfig(mode = 'dev') {
