@@ -27,6 +27,24 @@ npm run preview
 
 접속·로그인 방법(테스트 계정)은 **`TEST_ACCOUNTS.md`** 를 참고하세요.
 
+### Pages 설정 (최초 1회)
+
+소스 루트(`main` / `(root)`)로 배포하면 Vite 앱이 동작하지 않습니다. 아래처럼 바꿔 주세요.
+
+1. Repo → **Settings → Pages**
+2. **Source:** Deploy from a branch
+3. **Branch:** `main` / **`/docs`** (root가 아님)
+4. Save 후 1~2분 뒤 https://hyundaiezwel-ai-dev-lab.github.io/20191055/ 접속
+
+Pages용 빌드 산출물은 `docs/` 폴더입니다. 화면 수정 후 배포할 때:
+
+```bash
+npm run build:pages
+git add docs
+git commit -m "Update GitHub Pages build"
+git push
+```
+
 ## 로고 교체
 
 로고 파일은 아래 경로에 고정되어 있습니다. **파일명을 변경하지 말고** 이미지만 교체하세요.
