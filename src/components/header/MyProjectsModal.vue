@@ -1,0 +1,96 @@
+<script setup>
+// POP-M-COM-06 내 프로젝트
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import HeaderLayerModal from './HeaderLayerModal.vue'
+import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
+import { myProjects } from '@/data/headerPopups'
+
+defineProps({
+  modelValue: { type: Boolean, default: false },
+})
+const emit = defineEmits(['update:modelValue'])
+
+const router = useRouter()
+const projectStore = useProjectStore()
+const tabsStore = useTabsStore()
+const keyword = ref('')
+
+const filtered = computed(() => {
+  const q = keyword.value.trim().toLowerCase()
+  if (!q) return myProjects
+  return myProjects.filter((p) =>
+    [p.name, p.stage, p.role].join(' ').toLowerCase().includes(q),
+  )
+})
+
+function close() {
+  emit('update:modelValue', false)
+}
+
+function selectProject(project) {
+  projectStore.setCurrentProject({
+    id: project.id,
+    name: project.name,
+    stage: project.stage,
+  })
+  projectStore.setProjectList(myProjects)
+  tabsStore.openProjectTab({
+    projectId: project.id,
+    title: project.name,
+    projectName: project.name,
+    route: '/project/info',
+  })
+  close()
+  router.push('/project/info')
+}
+
+function isSelected(project) {
+  return projectStore.currentProject?.id === project.id
+}
+</script>
+
+<template>
+  <HeaderLayerModal
+    :model-value="modelValue"
+    title="내 프로젝트"
+    width="520px"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
+    <div class="hdr-proj">
+      <div class="hdr-proj__search">
+        <input
+          v-model="keyword"
+          class="hdr-proj__input"
+          type="text"
+          placeholder="프로젝트명, 단계, 역할 검색"
+        />
+      </div>
+
+      <div class="hdr-section-title">
+        배정 프로젝트 <span class="hdr-section-title__cnt">({{ filtered.length }}건)</span>
+      </div>
+
+      <div v-if="!filtered.length" class="hdr-empty">검색 결과가 없습니다.</div>
+      <ul v-else class="hdr-scroll hdr-scroll--proj">
+        <li v-for="project in filtered" :key="project.id">
+          <button
+            class="hdr-proj__item"
+            :class="{ 'is-selected': isSelected(project) }"
+            type="button"
+            @click="selectProject(project)"
+          >
+            <div class="hdr-proj__main">
+              <div class="hdr-proj__name">{{ project.name }}</div>
+              <div class="hdr-proj__meta">
+                {{ project.openDate }} ( {{ project.dday }} ) · {{ project.role }}
+              </div>
+            </div>
+            <span class="hdr-proj__stage" :class="project.stageType">{{ project.stage }}</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </HeaderLayerModal>
+</template>

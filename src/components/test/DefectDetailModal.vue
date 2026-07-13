@@ -1,0 +1,236 @@
+<script setup>
+// POP-UAT 결함 상세
+import { ref, watch } from 'vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import { actionStatusValues } from '@/data/testConfig'
+
+const props = defineProps({
+  visible: { type: Boolean, default: false },
+  row: { type: Object, default: null },
+  config: { type: Object, default: () => ({}) },
+})
+
+const emit = defineEmits(['close', 'save'])
+
+const form = ref({
+  status: '접수',
+  assignee: '',
+  comment: '',
+})
+
+watch(
+  () => props.row,
+  (row) => {
+    if (!row) return
+    form.value = {
+      status: row.status,
+      assignee: row.assignee,
+      comment: '',
+    }
+  },
+  { immediate: true },
+)
+
+function appendHistory(action, body) {
+  if (!props.row) return
+  if (!props.row.history) props.row.history = []
+  props.row.history.unshift({
+    id: `h-${Date.now()}`,
+    author: '김현대',
+    role: '테스터',
+    at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    action,
+    body,
+  })
+}
+
+function save() {
+  if (!props.row) return
+  const updates = {
+    status: form.value.status,
+    assignee: form.value.assignee,
+  }
+  if (form.value.comment) {
+    appendHistory(form.value.status, form.value.comment)
+  }
+  emit('save', updates)
+  emit('close')
+}
+
+function setStatus(status) {
+  form.value.status = status
+  appendHistory(status, form.value.comment || `${status} 처리`)
+  emit('save', { status, assignee: form.value.assignee })
+  emit('close')
+}
+</script>
+
+<template>
+  <BaseModal
+    :visible="visible"
+    :title="row ? `결함 상세 — ${row.defectId}` : '결함 상세'"
+    @close="$emit('close')"
+  >
+    <template v-if="row">
+      <div class="meta-grid">
+        <div><span class="lbl">케이스</span>{{ row.caseId }} · {{ row.caseName }}</div>
+        <div><span class="lbl">화면</span>{{ row.screenName }}</div>
+        <div><span class="lbl">차수/절차</span>{{ row.round }} · {{ row.stepNo }}번</div>
+        <div><span class="lbl">등급</span><span class="grade">{{ row.grade }}</span></div>
+        <div v-if="config.showOccurrencePhase"><span class="lbl">발생시점</span>{{ row.occurrencePhase }}</div>
+        <div v-if="config.showDeployStatus"><span class="lbl">배포상태</span>{{ row.deployStatus }}</div>
+        <div><span class="lbl">테스터</span>{{ row.tester }}</div>
+        <div><span class="lbl">등록일</span>{{ row.registeredAt }}</div>
+      </div>
+
+      <div class="block">
+        <h4>{{ row.title }}</h4>
+        <p class="desc">{{ row.description || row.stepProcedure }}</p>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>조치상태</label>
+          <select v-model="form.status" class="inp">
+            <option v-for="s in actionStatusValues" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>담당자</label>
+          <input v-model="form.assignee" class="inp" type="text" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>처리 메모</label>
+        <textarea v-model="form.comment" class="inp textarea" rows="3" placeholder="조치 내용 입력" />
+      </div>
+
+      <div v-if="row.history?.length" class="history">
+        <h4>처리 이력</h4>
+        <article v-for="h in row.history" :key="h.id" class="history-item">
+          <header>
+            <span>{{ h.author }} ({{ h.role }})</span>
+            <span class="action">{{ h.action }}</span>
+            <span class="at">{{ h.at }}</span>
+          </header>
+          <p>{{ h.body }}</p>
+        </article>
+      </div>
+    </template>
+
+    <template #footer>
+      <button type="button" class="btn btn--ghost" @click="$emit('close')">닫기</button>
+      <button type="button" class="btn btn--ghost" @click="setStatus('오류아님')">오류아님</button>
+      <button type="button" class="btn btn--primary" @click="setStatus('처리완료')">처리완료</button>
+      <button type="button" class="btn btn--primary" @click="save">저장</button>
+    </template>
+  </BaseModal>
+</template>
+
+<style scoped>
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.lbl {
+  display: inline-block;
+  min-width: 56px;
+  margin-right: 6px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.grade {
+  font-weight: 700;
+  color: #c0392b;
+}
+
+.block {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--field);
+  border-radius: 8px;
+}
+
+.block h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.field label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.inp {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.history h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.history-item {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.history-item header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-item .action {
+  color: var(--teal-600);
+  font-weight: 600;
+}
+
+.history-item p {
+  margin: 0;
+  color: var(--ink-2);
+}
+</style>

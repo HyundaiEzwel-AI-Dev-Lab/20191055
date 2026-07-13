@@ -1,0 +1,105 @@
+// 캘린더 목업 — PAG-M-MY-02/03
+// status: active | done | delayed | paused
+
+export const calendarTasks = [
+  {
+    id: 'c1',
+    name: '프로모션 등록 개발',
+    endLabel: '~ 3/6',
+    project: '프로모션 운영 프로세스 및 기능 개발 (3/20)',
+    start: '2026-03-04',
+    end: '2026-03-06',
+    color: 0,
+    status: 'done',
+  },
+  {
+    id: 'c2',
+    name: '프로모션 등록 개발',
+    endLabel: '~ 3/15',
+    project: '프로모션 운영 프로세스 및 기능 개발 (3/20)',
+    start: '2026-03-11',
+    end: '2026-03-15',
+    color: 0,
+    status: 'done',
+  },
+  {
+    id: 'c3',
+    name: '단위테스트',
+    endLabel: '~ 3/20',
+    project: '프로모션 운영 프로세스 및 기능 개발 (4/2)',
+    start: '2026-03-18',
+    end: '2026-03-20',
+    color: 0,
+    status: 'delayed',
+  },
+  {
+    id: 'c4',
+    name: 'DEV테스트',
+    endLabel: '~ 3/20',
+    project: '프로모션 운영 프로세스 및 기능 개발 (4/2)',
+    start: '2026-03-19',
+    end: '2026-03-20',
+    color: 0,
+    status: 'active',
+  },
+  {
+    id: 'c5',
+    name: '바우처 특복 배정',
+    endLabel: '~ 3/21',
+    project: 'DL이앤씨 바우처 정책 변경_숙박바우처 (4/5)',
+    start: '2026-03-18',
+    end: '2026-03-21',
+    color: 3,
+    status: 'active',
+  },
+  {
+    id: 'c6',
+    name: '바우처 특복 회수',
+    endLabel: '~ 3/29',
+    project: 'DL이앤씨 바우처 정책 변경_숙박바우처 (4/5)',
+    start: '2026-03-25',
+    end: '2026-03-29',
+    color: 3,
+    status: 'active',
+  },
+  {
+    id: 'c7',
+    name: 'HIMS 개발',
+    endLabel: '~ 4/3',
+    project: '프로모션 운영 프로세스 및 기능 개발',
+    start: '2026-03-30',
+    end: '2026-04-03',
+    color: 6,
+    status: 'active',
+  },
+  {
+    id: 'c8',
+    name: '프로모션 운영 프로세스',
+    endLabel: '~ 3/20',
+    project: '프로모션 운영 프로세스 및 기능 개발 (3/20)',
+    start: '2026-03-20',
+    end: '2026-03-20',
+    color: 0,
+    status: 'active',
+  },
+  {
+    id: 'c9',
+    name: '쿠폰 검증',
+    endLabel: '~ 3/12',
+    project: '주문취소 시 쿠폰 할인취소 정보 노출 (4/2)',
+    start: '2026-03-10',
+    end: '2026-03-12',
+    color: 1,
+    status: 'paused',
+  },
+]
+
+export const unscheduledTasks = [
+  { id: 'u1', project: 'DL이앤씨 바우처 정책 변경_숙박바우처', name: 'HIMS 바우처 강제회수' },
+  { id: 'u2', project: 'DL이앤씨 바우처 정책 변경_숙박바우처', name: 'HCAS 바우처 강제회수' },
+]
+
+export const projectColors = [
+  '#119a8a', '#5e6ad2', '#e08a2b', '#9b59b6', '#22c55e',
+  '#ef4444', '#0e8275', '#71717a', '#c0392b', '#16a085',
+]

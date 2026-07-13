@@ -1,0 +1,1559 @@
+<script setup>
+// PAG-S-INF-01 프로젝트 정보
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useProjectStore } from '@/stores/project'
+import {
+  stageOptions,
+  initiatorOptions,
+  devTypeOptions,
+  summaryOptions,
+  assigneeRoles,
+  testUsageOptions,
+  testLibraryScenarios,
+  searchStaff,
+} from '@/data/projectInfo'
+import { systemOptions, bizCategoryMap } from '@/data/requirement'
+import ScheduleReasonInputModal from '@/components/project/ScheduleReasonInputModal.vue'
+import TesterChangeModal from '@/components/project/TesterChangeModal.vue'
+
+const projectStore = useProjectStore()
+
+const form = reactive({
+  jira: '',
+  itVoc: '',
+  name: '',
+  stage: '',
+  workCategories: [],
+  scheduledOpenDate: '',
+  actualOpenDate: '',
+  initiator: '',
+  devType: '',
+  summary: '',
+  requestDept: '',
+  requester: '',
+  assignees: {},
+  testUsage: [],
+  testLibrary: '미등록',
+  testLibraryScenarios: [],
+  hasRegisteredTestCases: false,
+  memo: '',
+  testerChangePending: null,
+  issues: [],
+})
+
+const snapshot = ref('')
+const savedStage = ref('')
+const categorySystem = ref('')
+const categoryBiz = ref('')
+const showScheduleModal = ref(false)
+const showTesterModal = ref(false)
+const showDeleteAlert = ref(false)
+const pendingSave = ref(false)
+
+const showIssueForm = ref(false)
+const issueDraft = ref('')
+const showIssueCancelAlert = ref(false)
+const assigneeSearch = reactive({})
+const assigneeSearchOpen = reactive({})
+
+const isReadOnly = computed(() => savedStage.value === '완료' || savedStage.value === '반려')
+const showOpenDate = computed(() => form.stage === '완료')
+const memoCount = computed(() => form.memo.length)
+const issueDraftCount = computed(() => issueDraft.value.length)
+
+const categoryBizOptions = computed(() => {
+  if (!categorySystem.value) return []
+  return bizCategoryMap[categorySystem.value] || []
+})
+
+const testersForModal = computed(() =>
+  (form.assignees.테스트 || []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    dept: t.dept,
+    empId: t.empId || '',
+  })),
+)
+
+const groupedLibraryScenarios = computed(() => {
+  const groups = []
+  testLibraryScenarios.forEach((scenario) => {
+    let group = groups.find((g) => g.type === scenario.type)
+    if (!group) {
+      group = { type: scenario.type, items: [] }
+      groups.push(group)
+    }
+    group.items.push(scenario)
+  })
+  return groups
+})
+
+function loadForm() {
+  const project = projectStore.currentProject
+  if (!project?.id) return
+  const detail = projectStore.getStoredDetail(project.id, project.name)
+  Object.assign(form, detail)
+  assigneeRoles.forEach((role) => {
+    if (!form.assignees[role]) form.assignees[role] = []
+    assigneeSearch[role] = ''
+    assigneeSearchOpen[role] = false
+  })
+  snapshot.value = JSON.stringify(form)
+  savedStage.value = form.stage
+}
+
+onMounted(loadForm)
+
+watch(
+  () => projectStore.currentProject?.id,
+  () => loadForm(),
+)
+
+const isRegistering = computed(() => {
+  const id = projectStore.currentProject?.id
+  return Boolean(id && projectStore.isRegistering(id))
+})
+
+function isDirty() {
+  return JSON.stringify(form) !== snapshot.value
+}
+
+function resetForm() {
+  loadForm()
+}
+
+function toggleTestUsage(option) {
+  if (isReadOnly.value || form.hasRegisteredTestCases) return
+  const idx = form.testUsage.indexOf(option)
+  if (idx >= 0) form.testUsage.splice(idx, 1)
+  else form.testUsage.push(option)
+}
+
+function addCategory(cat) {
+  if (!form.workCategories.includes(cat)) {
+    form.workCategories.push(cat)
+  }
+}
+
+function onCategorySystemChange() {
+  categoryBiz.value = ''
+}
+
+function addCategoryFromPicker() {
+  if (isReadOnly.value) return
+  if (!categorySystem.value || !categoryBiz.value) {
+    window.alert('시스템과 업무구분을 선택해 주세요.')
+    return
+  }
+  addCategory(`${categorySystem.value} > ${categoryBiz.value}`)
+  categoryBiz.value = ''
+}
+
+function removeCategory(cat) {
+  if (isReadOnly.value) return
+  form.workCategories = form.workCategories.filter((c) => c !== cat)
+}
+
+function removeAssignee(role, person) {
+  if (isReadOnly.value) return
+  if (!isRegistering.value && person.hasWbs) {
+    showDeleteAlert.value = true
+    return
+  }
+  form.assignees[role] = form.assignees[role].filter((p) => p.id !== person.id)
+}
+
+function assigneeCount(role) {
+  return (form.assignees[role] || []).length
+}
+
+function getAssigneeSearchResults(role) {
+  const existing = new Set((form.assignees[role] || []).map((p) => p.id))
+  return searchStaff(assigneeSearch[role] || '').filter((s) => !existing.has(s.id))
+}
+
+function onAssigneeSearchInput(role) {
+  assigneeSearchOpen[role] = (assigneeSearch[role] || '').trim().length > 0
+}
+
+function addAssignee(role, staff) {
+  if (isReadOnly.value) return
+  if (!form.assignees[role]) form.assignees[role] = []
+  if (form.assignees[role].some((p) => p.id === staff.id)) return
+  form.assignees[role].push({
+    id: staff.id,
+    name: staff.name,
+    dept: staff.dept,
+    empId: staff.empId,
+    hasWbs: false,
+  })
+  assigneeSearch[role] = ''
+  assigneeSearchOpen[role] = false
+}
+
+function closeAssigneeSearch(role) {
+  assigneeSearchOpen[role] = false
+}
+
+function onStageClick(stage) {
+  if (isReadOnly.value) return
+  form.stage = stage
+  if (stage !== '완료') form.actualOpenDate = ''
+}
+
+function needsScheduleReason() {
+  if (form.stage !== '완료' || !form.actualOpenDate) return false
+  return form.actualOpenDate > form.scheduledOpenDate
+}
+
+function finalizeSave() {
+  const project = projectStore.currentProject
+  const wasRegistering = project?.id && projectStore.isRegistering(project.id)
+
+  snapshot.value = JSON.stringify(form)
+  savedStage.value = form.stage
+  pendingSave.value = false
+
+  if (project?.id) {
+    projectStore.completeRegistration(project.id, { ...form })
+  }
+
+  window.alert(
+    wasRegistering
+      ? '프로젝트 정보가 저장되었습니다.\n이제 다른 프로젝트 메뉴를 이용할 수 있습니다.'
+      : '프로젝트 정보가 저장되었습니다.',
+  )
+}
+
+function save() {
+  if (isReadOnly.value) return
+  if (needsScheduleReason()) {
+    pendingSave.value = true
+    showScheduleModal.value = true
+    return
+  }
+  finalizeSave()
+}
+
+function onScheduleReasonSave() {
+  if (pendingSave.value) finalizeSave()
+}
+
+function onTesterChangeSave(payload) {
+  form.testerChangePending = {
+    from: {
+      name: form.assignees.테스트.find((t) => t.id === payload.targetId)?.name || '',
+      dept: form.assignees.테스트.find((t) => t.id === payload.targetId)?.dept || '',
+      empId: payload.targetId,
+    },
+    to: payload.newStaff,
+    applyDate: payload.applyDate,
+  }
+}
+
+function setTestLibrary(value) {
+  if (isReadOnly.value) return
+  form.testLibrary = value
+}
+
+function toggleLibraryScenario(id) {
+  if (isReadOnly.value || form.testLibrary !== '등록') return
+  const idx = form.testLibraryScenarios.indexOf(id)
+  if (idx >= 0) form.testLibraryScenarios.splice(idx, 1)
+  else form.testLibraryScenarios.push(id)
+}
+
+function openIssueForm() {
+  if (isReadOnly.value) return
+  showIssueForm.value = true
+  issueDraft.value = ''
+}
+
+function cancelIssueForm() {
+  if (issueDraft.value.trim()) {
+    showIssueCancelAlert.value = true
+    return
+  }
+  showIssueForm.value = false
+}
+
+function confirmIssueCancel() {
+  showIssueCancelAlert.value = false
+  showIssueForm.value = false
+  issueDraft.value = ''
+}
+
+function addIssue() {
+  if (!issueDraft.value.trim()) return
+  form.issues.unshift({
+    id: `iss-${Date.now()}`,
+    author: '김현대',
+    dept: '웹기획팀',
+    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    updatedAt: null,
+    body: issueDraft.value.trim(),
+    replies: [],
+  })
+  showIssueForm.value = false
+  issueDraft.value = ''
+}
+</script>
+
+<template>
+  <div class="project-info">
+    <h1 class="project-info__title">
+      프로젝트 정보
+      <span class="project-info__hint">{{ isReadOnly ? '조회 전용' : isRegistering ? '등록' : '수정 화면' }}</span>
+    </h1>
+
+    <p v-if="isRegistering" class="register-notice card">
+      프로젝트 등록 중입니다. 필수 정보를 입력한 뒤 저장하면 다른 프로젝트 메뉴를 이용할 수 있습니다.
+    </p>
+
+    <div class="info-row">
+    <!-- 1. 기본 정보 -->
+    <section class="card">
+      <h2 class="sec-h"><span class="sec-h__n">1</span>기본 정보</h2>
+
+      <div class="frow frow--2">
+        <div class="fld" :class="{ 'fld--req': isRegistering }">
+          <label>{{ isRegistering ? 'JIRA' : 'JIRA (수정불가)' }}</label>
+          <input
+            v-if="isRegistering && !isReadOnly"
+            v-model="form.jira"
+            class="inp inp--edit"
+            type="text"
+            placeholder="JIRA 번호 입력"
+          />
+          <div v-else class="inp inp--ro">{{ form.jira }}</div>
+        </div>
+        <div class="fld" :class="{ 'fld--req': isRegistering }">
+          <label>{{ isRegistering ? 'IT-VOC 번호' : 'IT-VOC 번호 (수정불가)' }}</label>
+          <input
+            v-if="isRegistering && !isReadOnly"
+            v-model="form.itVoc"
+            class="inp inp--edit"
+            type="text"
+            placeholder="IT-VOC 번호 입력"
+          />
+          <div v-else class="inp inp--ro">{{ form.itVoc }}</div>
+        </div>
+      </div>
+
+      <div class="fld fld--req">
+        <label>
+          {{ isRegistering ? '프로젝트명' : '프로젝트명 (수정 시 변경이력 저장)' }}
+        </label>
+        <input
+          v-model="form.name"
+          class="inp inp--edit"
+          type="text"
+          :disabled="isReadOnly"
+        />
+      </div>
+
+      <div class="stage-block">
+        <label>처리단계 (착수 시 자동 진행중)</label>
+        <div class="pill-group">
+          <button
+            v-for="stage in stageOptions"
+            :key="stage"
+            type="button"
+            class="pill"
+            :class="{ 'pill--on': form.stage === stage }"
+            :disabled="isReadOnly"
+            @click="onStageClick(stage)"
+          >
+            <span class="pill__mark">✓</span>{{ stage }}
+          </button>
+        </div>
+      </div>
+
+      <div class="category-block">
+        <label>
+          {{ isRegistering ? '업무범주' : '업무범주 (JIRA 개발범주 연동)' }}
+        </label>
+        <div class="chips">
+          <span v-for="cat in form.workCategories" :key="cat" class="chip">
+            {{ cat }}
+            <button
+              v-if="!isReadOnly"
+              type="button"
+              class="chip__x"
+              @click="removeCategory(cat)"
+            >
+              ✕
+            </button>
+          </span>
+        </div>
+        <div v-if="!isReadOnly" class="category-add-row">
+          <select
+            v-model="categorySystem"
+            class="inp inp--edit category-add-row__select"
+            @change="onCategorySystemChange"
+          >
+            <option value="">시스템 선택</option>
+            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+          <span class="category-add-row__sep">&gt;</span>
+          <select
+            v-model="categoryBiz"
+            class="inp inp--edit category-add-row__select"
+            :disabled="!categorySystem"
+          >
+            <option value="">업무구분 선택</option>
+            <option v-for="b in categoryBizOptions" :key="b" :value="b">{{ b }}</option>
+          </select>
+          <button type="button" class="btn btn--ghost btn--sm" @click="addCategoryFromPicker">
+            ＋ 추가
+          </button>
+        </div>
+      </div>
+
+      <div class="frow frow--2">
+        <div class="fld fld--req">
+          <label>오픈예정일</label>
+          <input
+            v-model="form.scheduledOpenDate"
+            class="inp inp--edit"
+            type="date"
+            :disabled="isReadOnly"
+          />
+        </div>
+        <div v-if="showOpenDate" class="fld fld--req">
+          <label>오픈일</label>
+          <input
+            v-model="form.actualOpenDate"
+            class="inp inp--edit"
+            type="date"
+            :disabled="isReadOnly"
+          />
+        </div>
+      </div>
+
+      <div class="frow frow--3">
+        <div class="fld fld--req">
+          <label>발의주체</label>
+          <select v-model="form.initiator" class="inp inp--edit" :disabled="isReadOnly">
+            <option value="">선택</option>
+            <option v-for="o in initiatorOptions" :key="o" :value="o">{{ o }}</option>
+          </select>
+        </div>
+        <div class="fld fld--req">
+          <label>개발구분</label>
+          <select v-model="form.devType" class="inp inp--edit" :disabled="isReadOnly">
+            <option value="">선택</option>
+            <option v-for="o in devTypeOptions" :key="o" :value="o">{{ o }}</option>
+          </select>
+        </div>
+        <div class="fld fld--req">
+          <label>적요</label>
+          <select v-model="form.summary" class="inp inp--edit" :disabled="isReadOnly">
+            <option value="">선택</option>
+            <option v-for="o in summaryOptions" :key="o" :value="o">{{ o }}</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 담당자 정보 -->
+    <section class="card">
+      <div class="card__toolbar">
+        <h2 class="sec-h"><span class="sec-h__n">2</span>담당자 정보</h2>
+        <button
+          v-if="!isReadOnly && !isRegistering"
+          type="button"
+          class="btn btn--ghost btn--sm"
+          @click="showTesterModal = true"
+        >
+          ⇄ 테스터 변경
+        </button>
+      </div>
+
+      <div class="frow frow--2">
+        <div class="fld fld--req">
+          <label>요청부서</label>
+          <input
+            v-model="form.requestDept"
+            class="inp inp--edit"
+            type="text"
+            placeholder="요청부서 입력"
+            :disabled="isReadOnly"
+          />
+        </div>
+        <div class="fld fld--req">
+          <label>요청자</label>
+          <input
+            v-model="form.requester"
+            class="inp inp--edit"
+            type="text"
+            placeholder="요청자 입력"
+            :disabled="isReadOnly"
+          />
+        </div>
+      </div>
+
+      <p class="assignee-label fld--req">
+        {{ isRegistering ? '업무별 담당자 (최소 1인 필수)' : '업무별 담당자' }}
+      </p>
+      <div class="assignee-grid">
+        <div v-for="role in assigneeRoles" :key="role" class="assignee-card">
+          <div class="assignee-card__head">
+            <span class="assignee-card__title">{{ role }}</span>
+            <span class="assignee-card__count">{{ assigneeCount(role) }}</span>
+          </div>
+          <div class="chips">
+            <span
+              v-for="person in form.assignees[role] || []"
+              :key="person.id"
+              class="chip chip--person"
+            >
+              {{ person.name }}({{ person.dept }})
+              <button
+                v-if="!isReadOnly"
+                type="button"
+                class="chip__x"
+                @click="removeAssignee(role, person)"
+              >
+                ✕
+              </button>
+            </span>
+          </div>
+          <div v-if="!isReadOnly" class="assignee-search">
+            <input
+              v-model="assigneeSearch[role]"
+              class="assignee-search__input"
+              type="text"
+              placeholder="담당자 검색"
+              @input="onAssigneeSearchInput(role)"
+              @focus="onAssigneeSearchInput(role)"
+              @blur="closeAssigneeSearch(role)"
+            />
+            <ul
+              v-if="assigneeSearchOpen[role] && getAssigneeSearchResults(role).length"
+              class="assignee-search__list"
+            >
+              <li v-for="staff in getAssigneeSearchResults(role)" :key="staff.id">
+                <button
+                  type="button"
+                  class="assignee-search__item"
+                  @mousedown.prevent="addAssignee(role, staff)"
+                >
+                  {{ staff.name }} / {{ staff.dept }} / {{ staff.empId }}
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+    </div>
+
+    <!-- 3. 추가 정보 -->
+    <section class="card">
+      <h2 class="sec-h"><span class="sec-h__n">3</span>추가 정보</h2>
+
+      <div class="fld fld--req">
+        <label>테스트 사용여부</label>
+        <div class="pill-group">
+          <button
+            v-for="opt in testUsageOptions"
+            :key="opt"
+            type="button"
+            class="pill"
+            :class="{ 'pill--on': form.testUsage.includes(opt) }"
+            :disabled="isReadOnly || form.hasRegisteredTestCases"
+            @click="toggleTestUsage(opt)"
+          >
+            <span class="pill__mark">✓</span>{{ opt }}
+          </button>
+        </div>
+        <p v-if="form.hasRegisteredTestCases" class="field-hint">
+          테스트 케이스가 등록되어 테스트 사용여부를 변경할 수 없습니다.
+        </p>
+      </div>
+
+      <div class="fld fld--req">
+        <label>테스트 라이브러리</label>
+        <div class="pill-group">
+          <button
+            type="button"
+            class="pill"
+            :class="{ 'pill--on': form.testLibrary === '미등록' }"
+            :disabled="isReadOnly"
+            @click="setTestLibrary('미등록')"
+          >
+            <span class="pill__mark">✓</span>미등록
+          </button>
+          <button
+            type="button"
+            class="pill"
+            :class="{ 'pill--on': form.testLibrary === '등록' }"
+            :disabled="isReadOnly"
+            @click="setTestLibrary('등록')"
+          >
+            <span class="pill__mark">✓</span>등록
+          </button>
+        </div>
+      </div>
+
+      <div v-if="form.stage === '완료' && form.testLibrary === '등록'" class="library-list">
+        <p class="library-list__hint">프로젝트 완료 시, 라이브러리 적재할 시나리오 선택</p>
+        <template v-if="groupedLibraryScenarios.length">
+          <div v-for="group in groupedLibraryScenarios" :key="group.type" class="lib-group">
+            <span class="lib-group__title">{{ group.type }}</span>
+            <ul class="lib-rows">
+              <li v-for="scenario in group.items" :key="scenario.id">
+                <button
+                  type="button"
+                  class="lib-row"
+                  :class="{ 'lib-row--on': form.testLibraryScenarios.includes(scenario.id) }"
+                  :disabled="isReadOnly"
+                  @click="toggleLibraryScenario(scenario.id)"
+                >
+                  <span class="lib-row__radio"></span>
+                  <span class="lib-row__round">{{ scenario.round }}</span>
+                  <span class="lib-row__case">{{ scenario.label.split('–').pop().trim() }}</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </template>
+        <p v-else class="library-list__empty">등록된 케이스가 없습니다.</p>
+      </div>
+
+      <div class="fld">
+        <label>프로젝트 관련 단순 메모</label>
+        <textarea
+          v-model="form.memo"
+          class="memo-input"
+          rows="3"
+          maxlength="500"
+          placeholder="프로젝트 관련 메모를 입력하세요"
+          :disabled="isReadOnly"
+        />
+        <span class="memo-count">{{ memoCount }} / 500자</span>
+      </div>
+    </section>
+
+    <!-- 4. 이슈 관리 (등록 중 미노출) -->
+    <section v-if="!isRegistering" class="card">
+      <div class="card__toolbar">
+        <h2 class="sec-h">
+          <span class="sec-h__n">4</span>이슈 관리
+          <span class="sec-h__sub">프로젝트 관련 주요 이슈/협의사항만 입력</span>
+        </h2>
+        <button
+          v-if="!isReadOnly && !showIssueForm"
+          type="button"
+          class="btn btn--primary btn--sm"
+          @click="openIssueForm"
+        >
+          이슈등록
+        </button>
+      </div>
+
+      <div v-if="showIssueForm" class="issue-form">
+        <textarea
+          v-model="issueDraft"
+          class="issue-form__input"
+          rows="4"
+          maxlength="2000"
+          placeholder="이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대"
+        />
+        <div class="issue-form__foot">
+          <span class="issue-form__count">{{ issueDraftCount }} / 2000자</span>
+          <div class="issue-form__actions">
+            <button type="button" class="btn btn--ghost btn--sm" @click="cancelIssueForm">
+              취소
+            </button>
+            <button
+              type="button"
+              class="btn btn--primary btn--sm"
+              :disabled="!issueDraft.trim()"
+              @click="addIssue"
+            >
+              추가
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!form.issues.length && !showIssueForm" class="issue-empty">
+        등록된 이슈가 없습니다.
+      </div>
+
+      <article v-for="issue in form.issues" :key="issue.id" class="issue-item">
+        <header class="issue-item__head">
+          <span class="issue-item__author">{{ issue.author }} / {{ issue.dept }}</span>
+          <span class="issue-item__time">
+            {{ issue.createdAt }}
+            <template v-if="issue.updatedAt"> ({{ issue.updatedAt }})</template>
+          </span>
+        </header>
+        <p class="issue-item__body">{{ issue.body }}</p>
+        <div class="issue-item__actions">
+          <button type="button" class="link-btn">수정</button>
+          <span class="issue-item__sep">|</span>
+          <button type="button" class="link-btn">답글</button>
+        </div>
+
+        <div v-for="reply in issue.replies" :key="reply.id" class="issue-reply">
+          <header class="issue-item__head">
+            <span class="issue-item__author">{{ reply.author }} / {{ reply.dept }}</span>
+            <span class="issue-item__time">{{ reply.createdAt }}</span>
+          </header>
+          <p class="issue-item__body">{{ reply.body }}</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- 저장 -->
+    <div v-if="!isReadOnly" class="actions">
+      <button type="button" class="btn btn--ghost" :disabled="!isDirty()" @click="resetForm">
+        취소
+      </button>
+      <button type="button" class="btn btn--primary" @click="save">저장</button>
+    </div>
+
+    <p v-else class="readonly-notice">
+      처리단계가 「{{ form.stage }}」인 프로젝트는 정보를 수정할 수 없습니다.
+    </p>
+
+    <!-- POP-S-INF-04 -->
+    <ScheduleReasonInputModal
+      v-model="showScheduleModal"
+      :scheduled-open-date="form.scheduledOpenDate"
+      :actual-open-date="form.actualOpenDate"
+      @save="onScheduleReasonSave"
+    />
+
+    <!-- POP-S-INF-02 -->
+    <TesterChangeModal
+      v-model="showTesterModal"
+      :testers="testersForModal"
+      :pending-change="form.testerChangePending"
+      @save="onTesterChangeSave"
+    />
+
+    <!-- 담당자 삭제 불가 Alert -->
+    <Teleport to="body">
+      <div v-if="showDeleteAlert" class="alert-scrim" @mousedown.self="showDeleteAlert = false">
+        <div class="alert-box">
+          <div class="alert-box__icon">!</div>
+          <p class="alert-box__msg">
+            현재 담당 중인 업무가 존재하여 삭제할 수 없습니다.<br />
+            업무 담당자를 변경 후 다시 시도해주세요.
+          </p>
+          <div class="alert-box__actions">
+            <button type="button" class="btn btn--ghost" @click="showDeleteAlert = false">
+              취소
+            </button>
+            <button type="button" class="btn btn--primary" @click="showDeleteAlert = false">
+              확인
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showIssueCancelAlert"
+        class="alert-scrim"
+        @mousedown.self="showIssueCancelAlert = false"
+      >
+        <div class="alert-box">
+          <p class="alert-box__msg">취소 시, 입력 내용이 사라집니다.<br />취소 하시겠습니까?</p>
+          <div class="alert-box__actions">
+            <button type="button" class="btn btn--ghost" @click="showIssueCancelAlert = false">
+              취소
+            </button>
+            <button type="button" class="btn btn--primary" @click="confirmIssueCancel">
+              확인
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+  </div>
+</template>
+
+<style scoped>
+.project-info {
+  --teal: #119a8a;
+  --teal-600: #0e8275;
+  --teal-50: #e6f4f2;
+  --teal-100: #cfe9e5;
+  --ink: #1f2a30;
+  --ink-2: #48565e;
+  --muted: #7c8a92;
+  --line: #e3e8eb;
+  --line-2: #eef1f3;
+  --field: #f1f4f5;
+  --orange: #e08a2b;
+  --orange-bg: #fcf0e1;
+  --red: #e0524a;
+
+  padding: 8px 24px 28px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.project-info__title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 2px 2px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.register-notice {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--teal-600);
+  background: var(--teal-50);
+  border: 1px solid var(--teal-100);
+}
+
+.project-info__hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.info-row > .card {
+  margin-bottom: 0;
+}
+
+.card__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.card__toolbar .sec-h {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.sec-h {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+
+.sec-h__n {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sec-h__sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.frow {
+  display: grid;
+  gap: 16px 20px;
+  margin-bottom: 18px;
+}
+
+.frow:last-child {
+  margin-bottom: 0;
+}
+
+.frow--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.frow--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fld--wide {
+  grid-column: span 1;
+}
+
+.fld--req > label::after {
+  content: ' *';
+  color: var(--red);
+}
+
+.card > .fld,
+.card > .library-list {
+  margin-bottom: 20px;
+}
+
+.card > .fld:last-child,
+.card > .library-list:last-child {
+  margin-bottom: 0;
+}
+
+.fld label,
+.stage-block > label,
+.category-block > label,
+.assignee-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.inp {
+  height: 32px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.inp--ro {
+  cursor: default;
+}
+
+.inp--edit {
+  background: #fff;
+}
+
+.inp--edit:disabled {
+  background: var(--field);
+  cursor: not-allowed;
+}
+
+select.inp--edit {
+  appearance: auto;
+}
+
+.stage-block,
+.category-block {
+  margin-bottom: 18px;
+}
+
+.stage-block > label,
+.category-block > label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* 처리단계 / 테스트 사용여부 / 테스트 라이브러리 공용 필 버튼 */
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.pill:hover:not(:disabled) {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
+}
+
+.pill--on {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(17, 154, 138, 0.28);
+}
+
+.pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pill__mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  border: 1.5px solid var(--line);
+  color: transparent;
+}
+
+.pill--on .pill__mark {
+  border-color: #fff;
+  background: #fff;
+  color: var(--teal);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.category-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.category-add-row__select {
+  flex: 1;
+  min-width: 0;
+}
+
+.category-add-row__sep {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--teal-100);
+  background: var(--teal-50);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--teal-600);
+}
+
+.chip--person {
+  font-size: 11px;
+}
+
+.chip__x {
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+.chip__x:hover {
+  opacity: 1;
+}
+
+.assignee-label {
+  margin: 4px 0 8px;
+}
+
+.assignee-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.assignee-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fafbfc;
+}
+
+.assignee-card__title {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.assignee-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.assignee-card__count {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.assignee-search {
+  position: relative;
+  margin-top: 6px;
+}
+
+.assignee-search__input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.assignee-search__input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.assignee-search__list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.assignee-search__item {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.assignee-search__item:hover {
+  background: var(--teal-50);
+  color: var(--teal-600);
+}
+
+.assignee-card__empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.library-list {
+  margin: 4px 0 0;
+  padding: 14px;
+  background: var(--line-2);
+  border-radius: 10px;
+}
+
+.library-list__hint {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.library-list__empty {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.lib-group {
+  margin-bottom: 14px;
+}
+
+.lib-group:last-child {
+  margin-bottom: 0;
+}
+
+.lib-group__title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-600);
+}
+
+.lib-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lib-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.lib-row:hover:not(:disabled) {
+  background: var(--line-2);
+}
+
+.lib-row--on {
+  border-color: var(--teal-100);
+  background: var(--teal-50);
+}
+
+.lib-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.lib-row__radio {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  position: relative;
+}
+
+.lib-row--on .lib-row__radio {
+  border-color: var(--teal);
+}
+
+.lib-row--on .lib-row__radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+.lib-row__round {
+  width: 32px;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.lib-row--on .lib-row__round {
+  color: var(--teal-600);
+}
+
+.lib-row__case {
+  color: var(--muted);
+}
+
+.lib-row--on .lib-row__case {
+  color: var(--teal-600);
+}
+
+.memo-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.memo-input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.memo-count {
+  display: block;
+  margin-top: 4px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.issue-form {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: var(--line-2);
+  border-radius: 8px;
+}
+
+.issue-form__input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.issue-form__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.issue-form__count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.issue-form__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.issue-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.issue-item {
+  padding: 14px 0;
+  border-top: 1px solid var(--line-2);
+}
+
+.issue-item__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.issue-item__author {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.issue-item__time {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.issue-item__body {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
+.issue-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.issue-item__sep {
+  color: var(--line);
+  font-size: 11px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.issue-reply {
+  margin: 10px 0 0 20px;
+  padding: 10px 0 0 14px;
+  border-left: 2px solid var(--line);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.readonly-notice {
+  text-align: center;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--line-2);
+  border-radius: 8px;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.btn--primary {
+  background: var(--teal);
+  color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--teal-600);
+}
+
+.btn--primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink-2);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
+}
+
+.btn--ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.alert-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 30, 34, 0.34);
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.alert-box {
+  width: 330px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px 22px 18px;
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
+}
+
+.alert-box__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--orange-bg);
+  color: var(--orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 auto 12px;
+}
+
+.alert-box__msg {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.alert-box__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.alert-box__actions .btn {
+  flex: 1;
+}
+</style>

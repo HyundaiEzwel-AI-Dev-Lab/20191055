@@ -1,0 +1,94 @@
+:root {
+  /* LNB v2.3 컬러 컨셉 */
+  --lnb-bg: #f4f6f8;
+  --lnb-side: #ffffff;
+  --lnb-logo: #1c1d21;
+  --lnb-txt: #2b2f36;
+  --lnb-muted: #9aa0a8;
+  --lnb-icon: #7c828b;
+  --lnb-line: #ededf1;
+  --lnb-branch: #d6dade;
+  --lnb-active-border: #e6e8ec;
+  --lnb-dark: #1f2430;
+  --lnb-hover: #f5f6f8;
+
+  /* 전역 토큰 (LNB 컨셉 매핑) */
+  --color-primary: var(--lnb-logo);
+  --color-primary-hover: #2a3040;
+  --color-primary-light: var(--lnb-hover);
+  --color-secondary: var(--lnb-muted);
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  --color-bg: var(--lnb-side);
+  --color-bg-subtle: var(--lnb-bg);
+  --color-surface: var(--lnb-side);
+  --color-field: var(--lnb-hover);
+  --color-border: var(--lnb-line);
+  --color-border-2: #f0f0f2;
+  --color-text: var(--lnb-txt);
+  --color-text-2: #52525b;
+  --color-text-muted: var(--lnb-muted);
+  --color-text-inverse: #ffffff;
+
+  --sidebar-bg: var(--lnb-side);
+  --sidebar-hover: var(--lnb-hover);
+  --sidebar-active: var(--lnb-side);
+
+  /* 레거시 teal (로그인 화면) */
+  --teal: #119a8a;
+  --teal-600: #0e8275;
+  --teal-50: #e6f4f2;
+  --teal-100: #cfe9e5;
+
+  /* Status */
+  --blue: #3b82f6;
+  --blue-bg: #eff6ff;
+  --green: #22c55e;
+  --green-bg: #f0fdf4;
+  --red: #ef4444;
+  --red-bg: #fef2f2;
+  --orange: #f59e0b;
+  --orange-bg: #fffbeb;
+  --gray: var(--lnb-muted);
+  --gray-bg: var(--lnb-hover);
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Typography */
+  --font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+  --font-size-2xl: 20px;
+
+  /* Layout */
+  --header-height: 52px;
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 60px;
+  --subbar-height: 40px;
+  --container-min-width: 1280px;
+
+  /* Radius & Shadow */
+  --r-pill: 999px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --shadow-sm: 0 2px 5px rgba(20, 30, 45, 0.06);
+  --shadow-md: 0 12px 30px rgba(20, 30, 45, 0.16);
+  --shadow-sidebar: 0 4px 20px rgba(20, 30, 45, 0.05);
+
+  /* Transition */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+}
