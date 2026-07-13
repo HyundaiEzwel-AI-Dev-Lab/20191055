@@ -1056,7 +1056,7 @@
   font-size: 13px;
   font-family: inherit;
   color: var(--lnb-txt);
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .hdr-search__input:focus {
@@ -1138,7 +1138,7 @@
   padding: 0 12px;
   border: 1px solid var(--lnb-line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--color-surface);
   font-size: 12px;
   color: var(--lnb-muted);
   cursor: pointer;
@@ -1424,7 +1424,7 @@
   font-size: 13px;
   font-family: inherit;
   color: var(--lnb-txt);
-  background: #fff;
+  background: var(--color-surface);
   box-sizing: border-box;
 }
 
@@ -1447,7 +1447,7 @@
   padding: 14px 12px;
   border: 1px solid var(--lnb-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -1591,6 +1591,55 @@
   word-break: break-all;
 }
 
+.hdr-info__concept {
+  margin: 0 0 18px;
+  padding: 14px;
+  background: var(--lnb-hover);
+  border-radius: var(--radius-md);
+}
+
+.hdr-info__concept-lab {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lnb-muted);
+  margin-bottom: 8px;
+}
+
+.concept-seg {
+  display: flex;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--r-pill);
+  background: var(--color-surface);
+  padding: 3px;
+  gap: 2px;
+}
+
+.concept-seg__item {
+  flex: 1;
+  height: 30px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--lnb-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.concept-seg__item.on {
+  background: var(--lnb-logo);
+  color: var(--lnb-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.hdr-info__concept-desc {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--lnb-muted);
+}
+
 .hdr-info__actions {
   display: flex;
   gap: 8px;
@@ -1601,7 +1650,7 @@
   height: 36px;
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   font-size: 13px;
   font-weight: 600;
   color: var(--lnb-txt);

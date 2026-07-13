@@ -1,21 +1,52 @@
-// PAG-S-INF-05 프로젝트 변경이력 (개별 프로젝트)
-// figma: 05_프로젝트변경이력.html (프로젝트명·ID 컬럼 제외)
+// 프로젝트 변경이력 공용 목업
+// PAG-M-PST-03 (통합·전체) / PAG-S-INF-05 (개별·현재 프로젝트)
 
 export const projectHistoryMeta = {
   hint: '변경구분별 상세 양식',
+  integratedHint: '전체 프로젝트 변경이력을 조회합니다.',
+  projectHint: '현재 프로젝트의 변경이력을 조회합니다.',
 }
 
-export const changeCategoryOptions = ['전체', '프로젝트', '요구사항', 'WBS', '담당자', '테스트']
+export const changeCategoryOptions = ['전체', '요구사항', '프로젝트', 'WBS', '담당자', '테스트']
 export const changePeriodOptions = [
-  { label: '1개월', value: '1m', months: 1 },
+  { label: '오늘', value: 'today', days: 0 },
+  { label: '최근 3일', value: '3d', days: 3 },
+  { label: '최근 1주일', value: '7d', days: 7 },
+  { label: '최근 1개월', value: '1m', days: 30 },
   { label: '3개월', value: '3m', months: 3 },
-  { label: '6개월', value: '6m', months: 6 },
-  { label: '1년', value: '12m', months: 12 },
   { label: '전체', value: 'all', months: null },
 ]
 export const pageSizeOptions = [20, 50, 100]
 
+export const historyDevDeptOptions = [
+  '전체',
+  'e커머스팀',
+  '플랫폼팀',
+  '고객사운영팀',
+  'IT개발팀',
+  '백오피스팀',
+  '테크기획팀',
+]
+
 const baseDate = new Date('2026-06-23')
+
+const projectMeta = {
+  p6: {
+    code: 'PJ1010',
+    name: '전사 프로젝트 관리 시스템 구축',
+    devDept: '플랫폼팀',
+  },
+  p1: {
+    code: 'PJ1018',
+    name: '주문취소 시 쿠폰 할인취소 정보 노출 개선',
+    devDept: '플랫폼팀',
+  },
+  default: {
+    code: 'PJ1020',
+    name: '프로모션 운영 프로세스 및 기능 개선',
+    devDept: 'e커머스팀',
+  },
+}
 
 function daysAgo(n) {
   const d = new Date(baseDate)
@@ -23,6 +54,24 @@ function daysAgo(n) {
   const date = d.toISOString().slice(0, 10)
   const time = `${String(9 + (n % 8)).padStart(2, '0')}:${String((n * 7) % 60).padStart(2, '0')}:30`
   return { date, time, full: `${date} ${time}` }
+}
+
+function resolveMeta(projectId, projectName) {
+  const meta = projectMeta[projectId] || {
+    ...projectMeta.default,
+    code: `PJ-${String(projectId || 'X').toUpperCase()}`,
+  }
+  return {
+    projectKey: projectId,
+    projectCode: meta.code,
+    projectName: projectName || meta.name,
+    devDept: meta.devDept,
+  }
+}
+
+function enrichRows(projectId, rows, projectName) {
+  const meta = resolveMeta(projectId, projectName)
+  return rows.map((row) => ({ ...row, ...meta }))
 }
 
 const historyByProject = {
@@ -216,8 +265,17 @@ function defaultHistory(projectId) {
   ]
 }
 
-export function getProjectHistory(projectId) {
-  return JSON.parse(JSON.stringify(historyByProject[projectId] || defaultHistory(projectId)))
+export function getProjectHistory(projectId, projectName = '') {
+  const raw = historyByProject[projectId] || defaultHistory(projectId)
+  return enrichRows(projectId, JSON.parse(JSON.stringify(raw)), projectName)
+}
+
+/** 통합관리: 전체 프로젝트 변경이력 */
+export function getAllProjectHistory() {
+  const keys = Object.keys(historyByProject)
+  const rows = keys.flatMap((id) => getProjectHistory(id))
+  rows.push(...getProjectHistory('p-demo', '프로모션 운영 프로세스 및 기능 개선'))
+  return rows.sort((a, b) => String(b.changedAt).localeCompare(String(a.changedAt)))
 }
 
 function parseChangedAt(value) {
@@ -226,15 +284,33 @@ function parseChangedAt(value) {
 
 function withinPeriod(changedAt, periodValue) {
   const opt = changePeriodOptions.find((o) => o.value === periodValue)
-  if (!opt || !opt.months) return true
+  if (!opt) return true
+  if (opt.value === 'all') return true
   const changed = parseChangedAt(changedAt)
   const from = new Date(baseDate)
-  from.setMonth(from.getMonth() - opt.months)
-  return changed >= from && changed <= baseDate
+  from.setHours(0, 0, 0, 0)
+  if (opt.days === 0) {
+    return changed.toDateString() === baseDate.toDateString()
+  }
+  if (opt.days != null) {
+    from.setDate(from.getDate() - opt.days)
+    return changed >= from && changed <= baseDate
+  }
+  if (opt.months != null) {
+    from.setMonth(from.getMonth() - opt.months)
+    return changed >= from && changed <= baseDate
+  }
+  return true
 }
 
 export function matchHistoryFilters(row, filters) {
   if (filters.category !== '전체' && row.category !== filters.category) return false
+  if (filters.devDept && filters.devDept !== '전체' && row.devDept !== filters.devDept) return false
+  if (filters.projectQuery) {
+    const q = filters.projectQuery.trim().toLowerCase()
+    const hay = `${row.projectCode || ''} ${row.projectName || ''}`.toLowerCase()
+    if (!hay.includes(q)) return false
+  }
   if (filters.keyword) {
     const q = filters.keyword.trim().toLowerCase()
     const hay = [row.item, row.changedBy, row.category, ...(row.changeLines || []).map((l) => l.label)]

@@ -72,6 +72,7 @@ npm run dev
 
 ## 관련 문서
 
-- `PROJECT_STRUCTURE.md` — 화면·라우트 목록
+- `SOURCE_TREE.md` — 화면·파일 목록 · 기획 대비 합침
+- `PROJECT_STRUCTURE.md` — 구조 원칙·확정 결정
 - `HPMS_공통레이아웃_정의.md` — 로그인 후 LNB·Tab 레이아웃
 - `DESIGN_GUIDE.md` — 로그인·공통 UI 색상·폰트 기준

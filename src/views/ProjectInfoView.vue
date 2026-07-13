@@ -9,14 +9,17 @@ import {
   summaryOptions,
   assigneeRoles,
   testUsageOptions,
+  testRoundOptions,
   testLibraryScenarios,
   searchStaff,
 } from '@/data/projectInfo'
 import { systemOptions, bizCategoryMap } from '@/data/requirement'
 import ScheduleReasonInputModal from '@/components/project/ScheduleReasonInputModal.vue'
 import TesterChangeModal from '@/components/project/TesterChangeModal.vue'
+import { isJiraAlreadyRegistered } from '@/data/projectRegister'
 
 const projectStore = useProjectStore()
+const ASSIGNEE_MAX = 20
 
 const form = reactive({
   jira: '',
@@ -33,6 +36,8 @@ const form = reactive({
   requester: '',
   assignees: {},
   testUsage: [],
+  testRoundDev: '1차',
+  testRoundUat: '1차',
   testLibrary: '미등록',
   testLibraryScenarios: [],
   hasRegisteredTestCases: false,
@@ -60,6 +65,9 @@ const isReadOnly = computed(() => savedStage.value === '완료' || savedStage.va
 const showOpenDate = computed(() => form.stage === '완료')
 const memoCount = computed(() => form.memo.length)
 const issueDraftCount = computed(() => issueDraft.value.length)
+const isDevRoundEnabled = computed(() => form.testUsage.includes('DEV테스트'))
+const isUatRoundEnabled = computed(() => form.testUsage.includes('운영테스트'))
+const testUsageLocked = computed(() => isReadOnly.value || form.hasRegisteredTestCases)
 
 const categoryBizOptions = computed(() => {
   if (!categorySystem.value) return []
@@ -93,6 +101,9 @@ function loadForm() {
   if (!project?.id) return
   const detail = projectStore.getStoredDetail(project.id, project.name)
   Object.assign(form, detail)
+  if (!form.testRoundDev) form.testRoundDev = detail.testRound || '1차'
+  if (!form.testRoundUat) form.testRoundUat = '1차'
+  delete form.testRound
   assigneeRoles.forEach((role) => {
     if (!form.assignees[role]) form.assignees[role] = []
     assigneeSearch[role] = ''
@@ -119,6 +130,14 @@ function isDirty() {
 }
 
 function resetForm() {
+  if (isDirty()) {
+    const ok = window.confirm(
+      isRegistering.value
+        ? '입력 중인 내용이 있습니다. 취소 시 작성한 내용이 저장되지 않습니다. 계속하시겠습니까?'
+        : '변경 내용이 저장되지 않습니다. 계속하시겠습니까?',
+    )
+    if (!ok) return
+  }
   loadForm()
 }
 
@@ -127,6 +146,52 @@ function toggleTestUsage(option) {
   const idx = form.testUsage.indexOf(option)
   if (idx >= 0) form.testUsage.splice(idx, 1)
   else form.testUsage.push(option)
+}
+
+function totalAssigneeCount() {
+  return assigneeRoles.reduce((sum, role) => sum + (form.assignees[role]?.length || 0), 0)
+}
+
+function findAssigneeRole(staffId) {
+  return assigneeRoles.find((role) => (form.assignees[role] || []).some((p) => p.id === staffId))
+}
+
+/** 저장/등록 전 필수·예외 검증. 실패 시 메시지 반환 */
+function validateBeforeSave() {
+  const trim = (v) => String(v || '').trim()
+
+  if (isRegistering.value) {
+    if (!trim(form.jira)) return 'JIRA 번호를 입력해 주세요.'
+    if (isJiraAlreadyRegistered(form.jira)) {
+      return '이미 등록된 JIRA 번호입니다. 다른 JIRA를 입력해 주세요.'
+    }
+    if (!trim(form.itVoc)) return 'IT-VOC 번호를 입력해 주세요.'
+  }
+
+  if (!trim(form.name)) return '프로젝트명을 입력해 주세요.'
+  if (!form.scheduledOpenDate) return '오픈예정일을 선택해 주세요.'
+  if (!form.workCategories.length) return '업무범주를 1개 이상 추가해 주세요.'
+  if (!form.initiator) return '발의주체를 선택해 주세요.'
+  if (!form.devType) return '개발구분을 선택해 주세요.'
+  if (!form.summary) return '적요를 선택해 주세요.'
+  if (!trim(form.requestDept)) return '요청부서를 입력해 주세요.'
+  if (!trim(form.requester)) return '요청자를 입력해 주세요.'
+  if (totalAssigneeCount() < 1) return '업무별 담당자를 최소 1명 이상 등록해 주세요.'
+
+  for (const role of assigneeRoles) {
+    if ((form.assignees[role] || []).length > ASSIGNEE_MAX) {
+      return `${role} 담당자는 최대 ${ASSIGNEE_MAX}명까지 등록할 수 있습니다.`
+    }
+  }
+
+  if (!form.testUsage.length) return '테스트 유형을 1개 이상 선택해 주세요.'
+  if (!form.testLibrary) return '테스트 라이브러리 사용 여부를 선택해 주세요.'
+
+  if (form.stage === '완료' && !form.actualOpenDate) {
+    return '처리단계가 완료인 경우 오픈일을 입력해 주세요.'
+  }
+
+  return null
 }
 
 function addCategory(cat) {
@@ -168,8 +233,11 @@ function assigneeCount(role) {
 }
 
 function getAssigneeSearchResults(role) {
-  const existing = new Set((form.assignees[role] || []).map((p) => p.id))
-  return searchStaff(assigneeSearch[role] || '').filter((s) => !existing.has(s.id))
+  const taken = new Set()
+  assigneeRoles.forEach((r) => {
+    ;(form.assignees[r] || []).forEach((p) => taken.add(p.id))
+  })
+  return searchStaff(assigneeSearch[role] || '').filter((s) => !taken.has(s.id))
 }
 
 function onAssigneeSearchInput(role) {
@@ -179,7 +247,15 @@ function onAssigneeSearchInput(role) {
 function addAssignee(role, staff) {
   if (isReadOnly.value) return
   if (!form.assignees[role]) form.assignees[role] = []
-  if (form.assignees[role].some((p) => p.id === staff.id)) return
+  if (form.assignees[role].length >= ASSIGNEE_MAX) {
+    window.alert(`${role} 담당자는 최대 ${ASSIGNEE_MAX}명까지 등록할 수 있습니다.`)
+    return
+  }
+  const existingRole = findAssigneeRole(staff.id)
+  if (existingRole) {
+    window.alert('이미 등록 된 담당자입니다.')
+    return
+  }
   form.assignees[role].push({
     id: staff.id,
     name: staff.name,
@@ -197,6 +273,7 @@ function closeAssigneeSearch(role) {
 
 function onStageClick(stage) {
   if (isReadOnly.value) return
+  if (isRegistering.value && (stage === '완료' || stage === '반려')) return
   form.stage = stage
   if (stage !== '완료') form.actualOpenDate = ''
 }
@@ -220,13 +297,18 @@ function finalizeSave() {
 
   window.alert(
     wasRegistering
-      ? '프로젝트 정보가 저장되었습니다.\n이제 다른 프로젝트 메뉴를 이용할 수 있습니다.'
+      ? '프로젝트가 정상 등록되었습니다.\n프로젝트 상세화면으로 이동합니다.'
       : '프로젝트 정보가 저장되었습니다.',
   )
 }
 
 function save() {
   if (isReadOnly.value) return
+  const error = validateBeforeSave()
+  if (error) {
+    window.alert(error)
+    return
+  }
   if (needsScheduleReason()) {
     pendingSave.value = true
     showScheduleModal.value = true
@@ -361,7 +443,14 @@ function addIssue() {
             type="button"
             class="pill"
             :class="{ 'pill--on': form.stage === stage }"
-            :disabled="isReadOnly"
+            :disabled="
+              isReadOnly || (isRegistering && (stage === '완료' || stage === '반려'))
+            "
+            :title="
+              isRegistering && (stage === '완료' || stage === '반려')
+                ? '프로젝트 등록 중에는 선택할 수 없습니다.'
+                : undefined
+            "
             @click="onStageClick(stage)"
           >
             <span class="pill__mark">✓</span>{{ stage }}
@@ -530,9 +619,12 @@ function addIssue() {
               @blur="closeAssigneeSearch(role)"
             />
             <ul
-              v-if="assigneeSearchOpen[role] && getAssigneeSearchResults(role).length"
+              v-if="assigneeSearchOpen[role] && (assigneeSearch[role] || '').trim()"
               class="assignee-search__list"
             >
+              <li v-if="!getAssigneeSearchResults(role).length" class="assignee-search__empty">
+                검색 결과 없습니다.
+              </li>
               <li v-for="staff in getAssigneeSearchResults(role)" :key="staff.id">
                 <button
                   type="button"
@@ -555,18 +647,42 @@ function addIssue() {
 
       <div class="fld fld--req">
         <label>테스트 사용여부</label>
-        <div class="pill-group">
-          <button
-            v-for="opt in testUsageOptions"
-            :key="opt"
-            type="button"
-            class="pill"
-            :class="{ 'pill--on': form.testUsage.includes(opt) }"
-            :disabled="isReadOnly || form.hasRegisteredTestCases"
-            @click="toggleTestUsage(opt)"
-          >
-            <span class="pill__mark">✓</span>{{ opt }}
-          </button>
+        <div class="test-usage-row">
+          <template v-for="opt in testUsageOptions" :key="opt">
+            <button
+              type="button"
+              class="pill"
+              :class="{ 'pill--on': form.testUsage.includes(opt) }"
+              :disabled="testUsageLocked"
+              @click="toggleTestUsage(opt)"
+            >
+              <span class="pill__mark">✓</span>{{ opt }}
+            </button>
+            <div v-if="opt === 'DEV테스트' && isDevRoundEnabled" class="test-round">
+              <span class="test-round__label">DEV 차수</span>
+              <select
+                v-model="form.testRoundDev"
+                class="inp inp--edit test-round__select"
+                :disabled="testUsageLocked"
+              >
+                <option v-for="r in testRoundOptions" :key="`dev-${r}`" :value="r">
+                  {{ r }}
+                </option>
+              </select>
+            </div>
+            <div v-if="opt === '운영테스트' && isUatRoundEnabled" class="test-round">
+              <span class="test-round__label">운영 차수</span>
+              <select
+                v-model="form.testRoundUat"
+                class="inp inp--edit test-round__select"
+                :disabled="testUsageLocked"
+              >
+                <option v-for="r in testRoundOptions" :key="`uat-${r}`" :value="r">
+                  {{ r }}
+                </option>
+              </select>
+            </div>
+          </template>
         </div>
         <p v-if="form.hasRegisteredTestCases" class="field-hint">
           테스트 케이스가 등록되어 테스트 사용여부를 변경할 수 없습니다.
@@ -713,7 +829,9 @@ function addIssue() {
       <button type="button" class="btn btn--ghost" :disabled="!isDirty()" @click="resetForm">
         취소
       </button>
-      <button type="button" class="btn btn--primary" @click="save">저장</button>
+      <button type="button" class="btn btn--primary" @click="save">
+        {{ isRegistering ? '등록' : '저장' }}
+      </button>
     </div>
 
     <p v-else class="readonly-notice">
@@ -981,6 +1099,39 @@ select.inp--edit {
   margin-bottom: 8px;
 }
 
+.test-usage-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.test-round {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--teal-100, #cfe9e5);
+  border-radius: 8px;
+  background: var(--teal-50, #e6f4f2);
+}
+
+.test-round__label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-600, #0e8275);
+  white-space: nowrap;
+}
+
+.test-round__select {
+  width: auto;
+  min-width: 72px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #fff;
+}
+
 /* 처리단계 / 테스트 사용여부 / 테스트 라이브러리 공용 필 버튼 */
 .pill-group {
   display: flex;
@@ -1182,6 +1333,12 @@ select.inp--edit {
 .assignee-search__item:hover {
   background: var(--teal-50);
   color: var(--teal-600);
+}
+
+.assignee-search__empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .assignee-card__empty {

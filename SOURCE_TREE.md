@@ -2,7 +2,64 @@
 
 > Vue 3 + Vite + Pinia + Vue Router 기반 프론트엔드 (목업 데이터)  
 > 원칙: **화면 1개 = View 1파일**, CSS는 `src/assets/styles/`에 집중  
-> `node_modules/`, `dist/` 는 빌드·의존성 산출물이므로 제외
+> `node_modules/`, `dist/` 는 빌드·의존성 산출물이므로 제외  
+> Git Wiki 등에 그대로 붙여넣기 가능한 **파일 카탈로그** 문서입니다.
+
+---
+
+## 문서 역할 (합칠지 / 나눌지)
+
+현재 루트에 구조·레이아웃 관련 문서가 3종 있습니다. 역할이 달라 **공통 레이아웃은 유지**, **트리 문서는 역할 분리**를 권장합니다.
+
+| 문서 | 역할 | 판단 |
+|------|------|------|
+| **`SOURCE_TREE.md`** (본 문서) | 폴더·파일별 한 줄 설명 카탈로그. Wiki/온보딩용 | **유지** — 상세 파일 목록의 단일 출처 |
+| **`PROJECT_STRUCTURE.md`** | 구조 원칙·확정 결정·views↔화면ID 정책 | **유지하되 상세 트리는 본 문서로 위임** — 결정/정책만 짧게 유지 |
+| **`HPMS_공통레이아웃_정의.md`** | Header/LNB/1·2단 Tab/공통 UX (레이아웃 SB) | **별도 유지** — 폴더 트리와 성격이 다름. 합치면 너무 길어지고 검색이 어려움 |
+
+**합치지 않는 이유**
+- 공통 레이아웃 = **동작·UX 스펙**, 소스 트리 = **파일 지도** → 한 파일에 섞으면 둘 다 읽기 어려움
+- PROJECT_STRUCTURE의 긴 트리는 SOURCE_TREE와 중복 → 트리는 SOURCE_TREE 한곳으로
+
+**더 나누지 않는 이유**
+- DESIGN_GUIDE / TEST_ACCOUNTS / CLAUDE 등은 이미 목적별 분리되어 있음
+- “기획서 대비 구현 차이”는 본 문서 하단에 모아 두는 것이 온보딩에 유리
+
+관련: `DESIGN_GUIDE.md`(토큰·시각), `TEST_ACCOUNTS.md`(계정), `README.md`(실행)
+
+---
+
+## 기획서 대비 구현 차이 (중요)
+
+기획 SB와 **의도적으로 다르게** 합친 화면입니다. 팀/Wiki 공유 시 이 섹션을 먼저 보세요.
+
+### 1) 프로젝트 등록 + 프로젝트 정보 합침
+
+| 구분 | 기획서 | 현재 구현 |
+|------|--------|-----------|
+| 화면 | `PAG-M-PRJ-01` 등록 전용 페이지 + `PAG-S-INF-01` 정보(수정) | **등록·수정 모두** `ProjectInfoView.vue` (`/project/info`) |
+| 등록 진입 | 통합관리 > 프로젝트 등록 풀페이지 | LNB/메뉴 → **프로젝트명 모달** (`ProjectNameRegisterModal`) → 정보 화면(등록 모드) |
+| 삭제된 껍데기 | — | `ProjectRegisterView.vue` 제거 (미사용 플레이스홀더) |
+| 라우트 | `/integrated/project/register` | 모달 오픈 후 `/inbox` 등으로 redirect (본문은 info) |
+
+**이유:** 필드·검증·레이아웃이 등록/수정과 거의 동일해 이중 유지보수 비용이 큼.  
+`isRegistering`(draft)로 등록 전용 규칙(완료·반려 비활성, 필수값, 버튼「등록」 등)만 분기.
+
+### 2) 프로젝트 변경이력 합침
+
+| 구분 | 기획서 | 현재 구현 |
+|------|--------|-----------|
+| 통합 | `PAG-M-PST-03` 전체 프로젝트 변경이력 | `ProjectHistoryView.vue` + `/integrated/project/history` |
+| 개별 | `PAG-S-INF-05` 현재 프로젝트 변경이력 | **같은** `ProjectHistoryView.vue` + `/project/history` |
+| 상세 템플릿 | 기획서도 “동일 템플릿” 명시 | 공용 UI, row 펼침·상세보기 공유 |
+| 분기 | 화면 2개 | `route.name === 'project-history'` → 전체(+프로젝트/부서 필터·컬럼), 아니면 현재 프로젝트만 |
+
+**이유:** SB상 상세 양식이 동일하고, 차이는 조회 범위·필터·컬럼뿐이라 한 View + 모드 분기가 맞음.  
+삭제: `ProjectHistoryDetailView.vue` (개별 전용 분리본)
+
+### 그 외 (참고, 기획과 동일 취지)
+- DEV/운영 테스트 하위 메뉴: View 공용 + `route.params.mode` (`dev` \| `uat`)
+- 시스템관리·대시보드 등은 화면 1파일 원칙 유지
 
 ---
 
@@ -16,16 +73,13 @@ HPMS/
 ├── vite.config.js                      # Vite 설정 (@ → src 별칭, 개발 서버)
 ├── .gitignore                          # Git 제외 규칙
 ├── README.md                           # 실행법·로고 교체 안내
-├── PROJECT_STRUCTURE.md                # 폴더/화면 구조 기준 문서
+├── SOURCE_TREE.md                      # 본 문서 (소스 트리·파일별 설명·기획 차이)
+├── PROJECT_STRUCTURE.md                # 구조 원칙·확정 결정 (상세 트리는 본 문서)
 ├── DESIGN_GUIDE.md                     # 색상·폰트·간격 디자인 토큰 가이드
 ├── HPMS_공통레이아웃_정의.md            # Header/LNB/Tab/공통 UX 정의
 ├── TEST_ACCOUNTS.md                    # 테스트 계정·로그인 화면 안내
-├── WIKI_SOURCE_TREE.md                 # 본 문서 (소스 트리·파일별 설명)
-├── MAIN_DASHBOARD_REDESIGN.md          # 메인 대시보드 리디자인 초안(미적용) 목업·색상 토큰 기록
-├── CLAUDE.md / CURSOR.md               # AI 코딩 에이전트 작업 가이드 (+ 화면 컨셉 작업 규칙)
-├── .cursor/rules/design-system.mdc     # Cursor용 디자인 토큰·화면 컨셉 규칙 (alwaysApply)
-├── .agents/skills/, .claude/skills/    # 설치된 서드파티 Agent Skill 팩 (디자인 취향 스킬 13종)
-├── skills-lock.json                    # 위 스킬 설치 잠금 파일
+├── CLAUDE.md / CURSOR.md               # AI 코딩 에이전트 작업 가이드
+├── .cursor/rules/design-system.mdc     # Cursor용 디자인 토큰 규칙 (alwaysApply)
 ├── public/
 │   └── logo.png                        # 앱 로고 (파일명 고정, 이미지만 교체)
 └── src/                                # 애플리케이션 소스
@@ -48,7 +102,7 @@ src/
 │   ├── tabs.js                         # 1단 Tab (통합 메뉴 + 프로젝트 탭)
 │   ├── subTabs.js                      # 2단 Tab (프로젝트 하위 메뉴, projectId별)
 │   ├── project.js                      # 현재 프로젝트·등록중(draft)·프로젝트 가드
-│   └── theme.js                        # 화면 컨셉(기본/프리미엄/다크) 선택·localStorage 저장
+│   └── theme.js                        # 화면 컨셉(기본/프리미엄/다크)·localStorage
 │
 ├── composables/                        # 화면 공통 로직
 │   ├── useSidebar.js                   # LNB 펼침/접힘
@@ -71,19 +125,12 @@ src/assets/
 ├── icons/
 │   └── excel-icon.png                  # 엑셀 다운로드 버튼 아이콘
 └── styles/
-    ├── tokens.css                      # :root 디자인 토큰 (색·간격·폰트)
-    │                                    #   + :root[data-concept="premium"|"dark"] 오버라이드
-    │                                    #   (화면 컨셉별 색·라운드·그림자·이징 재정의)
+    ├── tokens.css                      # :root 디자인 토큰 (+ data-concept 오버라이드)
     ├── base.css                        # reset, 기본 타이포, page 컨테이너
-    ├── components.css                  # 버튼·뱃지·테이블·모달 등 공통 컴포넌트 (.card 포함)
-    ├── layout.css                      # 헤더·LNB·탭·헤더 팝업(검색/알림/내정보 컨셉 전환 등)
+    ├── components.css                  # 버튼·뱃지·테이블·모달 등 공통 컴포넌트
+    ├── layout.css                      # 헤더·LNB·탭·헤더 팝업
     └── admin.css                       # 시스템관리 화면 공통 레이아웃/필터/테이블
 ```
-
-**화면 컨셉(테마) 시스템**: `내 정보` 팝업(`MyInfoModal.vue`) 상단에서 기본/프리미엄/다크 중 선택 →
-`stores/theme.js`가 `<html data-concept="...">`에 반영 + `localStorage` 저장 → `tokens.css`의
-`:root[data-concept="..."]` 블록이 공용 토큰(`--teal*`, `--radius-*`, `--shadow-*`, `--lnb-*` 등)을
-덮어써서 전역 적용. 새 UI 작성 시 이 토큰들을 하드코딩하지 말 것 (`CLAUDE.md` / `.cursor/rules/design-system.mdc` 참고).
 
 ---
 
@@ -113,13 +160,13 @@ src/components/
 │
 ├── header/                             # 헤더 레이어 팝업 (POP-M-COM-04~07)
 │   ├── HeaderLayerModal.vue            # 헤더 팝업 공용 셸
-│   ├── GlobalSearchModal.vue           # 통합 검색 (POP-M-COM-04)
-│   ├── NotificationModal.vue           # 알림 3탭 (POP-M-COM-05)
-│   ├── MyProjectsModal.vue             # 내 프로젝트 (POP-M-COM-06)
-│   └── MyInfoModal.vue                 # 내 정보 (POP-M-COM-07) + 화면 컨셉 전환 UI
+│   ├── GlobalSearchModal.vue           # 통합 검색
+│   ├── NotificationModal.vue           # 알림 3탭
+│   ├── MyProjectsModal.vue             # 내 프로젝트
+│   └── MyInfoModal.vue                 # 내 정보 (+ 화면 컨셉 전환)
 │
 ├── auth/
-│   └── PasswordResetModal.vue          # 비밀번호 재설정 (POP-M-COM-03)
+│   └── PasswordResetModal.vue          # 비밀번호 재설정
 │
 ├── inbox/
 │   └── InboxCalendar.vue               # 내업무 캘린더형 뷰
@@ -129,7 +176,7 @@ src/components/
 │   └── ScheduleChangeModal.vue         # 일정 변경 이력 팝업
 │
 ├── project/
-│   ├── ProjectNameRegisterModal.vue    # 프로젝트명 등록 모달
+│   ├── ProjectNameRegisterModal.vue    # 프로젝트명 등록 모달 (등록 플로우 진입점)
 │   ├── ProjectHistoryDetailModal.vue   # 변경이력 상세 팝업
 │   ├── ScheduleReasonInputModal.vue    # 일정 변경 사유 입력
 │   └── TesterChangeModal.vue           # 테스터 변경
@@ -166,9 +213,9 @@ src/data/
 ├── performance.js                      # 실적 관리
 ├── techResource.js                     # 테크 리소스
 ├── projectStatus.js                    # 프로젝트 현황
-├── projectRegister.js                  # 프로젝트 등록
+├── projectRegister.js                  # 프로젝트 등록 초기값·JIRA 중복 검사
 ├── projectInfo.js                      # 프로젝트 정보
-├── projectHistory.js                   # 프로젝트 변경이력
+├── projectHistory.js                   # 변경이력 (전체/개별 공용 데이터)
 ├── projectDashboard.js                 # 개별 프로젝트 대시보드
 ├── scheduleChange.js                   # 일정 변경 팝업 데이터
 ├── requirement.js                      # 요구사항
@@ -189,7 +236,9 @@ src/data/
 
 ---
 
-## `src/views/` 화면 (1파일 = 1화면)
+## `src/views/` 화면
+
+> 원칙은 “화면 1개 = 파일 1개”이나, **등록/정보·변경이력·DEV/운영**처럼 기획상 UI가 동일하면 **공용 View + 라우트/모드 분기**를 허용합니다.
 
 ### 공통·내업무·대시보드·통합
 
@@ -200,9 +249,8 @@ src/data/
 | `MainDashboardView.vue` | PAG-M-DAS-01 | 메인 대시보드 |
 | `PerformanceView.vue` | PAG-M-DAS-06 | 실적 관리 |
 | `TechResourceView.vue` | PAG-M-DAS-04 | 테크 리소스 관리 |
-| `ProjectRegisterView.vue` | PAG-M-PRJ-01 | 프로젝트 등록 (모달 플로우로 리다이렉트) |
 | `ProjectStatusView.vue` | PAG-M-PST-01 | 프로젝트 현황 |
-| `ProjectHistoryView.vue` | PAG-M-PST-03 | 통합 프로젝트 변경이력 (전체) |
+| `ProjectHistoryView.vue` | PAG-M-PST-03 / PAG-S-INF-05 | **변경이력 공용** (통합=전체 · 개별=현재 프로젝트) |
 | `TestCaseView.vue` | PAG-M-TLB-01 | 테스트 라이브러리 |
 
 ### 시스템관리
@@ -220,8 +268,7 @@ src/data/
 | 파일 | 화면ID | 설명 |
 |------|--------|------|
 | `ProjectDashboardView.vue` | PAG-S-DAS-01 | 프로젝트 대시보드 |
-| `ProjectInfoView.vue` | PAG-S-INF-01 | 프로젝트 정보 (등록/조회) |
-| `ProjectHistoryDetailView.vue` | PAG-S-INF-05 | 개별 프로젝트 변경이력 |
+| `ProjectInfoView.vue` | PAG-S-INF-01 (+등록) | **정보 등록·수정 공용** (기획 PAG-M-PRJ-01 등록 페이지 대체) |
 | `RequirementView.vue` | PAG-S-REQ-* | 요구사항 관리 |
 | `WbsView.vue` | PAG-S-WBS-* | WBS 관리 (목록/캘린더) |
 | `UnitTestView.vue` | PAG-S-TST-01 | 단위테스트 |

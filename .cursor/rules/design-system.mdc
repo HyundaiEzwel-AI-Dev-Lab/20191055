@@ -20,5 +20,15 @@ alwaysApply: true
 - 굵기: 일반 500, 강조 600~700, 타이틀 800
 
 ## 레이아웃
-- 헤더 52px · LNB 220px/60px · 카드 radius 10px · 본문 좌우 패딩 24px
+- 헤더 52px · LNB 220px/60px · 카드 radius `var(--radius-lg)` · 본문 좌우 패딩 24px
 - 하드코딩 HEX 금지 — 토큰 변수만 사용
+
+## 화면 컨셉 (내 정보 > 화면 컨셉)
+
+`src/stores/theme.js` + `tokens.css`의 `:root[data-concept="..."]` 블록으로 동작. 컨셉끼리는 마크업/구조를 공유하고 디자인 토큰(`--radius-*`, `--shadow-*`, `--transition-*`, `--teal-600`/`--teal-700` 등)만 다르다.
+
+신규 UI 작성·기존 화면 수정 시:
+- radius/shadow/easing 값은 px·rgba를 직접 쓰지 말고 반드시 `var(--radius-lg)`, `var(--shadow-sm)`, `var(--transition-normal)` 등 토큰으로 작성한다. 하드코딩하면 그 요소만 컨셉 전환에서 빠진다.
+- `components.css`/`layout.css`의 전역 클래스(`.card` 등)를 컴포넌트 scoped style에서 같은 값으로 다시 정의하지 않는다 — Vue scoped 특이도 때문에 전역 규칙을 덮어써서 컨셉 전환이 깨진다. 전역 규칙을 그대로 쓰거나 확장한다.
+- 변경 후에는 내 정보 팝업에서 기본 ⇄ 프리미엄(및 이후 추가되는 컨셉)을 전환해 두 상태 모두 확인한다.
+- 새 색상 컨셉 추가 시: `tokens.css`에 `:root[data-concept="이름"] { ... }` 블록 추가 + `src/stores/theme.js`의 `conceptOptions`에 옵션 추가. 화면이 토큰만 쓰고 있다면 다른 파일은 건드릴 필요 없다.

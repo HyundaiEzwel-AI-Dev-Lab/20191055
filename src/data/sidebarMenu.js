@@ -98,6 +98,7 @@ export const projectMenus = [
     icon: 'monitor',
     children: [
       { label: '시나리오 관리', route: '/project/scenario/uat', name: 'scenario-uat' },
+      { label: '테스트 수행', route: '/project/test-run/uat', name: 'test-run-uat' },
       { label: '결함 관리', route: '/project/defect/uat', name: 'defect-uat' },
       { label: '진척 관리', route: '/project/progress/uat', name: 'progress-uat' },
     ],

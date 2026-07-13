@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { useThemeStore, conceptOptions } from '@/stores/theme'
 import { defaultUserProfile } from '@/data/headerPopups'
 import { getSurname } from '@/utils/text'
 
@@ -17,7 +18,9 @@ const emit = defineEmits(['update:modelValue', 'password-reset'])
 const router = useRouter()
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
+const themeStore = useThemeStore()
 const { user } = storeToRefs(authStore)
+const { concept } = storeToRefs(themeStore)
 
 const profile = computed(() => user.value || defaultUserProfile)
 
@@ -75,6 +78,25 @@ function logout() {
           <dd>{{ profile.lastLogin }}</dd>
         </div>
       </dl>
+
+      <div class="hdr-info__concept">
+        <div class="hdr-info__concept-lab">화면 컨셉</div>
+        <div class="concept-seg">
+          <button
+            v-for="c in conceptOptions"
+            :key="c.value"
+            type="button"
+            class="concept-seg__item"
+            :class="{ on: concept === c.value }"
+            @click="themeStore.setConcept(c.value)"
+          >
+            {{ c.label }}
+          </button>
+        </div>
+        <p class="hdr-info__concept-desc">
+          {{ conceptOptions.find((c) => c.value === concept)?.desc }}
+        </p>
+      </div>
 
       <div class="hdr-info__actions">
         <button class="hdr-info__btn" type="button" @click="openPasswordReset">비밀번호 변경</button>

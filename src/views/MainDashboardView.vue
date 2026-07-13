@@ -630,7 +630,7 @@ function onOverdueClick(row) {
   color: currentColor;
 }
 
-.kpi--neutral { background: #eef1f5; color: var(--lnb-logo); }
+.kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
 .kpi--gray { background: var(--gray-bg); color: var(--gray); }
 .kpi--blue { background: var(--blue-bg); color: var(--blue); }
 .kpi--green { background: var(--green-bg); color: var(--green); }

@@ -1,3 +1,11 @@
+/* 카드 (레거시 테스트 화면 공용) */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  transition: border-radius var(--transition-normal);
+}
+
 /* 버튼 */
 .btn {
   display: inline-flex;

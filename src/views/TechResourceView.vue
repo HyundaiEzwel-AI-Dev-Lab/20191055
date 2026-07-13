@@ -602,7 +602,7 @@ function formatExecProgress(progress) {
   margin-left: 2px;
 }
 
-.kpi--neutral { background: #eef1f5; color: var(--lnb-logo); }
+.kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
 .kpi--blue { background: var(--blue-bg); color: var(--blue); }
 .kpi--teal { background: var(--teal-50); color: var(--teal-600); }
 .kpi--orange { background: var(--orange-bg); color: var(--orange); }

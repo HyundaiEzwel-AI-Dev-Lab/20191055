@@ -2,7 +2,7 @@
 
 > 이 파일은 프로젝트 루트(`HPMS/`)에 두고, **모든 화면·컴포넌트 구현 시 기준 문서**로 참조합니다.
 > 원본: `[SB]HPMS(프로젝트 관리 시스템)SB_공통 레이아웃 정의(0707).pdf` (18p)
-> 화면ID: `PAG-M-COM-01` | 관련: `PROJECT_STRUCTURE.md`, `HPMS_기획서_분석_레퍼런스.md`
+> 화면ID: `PAG-M-COM-01` | 관련: `SOURCE_TREE.md`, `PROJECT_STRUCTURE.md`
 
 ---
 
@@ -404,7 +404,8 @@ Prev2  Prev1  select/unselect  Next1  Next2
 
 | 문서 | 용도 |
 |---|---|
-| `PROJECT_STRUCTURE.md` | 폴더 구조, views 24개, 라우팅 |
+| `SOURCE_TREE.md` | 소스 트리·파일 설명·기획 대비 합침 |
+| `PROJECT_STRUCTURE.md` | 구조 원칙·확정 결정 |
 | `HPMS_공통레이아웃_정의.md` | **이 파일** — 레이아웃·Tab·LNB·스타일·컴포넌트 |
 | `HPMS_기획서_분석_레퍼런스.md` | 화면 65개 인벤토리, 핵심 정책 |
 | `README.md` | 실행법, 로고 위치 |

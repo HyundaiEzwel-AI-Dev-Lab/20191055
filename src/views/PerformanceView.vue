@@ -653,7 +653,7 @@ function onMonthPresetChange() {
   margin-left: 2px;
 }
 
-.kpi--neutral { background: #eef1f5; color: var(--lnb-logo); }
+.kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
 .kpi--orange { background: var(--orange-bg); color: var(--orange); }
 .kpi--violet { background: #f2effe; color: #7c5cf0; }
 .kpi--blue { background: var(--blue-bg); color: var(--blue); }

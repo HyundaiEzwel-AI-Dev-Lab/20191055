@@ -324,7 +324,7 @@ function nextWaiting() {
   font-weight: 600;
 }
 
-.stat-chip--brand { background: #eef1f5; color: var(--lnb-logo); }
+.stat-chip--brand { background: var(--gray-bg); color: var(--lnb-logo); }
 .stat-chip--brand .stat-chip__icon { color: var(--lnb-logo); }
 .stat-chip--blue { background: var(--blue-bg); color: var(--blue); }
 .stat-chip--orange { background: var(--orange-bg); color: var(--orange); }
@@ -494,7 +494,7 @@ function nextWaiting() {
   color: var(--lnb-muted);
   font-weight: 600;
 }
-.mini-stat--assign { background: #eef1f5; }
+.mini-stat--assign { background: var(--gray-bg); }
 .mini-stat--task { background: var(--blue-bg); }
 .mini-stat--task .mini-stat__num,
 .mini-stat--task .mini-stat__icon { color: var(--blue); }
@@ -511,7 +511,7 @@ function nextWaiting() {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid #eef1f5;
+  border: 2px solid var(--gray-bg);
   display: flex;
   align-items: center;
   justify-content: center;

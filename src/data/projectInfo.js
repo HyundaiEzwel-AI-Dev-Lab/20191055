@@ -17,7 +17,10 @@ export const workCategoryPresets = [
   '상품',
 ]
 
-export const testUsageOptions = ['단위테스트', 'DEV테스트', '운영테스트']
+export const testUsageOptions = ['단위테스트', 'DEV테스트', 'STG테스트', '운영테스트']
+
+/** DEV·운영 각각 차수 선택 (1~5차, 기본 1차) */
+export const testRoundOptions = ['1차', '2차', '3차', '4차', '5차']
 
 export const testLibraryScenarios = [
   { id: 'tl1', label: 'DEV테스트 1차 – 20 case', type: 'DEV테스트', round: '1차' },
@@ -78,6 +81,8 @@ const defaultDetail = {
     ],
   },
   testUsage: ['단위테스트', 'DEV테스트'],
+  testRoundDev: '3차',
+  testRoundUat: '1차',
   testLibrary: '등록',
   testLibraryScenarios: ['tl1', 'tl3', 'tl5'],
   hasRegisteredTestCases: false,

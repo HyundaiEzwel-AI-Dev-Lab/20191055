@@ -215,6 +215,12 @@ function onExcelDownload() {
 </template>
 
 <style scoped>
+.proj-dash {
+  padding: 14px 18px 28px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .proj-dash__title {
   font-size: 18px;
   font-weight: 700;

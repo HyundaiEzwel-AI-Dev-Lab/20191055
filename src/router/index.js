@@ -112,7 +112,7 @@ const routes = [
   {
     path: '/project/history',
     name: 'project-history-detail',
-    component: () => import('@/views/ProjectHistoryDetailView.vue'),
+    component: () => import('@/views/ProjectHistoryView.vue'),
     meta: { title: '프로젝트 변경이력', requiresProject: true },
   },
   {
