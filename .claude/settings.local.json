@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export CHROME_PATH=\"/Users/parkyoungmin/Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing\")",
+      "Bash(node shot4.mjs ./project-info-v2.png)",
+      "Bash(node shot6.mjs)",
+      "Bash(node shot7.mjs)",
+      "Bash(node shot8.mjs)",
+      "Bash(node shot9.mjs)",
+      "Bash(lsof -i :5173 -sTCP:LISTEN -t)",
+      "Bash(node shot10.mjs)",
+      "Bash(node shot11.mjs)",
+      "Bash(node shot12.mjs)",
+      "Bash(node shot13.mjs)",
+      "Bash(node shot14.mjs)",
+      "Bash(node shot15.mjs)"
+    ]
+  }
+}

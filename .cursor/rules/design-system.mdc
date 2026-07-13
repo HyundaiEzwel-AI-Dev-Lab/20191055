@@ -1,0 +1,24 @@
+---
+description: HPMS 폰트·색상·크기 디자인 기준 — 새 UI 작성 시 반드시 준수
+alwaysApply: true
+---
+
+# HPMS 디자인 시스템
+
+상세 기준: `DESIGN_GUIDE.md` · 변수 원본: `src/assets/styles/tokens.css`
+
+## 색상
+- **포인트(CTA·2단탭 활성·선택)**: `--teal` `#119a8a`, hover `--teal-600`, 배경 `--teal-50`
+- **강조 텍스트·1단탭 활성**: `--lnb-logo` `#1c1d21`
+- **본문**: `--lnb-txt` `#2b2f36` · **보조**: `--lnb-muted` `#9aa0a8`
+- **배경**: 셸 `--lnb-bg`, 카드/패널 `--lnb-side`, hover `--lnb-hover`
+- **테두리**: `--lnb-line` · **상태 뱃지**: `--blue`+`--blue-bg` 등 쌍 사용
+- 로그인/모달만 `--ink`, `--muted`, `--field` 사용
+
+## 폰트 크기
+- 기본 본문 **13px** (`--font-size-md`) · 보조 11~12px · 섹션 14px · 페이지 타이틀 **20px**
+- 굵기: 일반 500, 강조 600~700, 타이틀 800
+
+## 레이아웃
+- 헤더 52px · LNB 220px/60px · 카드 radius 10px · 본문 좌우 패딩 24px
+- 하드코딩 HEX 금지 — 토큰 변수만 사용

@@ -1,0 +1,1 @@
+import{_ as a,c as t,a as s,l as c}from"./index-BVo8R0EM.js";const o={},r={class:"page-content"};function n(l,e){return c(),t("div",r,[...e[0]||(e[0]=[s("h1",{class:"page-title"},"결재 관리",-1),s("div",{class:"page-placeholder"},"결재 관리 화면 (C단계에서 구현)",-1)])])}const _=a(o,[["render",n]]);export{_ as default};

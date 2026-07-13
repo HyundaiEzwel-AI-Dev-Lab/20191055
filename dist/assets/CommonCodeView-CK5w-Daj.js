@@ -1,0 +1,1 @@
+import{_ as o,c as t,a as s,l as a}from"./index-BVo8R0EM.js";const c={},n={class:"page-content"};function r(l,e){return a(),t("div",n,[...e[0]||(e[0]=[s("h1",{class:"page-title"},"공통코드",-1),s("div",{class:"page-placeholder"},"공통코드 화면 (C단계에서 구현)",-1)])])}const _=o(c,[["render",r]]);export{_ as default};
