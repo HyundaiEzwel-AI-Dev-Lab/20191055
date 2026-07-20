@@ -3,7 +3,6 @@
 // figma: 01_로그인.html / 기획서: 로그인.pdf
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import PasswordResetModal from '@/components/auth/PasswordResetModal.vue'
 import { findUserById } from '@/data/mockUsers'
 import { useAuthStore } from '@/stores/auth'
 
@@ -19,7 +18,6 @@ const form = reactive({
   saveId: false,
 })
 const showPassword = ref(false)
-const showReset = ref(false)
 const errorMessage = ref('')
 const showTooltip = ref(false)
 
@@ -166,7 +164,6 @@ function login() {
 
         <div class="rowx">
           <label class="save"><input v-model="form.saveId" type="checkbox" /> ID 저장</label>
-          <a @click="showReset = true">비밀번호 재설정</a>
         </div>
 
         <button class="big" type="submit">로그인</button>
@@ -174,10 +171,9 @@ function login() {
         <p v-if="errorMessage" class="err">{{ errorMessage }}</p>
 
         <div class="foot">임직원 사번 계정 · 외주 전용 ID만 로그인 가능</div>
+        <div class="notice">※ 비밀번호 분실 시 웹기획팀에 문의 바랍니다.</div>
       </form>
     </div>
-
-    <PasswordResetModal v-model="showReset" />
   </div>
 </template>
 
@@ -366,6 +362,14 @@ function login() {
   font-size: 11px;
   color: var(--muted);
   text-align: center;
+}
+.form .notice {
+  font-size: 11px;
+  color: var(--ink-2);
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
 }
 
 @media (max-width: 860px) {

@@ -1,7 +1,7 @@
 <script setup>
 // PAG-M-SYS-06 공통코드 관리
 import { computed, reactive, ref, watch } from 'vue'
-import { commonCodeMeta, codeCategories, getCodeDetails } from '@/data/commonCode'
+import { codeCategories, getCodeDetails } from '@/data/commonCode'
 import BaseModal from '@/components/ui/BaseModal.vue'
 
 const selectedCategory = ref(codeCategories[0])
@@ -64,17 +64,23 @@ function saveEdit() {
 }
 
 function saveAll() {
+  const empty = rows.value.find((r) => !String(r.code || '').trim() || !String(r.name || '').trim())
+  if (empty) {
+    window.alert('코드와 코드명이 비어 있는 행이 있습니다.')
+    return
+  }
+  const codes = rows.value.map((r) => r.code)
+  if (new Set(codes).size !== codes.length) {
+    window.alert('중복된 코드가 있습니다.')
+    return
+  }
+  if (!window.confirm(`[${selectedCategory.value}] ${rows.value.length}건을 저장하시겠습니까?`)) return
   window.alert(`[${selectedCategory.value}] ${rows.value.length}건을 저장했습니다.`)
 }
 </script>
 
 <template>
   <div class="admin-page">
-    <h1 class="admin-page__title">
-      공통코드 관리
-      <span class="admin-page__hint">{{ commonCodeMeta.hint }}</span>
-    </h1>
-
     <div class="admin-split">
       <aside class="card admin-side">
         <div class="admin-side__head">

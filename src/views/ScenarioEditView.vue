@@ -4,6 +4,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTestContext } from '@/composables/useTestContext'
 import { getScenarioEditGroups, saveScenarioCase } from '@/data/scenario'
+import ScenarioLoadFromWbsModal from '@/components/test/ScenarioLoadFromWbsModal.vue'
+import ScenarioCopyFromLibraryModal from '@/components/test/ScenarioCopyFromLibraryModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +14,9 @@ const { mode, config } = useTestContext()
 const groups = ref([])
 const selectedRound = ref('3차')
 const highlightCaseId = ref('')
+const showWbsLoad = ref(false)
+const showLibCopy = ref(false)
+let caseSeq = 100
 
 function loadGroups() {
   groups.value = getScenarioEditGroups(mode.value).map((g) => ({
@@ -32,6 +37,28 @@ const pageTitle = computed(() => `시나리오 편집 (${config.value.label})`)
 
 function goBack() {
   router.push({ name: 'scenario', params: { mode: mode.value } })
+}
+
+function nextCaseId(prefix = 'TC') {
+  caseSeq += 1
+  return `${prefix}-${String(caseSeq).padStart(3, '0')}`
+}
+
+function findOrCreateGroup({ reqId, screenName, systemPath, screenPath }) {
+  let group = groups.value.find(
+    (g) => g.reqId === reqId && g.screenName === screenName,
+  )
+  if (!group) {
+    group = {
+      reqId: reqId || `REQ-${caseSeq}`,
+      screenName: screenName || '미지정 화면',
+      systemPath: systemPath || '-',
+      screenPath: screenPath || '-',
+      cases: [],
+    }
+    groups.value.push(group)
+  }
+  return group
 }
 
 function addStep(caseRow) {
@@ -61,6 +88,25 @@ function moveStep(caseRow, idx, dir) {
 function saveAll() {
   for (const group of groups.value) {
     for (const c of group.cases) {
+      if (!c.caseName?.trim()) {
+        window.alert('케이스명을 입력해 주세요.')
+        return
+      }
+      if (!c.steps?.length) {
+        window.alert(`[${c.caseId}] 절차를 1건 이상 등록해 주세요.`)
+        return
+      }
+      for (const step of c.steps) {
+        if (!step.procedure?.trim() || !step.expected?.trim()) {
+          window.alert(`[${c.caseId}] 절차와 기대결과를 모두 입력해 주세요.`)
+          return
+        }
+      }
+    }
+  }
+  if (!window.confirm('시나리오를 저장하시겠습니까?')) return
+  for (const group of groups.value) {
+    for (const c of group.cases) {
       saveScenarioCase(c.caseId, {
         caseName: c.caseName,
         executionType: c.executionType,
@@ -74,11 +120,60 @@ function saveAll() {
 }
 
 function loadFromWbs() {
-  window.alert('WBS에서 테스트 대상을 불러옵니다. (목업)')
+  showWbsLoad.value = true
 }
 
 function copyFromLibrary() {
-  window.alert('라이브러리에서 케이스를 복사합니다. (목업)')
+  showLibCopy.value = true
+}
+
+function onWbsConfirm(tasks) {
+  const execType = config.value.editExecutionTypeOptions?.[0] || '오픈 전'
+  for (const t of tasks) {
+    const group = findOrCreateGroup({
+      reqId: t.requirementId || `REQ-${t.wbsId}`,
+      screenName: t.screenName && t.screenName !== '-' ? t.screenName : t.requirementName,
+      systemPath: t.systemPath || '-',
+      screenPath: t.screenPath || '-',
+    })
+    group.cases.push({
+      id: `sc-wbs-${Date.now()}-${caseSeq}`,
+      caseId: nextCaseId('TC-W'),
+      caseName: `${t.requirementName} (${t.taskType})`,
+      executionType: execType,
+      note: `WBS ${t.wbsId}에서 불러옴`,
+      steps: [{ no: 1, procedure: '', expected: '' }],
+      stepCount: 1,
+      round: selectedRound.value,
+    })
+  }
+  window.alert(`${tasks.length}건을 추가했습니다.`)
+}
+
+function onLibraryConfirm(cases) {
+  const execType = config.value.editExecutionTypeOptions?.[0] || '오픈 전'
+  for (const c of cases) {
+    const pathParts = (c.systemPath || '').split('>').map((s) => s.trim())
+    const group = findOrCreateGroup({
+      reqId: `REQ-LIB-${c.libId}`,
+      screenName: c.screenName,
+      systemPath: pathParts.slice(0, 2).join('>') || c.systemPath || '-',
+      screenPath: pathParts.slice(2).join('>') || '-',
+    })
+    group.cases.push({
+      id: `sc-lib-${Date.now()}-${caseSeq}`,
+      caseId: nextCaseId('TC-L'),
+      caseName: c.caseName,
+      executionType: execType,
+      note: `라이브러리 ${c.libTitle}에서 복사`,
+      steps: c.steps.length
+        ? c.steps.map((s, i) => ({ no: i + 1, procedure: s.procedure, expected: s.expected }))
+        : [{ no: 1, procedure: '', expected: '' }],
+      stepCount: c.steps.length || 1,
+      round: selectedRound.value,
+    })
+  }
+  window.alert(`${cases.length}건을 복사했습니다.`)
 }
 </script>
 
@@ -173,6 +268,9 @@ function copyFromLibrary() {
       </div>
     </div>
   </div>
+
+  <ScenarioLoadFromWbsModal v-model="showWbsLoad" @confirm="onWbsConfirm" />
+  <ScenarioCopyFromLibraryModal v-model="showLibCopy" @confirm="onLibraryConfirm" />
 </template>
 
 <style scoped>

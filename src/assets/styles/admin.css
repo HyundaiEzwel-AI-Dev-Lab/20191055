@@ -3,25 +3,8 @@
 .admin-page {
   font-family: var(--font-family);
   color: var(--lnb-txt);
-  padding: 0 24px 28px;
+  padding: 14px 24px 28px;
   box-sizing: border-box;
-}
-
-.admin-page__title {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 14px;
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 10px;
-  color: var(--lnb-logo);
-}
-
-.admin-page__hint {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--lnb-muted);
 }
 
 .admin-page .card {

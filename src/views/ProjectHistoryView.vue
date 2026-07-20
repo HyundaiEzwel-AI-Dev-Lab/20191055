@@ -4,7 +4,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
 import {
-  projectHistoryMeta,
   changeCategoryOptions,
   changePeriodOptions,
   pageSizeOptions,
@@ -32,10 +31,6 @@ const currentPage = ref(1)
 const expandedId = ref(null)
 const detailTarget = ref(null)
 const showDetailModal = ref(false)
-
-const pageHint = computed(() =>
-  isIntegrated.value ? projectHistoryMeta.integratedHint : projectHistoryMeta.projectHint,
-)
 
 const colSpan = computed(() => (isIntegrated.value ? 7 : 5))
 
@@ -136,9 +131,6 @@ function displayNo(index) {
 
 <template>
   <div class="project-history">
-    <h1 class="project-history__title">프로젝트 변경이력</h1>
-    <p class="project-history__hint">{{ pageHint }}</p>
-
     <section class="filter card">
       <div class="filter__row" :class="isIntegrated ? 'filter__row--4' : 'filter__row--3'">
         <div class="filter__field">
@@ -308,18 +300,6 @@ function displayNo(index) {
   padding: 8px 24px 28px;
   color: var(--ink);
   font-size: 13px;
-}
-
-.project-history__title {
-  margin: 0 0 4px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.project-history__hint {
-  margin: 0 0 12px;
-  font-size: 12px;
-  color: var(--muted);
 }
 
 .filter {

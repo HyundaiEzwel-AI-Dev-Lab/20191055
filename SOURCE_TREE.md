@@ -92,7 +92,7 @@ HPMS/
 ```
 src/
 ├── main.js                             # 앱 부트스트랩 (Pinia·Router·전역 CSS 연결)
-├── App.vue                             # 최상위: AppShell + <router-view>
+├── App.vue                             # 최상위: AppShell + <router-view> + 전역 LoadingOverlay
 │
 ├── router/
 │   └── index.js                        # 전체 화면 URL 라우팅·가드(로그인/프로젝트)
@@ -108,7 +108,8 @@ src/
 │   ├── useSidebar.js                   # LNB 펼침/접힘
 │   ├── useLayoutTabs.js                # 라우트 변경 시 1·2단 탭 동기화
 │   ├── useProjectRegister.js           # 프로젝트 등록 모달·탭 생성 플로우
-│   └── useTestContext.js               # DEV/운영(uat) 테스트 화면 공통 컨텍스트
+│   ├── useTestContext.js               # DEV/운영(uat) 테스트 화면 공통 컨텍스트
+│   └── useLoading.js                   # 공통 로딩 show/hide/withLoading (전역)
 │
 └── utils/
     ├── excelDownload.js                # 엑셀(.xlsx) 실다운로드 (xlsx 라이브러리)
@@ -148,7 +149,8 @@ src/components/
 │
 ├── ui/                                 # 재사용 UI
 │   ├── BaseModal.vue                   # 공통 모달 셸
-│   └── ExcelDownloadButton.vue         # 엑셀 다운로드 아이콘 버튼
+│   ├── ExcelDownloadButton.vue         # 엑셀 다운로드 아이콘 버튼
+│   └── LoadingOverlay.vue              # 공통 로딩 (틸 스피너 + 카드, fullscreen/inline)
 │
 ├── header/                             # 헤더 레이어 팝업 (POP-M-COM-04~07)
 │   ├── HeaderLayerModal.vue            # 헤더 팝업 공용 셸
@@ -267,6 +269,56 @@ src/data/
 | `TestRunView.vue` | PAG-S-UAT-09 | 테스트 수행 (DEV/운영 공용) |
 | `DefectView.vue` | PAG-S-UAT-14 | 결함 관리 (운영은 배포상태 컬럼 추가) |
 | `ProgressView.vue` | PAG-S-UAT-16 | 진척 관리 (DEV/운영 공용) |
+
+---
+
+## 공통 로딩 가이드
+
+데이터 조회가 느릴 때 쓰는 **전역 공통 로딩**. 디자인: `--teal` 링 스피너 + `--lnb-side` 카드 + 반투명 스크림.
+
+| 파일 | 역할 |
+|------|------|
+| `src/components/ui/LoadingOverlay.vue` | UI (문구·mode) |
+| `src/composables/useLoading.js` | 전역 상태 (`show` / `hide` / `withLoading`) |
+| `src/App.vue` | 전역 `<LoadingOverlay>` 마운트 |
+
+### Props (`LoadingOverlay`)
+
+| Prop | 기본 | 설명 |
+|------|------|------|
+| `visible` | `false` | 표시 여부 |
+| `message` | `데이터를 조회하고 있습니다.` | 안내 문구 |
+| `mode` | `fullscreen` | `fullscreen` = 화면 전체 / `inline` = 부모 영역 (부모에 `position: relative` 필요) |
+
+### 전역 사용 (권장)
+
+```js
+import { useLoading } from '@/composables/useLoading'
+
+const { show, hide, withLoading } = useLoading()
+
+show('데이터를 조회하고 있습니다.')
+// ...조회
+hide()
+
+await withLoading(async () => {
+  // fetch...
+}, '목록을 불러오는 중...')
+```
+
+- `show` / `hide`는 **중첩 카운트**를 사용합니다. 여러 요청이 겹쳐도 마지막 `hide`까지 로딩이 유지됩니다.
+- `reset()`으로 카운트·표시를 강제 초기화할 수 있습니다.
+
+### 영역(inline) 로딩
+
+```vue
+<div style="position: relative">
+  <LoadingOverlay mode="inline" :visible="loading" message="조회 중..." />
+  <!-- 목록 등 -->
+</div>
+```
+
+`inline`일 때는 Teleport를 쓰지 않고 부모 박스 안에 그립니다.
 
 ---
 

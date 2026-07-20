@@ -4,14 +4,23 @@
  * 멀티데이 업무: 주 단위 가로 span 바 (일별 중복 표기 X)
  */
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { calendarTasks, unscheduledTasks, projectColors } from '@/data/inboxCalendar'
+import { myProjects } from '@/data/headerPopups'
+import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
+import { useSubTabsStore } from '@/stores/subTabs'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const VISIBLE_LANES = 2
 
+const router = useRouter()
+const projectStore = useProjectStore()
+const tabsStore = useTabsStore()
+const subTabsStore = useSubTabsStore()
+
 const today = new Date(2026, 2, 20)
 const cursor = ref(new Date(2026, 2, 1))
-const morePopup = ref(null)
 
 const calendarLabel = computed(
   () => `${cursor.value.getFullYear()}년 ${cursor.value.getMonth() + 1}월`,
@@ -41,8 +50,8 @@ const calendarWeeks = computed(() => {
   for (let w = 0; w < 6; w++) {
     const cells = allCells.slice(w * 7, w * 7 + 7)
     const bars = layoutWeekBars(cells)
-    const moreByCol = cells.map((_, col) => countHiddenInCol(bars, col))
-    weeks.push({ cells, bars, moreByCol })
+    const maxLanes = Math.max(VISIBLE_LANES, ...bars.map((b) => b.lane + 1), 0)
+    weeks.push({ cells, bars, maxLanes })
   }
   return weeks
 })
@@ -88,15 +97,6 @@ function assignLanes(segments) {
   }
 }
 
-function countHiddenInCol(bars, col) {
-  const inCol = bars.filter((b) => b.startCol <= col && b.endCol >= col)
-  return Math.max(0, inCol.length - VISIBLE_LANES)
-}
-
-function barsInCol(bars, col) {
-  return bars.filter((b) => b.startCol <= col && b.endCol >= col)
-}
-
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -139,26 +139,48 @@ function goToday() {
   cursor.value = new Date(today.getFullYear(), today.getMonth(), 1)
 }
 
-function openMore(cell, week) {
-  const col = week.cells.findIndex((c) => c.iso === cell.iso)
-  const tasks = barsInCol(week.bars, col).sort((a, b) => a.lane - b.lane)
-  morePopup.value = {
-    label: `${cell.date.getMonth() + 1}/${String(cell.day).padStart(2, '0')}`,
-    tasks,
-  }
+function resolveProject(task) {
+  const raw = (task.project || '').replace(/\s*\([^)]*\)\s*$/, '').trim()
+  const found = myProjects.find(
+    (p) =>
+      p.name === raw ||
+      p.name.includes(raw) ||
+      raw.includes(p.name.slice(0, Math.min(10, p.name.length))),
+  )
+  return found || { id: 'p1', name: raw || '프로젝트', stage: '처리중' }
 }
 
-function closeMore() {
-  morePopup.value = null
+function openWbs(task, action) {
+  const project = resolveProject(task)
+  projectStore.setCurrentProject({
+    id: project.id,
+    name: project.name,
+    stage: project.stage,
+  })
+  tabsStore.openProjectTab({
+    projectId: project.id,
+    title: project.name,
+    projectName: project.name,
+    route: '/project/wbs',
+  })
+  subTabsStore.openSubTab(project.id, {
+    id: 'wbs',
+    title: 'WBS',
+    route: '/project/wbs',
+  })
+  router.push({
+    path: '/project/wbs',
+    query: action ? { action, task: task.name || '' } : undefined,
+  })
 }
 
 function onTaskClick(task) {
   if (task.displayStatus === 'done') return
-  alert(`[WBS 일정관리] ${task.name}`)
+  openWbs(task, 'schedule')
 }
 
 function onScheduleRegister(task) {
-  alert(`[일정 등록] ${task.name}`)
+  openWbs(task, 'register')
 }
 
 function blockStyle(task) {
@@ -222,10 +244,10 @@ function statusLabel(task) {
 
           <div
             class="cal-week__lanes"
-            :style="{ gridTemplateRows: `repeat(${VISIBLE_LANES}, 24px)` }"
+            :style="{ gridTemplateRows: `repeat(${week.maxLanes}, 24px)` }"
           >
             <div
-              v-for="bar in week.bars.filter((b) => b.lane < VISIBLE_LANES)"
+              v-for="bar in week.bars"
               :key="`${bar.id}-w${wi}`"
               class="tblock tblock--span"
               :class="{
@@ -246,20 +268,6 @@ function statusLabel(task) {
               <span class="tblock__name">{{ bar.name }} <span class="tblock__end">{{ bar.endLabel }}</span></span>
             </div>
           </div>
-
-          <div class="cal-week__more">
-            <div
-              v-for="(cell, col) in week.cells"
-              :key="`more-${cell.iso}`"
-              class="cal-week__more-cell"
-            >
-              <button
-                v-if="week.moreByCol[col] > 0"
-                class="cal__more"
-                @click="openMore(cell, week)"
-              >+{{ week.moreByCol[col] }} 더보기</button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -277,40 +285,6 @@ function statusLabel(task) {
         <div v-else class="unsched__empty">일정 미등록 업무가 없습니다.</div>
       </aside>
     </div>
-
-    <Teleport to="body">
-      <div v-if="morePopup" class="more-scrim" @mousedown.self="closeMore">
-        <div class="more-box">
-          <div class="more-box__head">
-            <span>{{ morePopup.label }} 내 업무 ({{ morePopup.tasks.length }}건)</span>
-            <button class="more-box__close" @click="closeMore">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div class="more-box__body">
-            <button
-              v-for="t in morePopup.tasks"
-              :key="t.id"
-              class="more-item"
-              :class="{ 'is-done': t.displayStatus === 'done' }"
-              :disabled="t.displayStatus === 'done'"
-              @click="onTaskClick(t); closeMore()"
-            >
-              <span class="more-item__dot" :style="{ background: colorOf(t.color) }"></span>
-              <div class="more-item__text">
-                <div class="more-item__name">
-                  {{ t.name }} <span class="mut">{{ t.endLabel }}</span>
-                </div>
-                <div class="more-item__proj">{{ t.project }}</div>
-              </div>
-              <span v-if="statusLabel(t)" class="more-item__badge">{{ statusLabel(t) }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 
@@ -448,18 +422,6 @@ function statusLabel(task) {
   min-height: 52px;
 }
 
-.cal-week__more {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  padding: 0 4px 6px;
-  min-height: 18px;
-}
-
-.cal-week__more-cell {
-  padding: 0 4px;
-}
-
 .tblock--span {
   font-size: 10.5px;
   line-height: 1.3;
@@ -530,21 +492,6 @@ function statusLabel(task) {
   opacity: 0.85;
 }
 
-.cal__more {
-  font-size: 10px;
-  color: var(--teal);
-  background: none;
-  border: none;
-  text-align: left;
-  padding: 2px 0;
-  cursor: pointer;
-  font-weight: 600;
-  display: block;
-  width: 100%;
-}
-
-.cal__more:hover { text-decoration: underline; }
-
 /* 일정 미등록 */
 .unsched {
   background: var(--color-surface);
@@ -608,99 +555,4 @@ function statusLabel(task) {
   color: var(--teal);
 }
 
-/* 더보기 팝업 */
-.more-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.28);
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.more-box {
-  width: 400px;
-  max-width: 92vw;
-  max-height: 80vh;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.more-box__head {
-  display: flex;
-  align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border-2);
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.more-box__close {
-  margin-left: auto;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-}
-
-.more-box__close:hover { background: var(--color-field); }
-.more-box__close svg { width: 14px; height: 14px; }
-
-.more-box__body { padding: 8px; overflow-y: auto; }
-
-.more-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 8px;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-}
-
-.more-item:hover:not(:disabled) { background: var(--color-field); }
-.more-item.is-done { opacity: 0.6; cursor: default; }
-
-.more-item__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-top: 5px;
-  flex-shrink: 0;
-}
-
-.more-item__text { flex: 1; min-width: 0; }
-.more-item__name { font-size: 13px; font-weight: 600; }
-.more-item__proj {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.more-item__badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-danger);
-  flex-shrink: 0;
-}
-
-.mut { color: var(--color-text-muted); font-weight: 400; }
 </style>

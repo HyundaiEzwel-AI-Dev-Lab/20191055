@@ -39,6 +39,18 @@ watch(
 
 function register() {
   if (!props.caseRow || !props.step) return
+  if (!form.value.title.trim()) {
+    window.alert('결함 제목을 입력해 주세요.')
+    return
+  }
+  if (!form.value.description.trim()) {
+    window.alert('오류 내용을 입력해 주세요.')
+    return
+  }
+  if (!form.value.assignee.trim()) {
+    window.alert('담당자를 입력해 주세요.')
+    return
+  }
   emit('register', {
     caseId: props.caseRow.caseId,
     caseName: props.caseRow.caseName,
@@ -46,10 +58,10 @@ function register() {
     round: props.caseRow.round,
     stepNo: props.step.no,
     stepProcedure: props.step.procedure,
-    title: form.value.title,
+    title: form.value.title.trim(),
     grade: form.value.grade,
-    description: form.value.description,
-    assignee: form.value.assignee,
+    description: form.value.description.trim(),
+    assignee: form.value.assignee.trim(),
     occurrencePhase: form.value.occurrencePhase,
     deployStatus: form.value.deployStatus,
     tester: '김현대',

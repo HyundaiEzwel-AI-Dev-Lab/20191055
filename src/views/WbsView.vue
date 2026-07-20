@@ -1,7 +1,7 @@
 <script setup>
 // PAG-S-WBS-01/08 WBS 관리
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   wbsMeta,
   taskTypeOptions,
@@ -21,10 +21,15 @@ import {
 } from '@/data/wbs'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 import WbsScheduleReasonModal from '@/components/wbs/WbsScheduleReasonModal.vue'
+import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
+import { addScheduleChangeRequest } from '@/data/approval'
+import { useProjectStore } from '@/stores/project'
 
 const router = useRouter()
+const route = useRoute()
+const projectStore = useProjectStore()
 
 const tasks = ref([])
 const viewMode = ref('list')
@@ -49,14 +54,13 @@ const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
 const showReasonModal = ref(false)
 const reasonTarget = ref(null)
+const showBulkScheduleModal = ref(false)
+const bulkTargets = ref([])
 const showCopyAlert = ref(false)
 const showSaveAlert = ref(false)
 
 const calYear = ref(2026)
 const calMonth = ref(4)
-const showDayPopup = ref(false)
-const dayPopupTasks = ref([])
-const dayPopupLabel = ref('')
 
 const filteredTasks = computed(() =>
   tasks.value.filter((row) =>
@@ -84,6 +88,23 @@ const selectedRows = computed(() => tasks.value.filter((t) => selectedIds.value.
 
 onMounted(() => {
   tasks.value = getWbsTasks()
+  const action = route.query.action
+  const taskName = String(route.query.task || '')
+  if ((action === 'schedule' || action === 'register') && taskName) {
+    const match = tasks.value.find(
+      (t) =>
+        !t.excluded &&
+        (t.requirementName === taskName ||
+          t.screenName === taskName ||
+          `${t.taskType}` === taskName ||
+          t.requirementName?.includes(taskName) ||
+          taskName.includes(t.requirementName || '')),
+    )
+    if (match) {
+      scheduleTarget.value = match
+      showScheduleModal.value = true
+    }
+  }
 })
 
 function resetFilters() {
@@ -230,7 +251,28 @@ function onSave() {
 }
 
 function onScheduleChange() {
-  window.alert('일정변경 (POP-S-WBS-04)\n선택한 WBS 업무의 일정 일괄 변경 요청 팝업입니다.')
+  if (!selectedRows.value.length) {
+    window.alert('일정변경할 업무를 선택하세요.')
+    return
+  }
+  bulkTargets.value = [...selectedRows.value]
+  showBulkScheduleModal.value = true
+}
+
+function onBulkScheduleRequest({ planStart, planEnd, reason, tasks: targetTasks }) {
+  const project = projectStore.currentProject
+  addScheduleChangeRequest({
+    projectName: project?.name || project?.title || '현재 프로젝트',
+    projectId: project?.id || '',
+    openDate: project?.openDate || '-',
+    tasks: targetTasks,
+    planStart,
+    planEnd,
+    reason,
+  })
+  selectedIds.value = new Set()
+  bulkTargets.value = []
+  window.alert(`${targetTasks.length}건의 일정변경이 승인요청되었습니다.`)
 }
 
 function tasksForDay(dateStr) {
@@ -241,14 +283,6 @@ function tasksForDay(dateStr) {
     const end = range.end || range.start
     return dateStr >= start && dateStr <= end
   })
-}
-
-function openDayPopup(dateStr, day) {
-  const list = tasksForDay(dateStr)
-  if (!list.length) return
-  dayPopupTasks.value = list
-  dayPopupLabel.value = `${calMonth.value}/${day} 수행 업무 (${list.length}건)`
-  showDayPopup.value = true
 }
 
 function prevMonth() {
@@ -387,8 +421,6 @@ function nextMonth() {
               <th>실행공정률</th>
               <th>상태</th>
               <th>확정여부</th>
-              <th>변경일시</th>
-              <th>변경자</th>
             </tr>
           </thead>
           <tbody>
@@ -480,11 +512,9 @@ function nextMonth() {
                 </button>
               </td>
               <td>{{ row.confirmed }}</td>
-              <td class="muted">{{ row.changedAt || '—' }}</td>
-              <td>{{ row.changedBy || '—' }}</td>
             </tr>
             <tr v-if="!filteredTasks.length">
-              <td colspan="16" class="empty-row">조회 결과가 없습니다.</td>
+              <td colspan="14" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -513,7 +543,7 @@ function nextMonth() {
             <span class="calendar__day">{{ cell.day }}</span>
             <div class="calendar__blocks">
               <div
-                v-for="(task, ti) in tasksForDay(cell.date).slice(0, 2)"
+                v-for="(task, ti) in tasksForDay(cell.date)"
                 :key="task.id"
                 class="cal-block"
                 :style="{ background: getTaskTypeColor(task.taskType) }"
@@ -521,14 +551,6 @@ function nextMonth() {
               >
                 {{ calendarBlockLabel(task, ti).slice(0, 18) }}…
               </div>
-              <button
-                v-if="tasksForDay(cell.date).length > 2"
-                type="button"
-                class="cal-more"
-                @click="openDayPopup(cell.date, cell.day)"
-              >
-                +{{ tasksForDay(cell.date).length - 2 }} 더보기
-              </button>
             </div>
           </template>
         </div>
@@ -544,6 +566,11 @@ function nextMonth() {
       @save="onScheduleSave"
     />
     <WbsScheduleReasonModal v-model="showReasonModal" :task="reasonTarget" />
+    <WbsBulkScheduleModal
+      v-model="showBulkScheduleModal"
+      :tasks="bulkTargets"
+      @request="onBulkScheduleRequest"
+    />
 
     <Teleport to="body">
       <div v-if="showCopyAlert" class="alert-scrim" @mousedown.self="showCopyAlert = false">
@@ -560,20 +587,6 @@ function nextMonth() {
         <div class="alert-box">
           <p>변경사항이 저장되었습니다.</p>
           <button type="button" class="btn btn--primary" @click="showSaveAlert = false">확인</button>
-        </div>
-      </div>
-
-      <div v-if="showDayPopup" class="alert-scrim" @mousedown.self="showDayPopup = false">
-        <div class="alert-box alert-box--wide">
-          <div class="alert-box__head">
-            <span>{{ dayPopupLabel }}</span>
-            <button type="button" class="alert-box__close" @click="showDayPopup = false">✕</button>
-          </div>
-          <ul class="day-list">
-            <li v-for="t in dayPopupTasks" :key="t.id">
-              {{ calendarBlockLabel(t, 0) }}
-            </li>
-          </ul>
         </div>
       </div>
     </Teleport>
@@ -1059,17 +1072,6 @@ function nextMonth() {
   white-space: nowrap;
 }
 
-.cal-more {
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: 10px;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-  font-family: inherit;
-}
-
 .calendar__hint {
   margin: 12px 0 0;
   font-size: 11px;
@@ -1136,12 +1138,6 @@ function nextMonth() {
   box-shadow: 0 6px 24px rgba(20, 40, 50, 0.12);
 }
 
-.alert-box--wide {
-  width: 420px;
-  text-align: left;
-  padding: 16px 18px;
-}
-
 .alert-box p {
   margin: 0 0 18px;
   font-size: 13.5px;
@@ -1157,37 +1153,4 @@ function nextMonth() {
   flex: 1;
 }
 
-.alert-box__head {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.alert-box__close {
-  margin-left: auto;
-  border: none;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.day-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.day-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line-2);
-  font-size: 12px;
-  color: var(--ink-2);
-}
-
-.day-list li:last-child {
-  border-bottom: none;
-}
 </style>

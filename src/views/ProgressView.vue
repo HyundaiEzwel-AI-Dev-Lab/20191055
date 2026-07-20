@@ -3,13 +3,21 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTestContext } from '@/composables/useTestContext'
 import { getProgressData, donutStyle, gaugeStyle } from '@/data/testProgress'
+import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
+import { mockExcelDownload } from '@/utils/excelDownload'
 
 const { mode, pageTitle } = useTestContext()
 
 const data = ref(null)
+const filters = ref({
+  system: '전체',
+  tester: '',
+})
+const applied = ref({ ...filters.value })
 
 function loadData() {
   data.value = getProgressData(mode.value)
+  search()
 }
 
 onMounted(loadData)
@@ -17,12 +25,100 @@ watch(mode, loadData)
 
 const kpi = computed(() => data.value?.kpi)
 const ps = computed(() => data.value?.progressStatus)
+
+const systemOptions = computed(() => {
+  const list = data.value?.systemDetail || []
+  return ['전체', ...list.map((r) => r.system)]
+})
+
+const filteredSystemDetail = computed(() => {
+  if (!data.value) return []
+  return data.value.systemDetail.filter((r) => {
+    if (applied.value.system !== '전체' && r.system !== applied.value.system) return false
+    return true
+  })
+})
+
+const filteredByTester = computed(() => {
+  if (!data.value) return []
+  const q = applied.value.tester.trim()
+  if (!q) return data.value.byTester
+  return data.value.byTester.filter((r) => r.name.includes(q))
+})
+
+const filteredDefectConfirm = computed(() => {
+  if (!data.value) return []
+  const q = applied.value.tester.trim()
+  if (!q) return data.value.defectConfirm
+  return data.value.defectConfirm.filter((r) => r.name.includes(q))
+})
+
+const filteredSystemProgress = computed(() => {
+  if (!data.value) return []
+  if (applied.value.system === '전체') return data.value.systemProgressDefect
+  return data.value.systemProgressDefect.filter(
+    (r) =>
+      r.system === applied.value.system ||
+      applied.value.system.includes(r.system.split(' ')[0]),
+  )
+})
+
+function search() {
+  applied.value = { ...filters.value }
+}
+
+function resetFilters() {
+  filters.value = { system: '전체', tester: '' }
+  search()
+}
+
+function onExcelDownload() {
+  if (!data.value) return
+  const label = `진척관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`
+  mockExcelDownload(label, filteredSystemDetail.value, [
+    { key: 'system', label: '시스템' },
+    { key: 'total', label: '전체' },
+    { key: 'wait', label: '대기' },
+    { key: 'progress', label: '진행' },
+    { key: 'delay', label: '지연' },
+    { key: 'fixRate', label: '결함처리율(%)' },
+    { key: 'defects', label: '결함' },
+    { key: 'pending', label: '미처리' },
+    { key: 'done', label: '처리' },
+  ])
+}
 </script>
 
 <template>
   <div v-if="data" class="progress">
     <h1 class="progress__title">{{ pageTitle }}</h1>
     <p class="progress__hint">테스트 진척·결함 처리 현황 · 1시간마다 갱신 (목업 {{ data.updatedAt }})</p>
+
+    <section class="filter card">
+      <div class="filter__row">
+        <div class="filter__field">
+          <label>시스템</label>
+          <select v-model="filters.system" class="filter__inp">
+            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="filter__field">
+          <label>테스터</label>
+          <input
+            v-model="filters.tester"
+            class="filter__inp"
+            type="text"
+            placeholder="테스터명"
+            @keyup.enter="search"
+          />
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
+        <button type="button" class="btn btn--primary" @click="search">조회</button>
+        <ExcelDownloadButton @click="onExcelDownload" />
+      </div>
+    </section>
 
     <div class="kpi-grid">
       <div class="kpi-card card">
@@ -93,7 +189,7 @@ const ps = computed(() => data.value?.progressStatus)
         <h3>시스템별 진척·결함</h3>
         <div class="donut-row">
           <div
-            v-for="row in data.systemProgressDefect"
+            v-for="row in filteredSystemProgress"
             :key="row.system"
             class="donut-item"
           >
@@ -129,7 +225,7 @@ const ps = computed(() => data.value?.progressStatus)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in data.systemDetail" :key="row.system">
+          <tr v-for="row in filteredSystemDetail" :key="row.system">
             <td>{{ row.system }}</td>
             <td>{{ row.total }}</td>
             <td>{{ row.wait }}</td>
@@ -146,6 +242,9 @@ const ps = computed(() => data.value?.progressStatus)
             <td>{{ row.defects }}</td>
             <td>{{ row.pending }}</td>
             <td>{{ row.done }}</td>
+          </tr>
+          <tr v-if="!filteredSystemDetail.length">
+            <td colspan="9" class="empty-row">조회 결과가 없습니다.</td>
           </tr>
         </tbody>
       </table>
@@ -164,7 +263,7 @@ const ps = computed(() => data.value?.progressStatus)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in data.byTester" :key="row.name">
+            <tr v-for="row in filteredByTester" :key="row.name">
               <td>{{ row.name }}</td>
               <td>{{ row.assigned }}</td>
               <td>{{ row.done }}</td>
@@ -174,6 +273,9 @@ const ps = computed(() => data.value?.progressStatus)
                   <span>{{ row.rate }}%</span>
                 </div>
               </td>
+            </tr>
+            <tr v-if="!filteredByTester.length">
+              <td colspan="4" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -191,11 +293,14 @@ const ps = computed(() => data.value?.progressStatus)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in data.defectConfirm" :key="row.name">
+            <tr v-for="row in filteredDefectConfirm" :key="row.name">
               <td>{{ row.name }}</td>
               <td>{{ row.registered }}</td>
               <td>{{ row.confirmed }}</td>
               <td>{{ row.rate }}%</td>
+            </tr>
+            <tr v-if="!filteredDefectConfirm.length">
+              <td colspan="4" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -325,6 +430,52 @@ const ps = computed(() => data.value?.progressStatus)
   font-size: 12px;
   color: var(--muted);
   margin: 0 0 14px;
+}
+
+.filter {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.filter__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.filter__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.filter__field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.filter__inp {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.filter__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px !important;
 }
 
 .kpi-grid {

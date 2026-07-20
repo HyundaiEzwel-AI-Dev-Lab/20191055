@@ -58,6 +58,9 @@ const pendingSave = ref(false)
 const showIssueForm = ref(false)
 const issueDraft = ref('')
 const showIssueCancelAlert = ref(false)
+const editingIssueId = ref(null)
+const replyTargetId = ref(null)
+const replyDraft = ref('')
 const assigneeSearch = reactive({})
 const assigneeSearchOpen = reactive({})
 
@@ -309,6 +312,9 @@ function save() {
     window.alert(error)
     return
   }
+  const project = projectStore.currentProject
+  const registering = project?.id && projectStore.isRegistering(project.id)
+  if (!window.confirm(registering ? '프로젝트를 등록하시겠습니까?' : '저장하시겠습니까?')) return
   if (needsScheduleReason()) {
     pendingSave.value = true
     showScheduleModal.value = true
@@ -345,10 +351,66 @@ function toggleLibraryScenario(id) {
   else form.testLibraryScenarios.push(id)
 }
 
-function openIssueForm() {
-  if (isReadOnly.value) return
-  showIssueForm.value = true
+function addIssue() {
+  if (!issueDraft.value.trim()) return
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  if (editingIssueId.value) {
+    const target = form.issues.find((i) => i.id === editingIssueId.value)
+    if (target) {
+      target.body = issueDraft.value.trim()
+      target.updatedAt = now
+    }
+    editingIssueId.value = null
+  } else {
+    form.issues.unshift({
+      id: `iss-${Date.now()}`,
+      author: '김현대',
+      dept: '웹기획팀',
+      createdAt: now,
+      updatedAt: null,
+      body: issueDraft.value.trim(),
+      replies: [],
+    })
+  }
+  showIssueForm.value = false
   issueDraft.value = ''
+}
+
+function startEditIssue(issue) {
+  if (isReadOnly.value) return
+  editingIssueId.value = issue.id
+  replyTargetId.value = null
+  replyDraft.value = ''
+  showIssueForm.value = true
+  issueDraft.value = issue.body
+}
+
+function startReplyIssue(issue) {
+  if (isReadOnly.value) return
+  editingIssueId.value = null
+  showIssueForm.value = false
+  issueDraft.value = ''
+  replyTargetId.value = issue.id
+  replyDraft.value = ''
+}
+
+function cancelReply() {
+  replyTargetId.value = null
+  replyDraft.value = ''
+}
+
+function addReply(issue) {
+  if (!replyDraft.value.trim()) return
+  if (!issue.replies) issue.replies = []
+  issue.replies.push({
+    id: `rep-${Date.now()}`,
+    author: '김현대',
+    dept: '웹기획팀',
+    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    body: replyDraft.value.trim(),
+  })
+  replyTargetId.value = null
+  replyDraft.value = ''
 }
 
 function cancelIssueForm() {
@@ -357,26 +419,23 @@ function cancelIssueForm() {
     return
   }
   showIssueForm.value = false
+  editingIssueId.value = null
+  issueDraft.value = ''
 }
 
 function confirmIssueCancel() {
   showIssueCancelAlert.value = false
   showIssueForm.value = false
+  editingIssueId.value = null
   issueDraft.value = ''
 }
 
-function addIssue() {
-  if (!issueDraft.value.trim()) return
-  form.issues.unshift({
-    id: `iss-${Date.now()}`,
-    author: '김현대',
-    dept: '웹기획팀',
-    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    updatedAt: null,
-    body: issueDraft.value.trim(),
-    replies: [],
-  })
-  showIssueForm.value = false
+function openIssueForm() {
+  if (isReadOnly.value) return
+  editingIssueId.value = null
+  replyTargetId.value = null
+  replyDraft.value = ''
+  showIssueForm.value = true
   issueDraft.value = ''
 }
 </script>
@@ -775,7 +834,11 @@ function addIssue() {
           class="issue-form__input"
           rows="4"
           maxlength="2000"
-          placeholder="이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대"
+          :placeholder="
+            editingIssueId
+              ? '이슈 내용을 수정하세요'
+              : '이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대'
+          "
         />
         <div class="issue-form__foot">
           <span class="issue-form__count">{{ issueDraftCount }} / 2000자</span>
@@ -789,7 +852,7 @@ function addIssue() {
               :disabled="!issueDraft.trim()"
               @click="addIssue"
             >
-              추가
+              {{ editingIssueId ? '수정' : '추가' }}
             </button>
           </div>
         </div>
@@ -808,10 +871,35 @@ function addIssue() {
           </span>
         </header>
         <p class="issue-item__body">{{ issue.body }}</p>
-        <div class="issue-item__actions">
-          <button type="button" class="link-btn">수정</button>
+        <div v-if="!isReadOnly" class="issue-item__actions">
+          <button type="button" class="link-btn" @click="startEditIssue(issue)">수정</button>
           <span class="issue-item__sep">|</span>
-          <button type="button" class="link-btn">답글</button>
+          <button type="button" class="link-btn" @click="startReplyIssue(issue)">답글</button>
+        </div>
+
+        <div v-if="replyTargetId === issue.id" class="issue-form issue-form--reply">
+          <textarea
+            v-model="replyDraft"
+            class="issue-form__input"
+            rows="3"
+            maxlength="2000"
+            placeholder="답글 내용을 입력하세요"
+          />
+          <div class="issue-form__foot">
+            <div class="issue-form__actions">
+              <button type="button" class="btn btn--ghost btn--sm" @click="cancelReply">
+                취소
+              </button>
+              <button
+                type="button"
+                class="btn btn--primary btn--sm"
+                :disabled="!replyDraft.trim()"
+                @click="addReply(issue)"
+              >
+                답글 등록
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-for="reply in issue.replies" :key="reply.id" class="issue-reply">
@@ -1494,6 +1582,10 @@ select.inp--edit {
   text-align: right;
   font-size: 11px;
   color: var(--muted);
+}
+
+.issue-form--reply {
+  margin-top: 10px;
 }
 
 .issue-form {

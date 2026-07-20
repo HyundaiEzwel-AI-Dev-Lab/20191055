@@ -19,6 +19,7 @@ import {
 } from '@/data/requirement'
 import RequirementIssueModal from '@/components/requirement/RequirementIssueModal.vue'
 import RequirementFormModal from '@/components/requirement/RequirementFormModal.vue'
+import RequirementBulkRegisterModal from '@/components/requirement/RequirementBulkRegisterModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
@@ -50,9 +51,9 @@ const issueTarget = ref(null)
 const showFormModal = ref(false)
 const formMode = ref('register')
 const formTarget = ref(null)
+const showBulkModal = ref(false)
 
 const showSaveAlert = ref(null)
-const showCopyAlert = ref(false)
 
 const bizFilterOptions = computed(() => {
   if (!filters.value.system) return []
@@ -178,7 +179,42 @@ function openRegister() {
 
 function openBulkRegister() {
   showRegisterMenu.value = false
-  window.alert('일괄등록 팝업 (PAG-S-REQ-05)\n엑셀 업로드 기반 일괄 등록 기능입니다.')
+  showBulkModal.value = true
+}
+
+function onBulkRegister(items) {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  items.forEach((form, idx) => {
+    const nextNo = requirements.value.length + 1 + idx
+    requirements.value.unshift({
+      id: `req-bulk-${Date.now()}-${idx}`,
+      reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
+      systemPath: `${form.system}>${form.bizCategory}`,
+      screenPath: form.screenMenu || '-',
+      screenName: form.screenMenu || '-',
+      reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
+      name: form.name,
+      taskTypes: [...form.taskTypes],
+      status: form.status || '접수',
+      priority: form.priority || '보통',
+      confirmRequester: '미확정',
+      confirmTech: '미확정',
+      issueCount: 0,
+      registeredBy: '김현대',
+      registeredAt: now,
+      updatedBy: null,
+      updatedAt: null,
+      requester: '김현대',
+      original: form.original,
+      analysis: '',
+      system: form.system,
+      bizCategory: form.bizCategory,
+      screenMenu: form.screenMenu || '',
+      memo: '',
+      issues: [],
+    })
+  })
+  currentPage.value = 1
 }
 
 function openEdit(row) {
@@ -187,15 +223,40 @@ function openEdit(row) {
   showFormModal.value = true
 }
 
+function findDuplicateRequirement(form) {
+  const screenKey = form.screenMenu || form.screenName || ''
+  return requirements.value.find(
+    (r) =>
+      r.system === form.system &&
+      r.bizCategory === form.bizCategory &&
+      (r.screenMenu || r.screenName || '') === screenKey &&
+      r.status !== '반려',
+  )
+}
+
 function onFormSave(form) {
-  if (formMode.value === 'register') {
+  if (formMode.value === 'register' || formMode.value === 'copy') {
+    if (formMode.value === 'copy') {
+      const dup = findDuplicateRequirement(form)
+      if (dup) {
+        const newTaskTypes = form.taskTypes.filter((t) => !dup.taskTypes.includes(t))
+        if (!newTaskTypes.length) {
+          window.alert(`동일한 시스템, 업무유형, 화면명으로 이미 등록된 요구사항입니다(ID : ${dup.reqId})`)
+          return
+        }
+        window.alert(`동일 시스템의 기존 요구사항(ID ${dup.reqId})에 업무유형을 추가합니다.`)
+        dup.taskTypes.push(...newTaskTypes)
+        showFormModal.value = false
+        return
+      }
+    }
     const nextNo = requirements.value.length + 1
     requirements.value.unshift({
       id: `req-new-${Date.now()}`,
       reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
       systemPath: `${form.system}>${form.bizCategory}`,
-      screenPath: form.screenMenu,
-      screenName: form.screenMenu,
+      screenPath: form.screenPath || form.screenMenu || '-',
+      screenName: form.screenName || form.screenMenu || '-',
       reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
       name: form.name,
       taskTypes: [...form.taskTypes],
@@ -213,7 +274,7 @@ function onFormSave(form) {
       analysis: form.analysis,
       system: form.system,
       bizCategory: form.bizCategory,
-      screenMenu: form.screenMenu,
+      screenMenu: form.screenMenu || form.screenName || '',
       memo: form.memo,
       issues: [],
     })
@@ -227,10 +288,15 @@ function onFormSave(form) {
       confirmRequester: form.confirmRequester ? '확정' : '미확정',
       confirmTech: form.confirmTech ? '확정' : '미확정',
       memo: form.memo,
+      screenPath: form.screenPath || form.screenMenu || formTarget.value.screenPath,
+      screenName: form.screenName || form.screenMenu || formTarget.value.screenName,
+      screenMenu: form.screenMenu || form.screenName || '',
       updatedBy: '김현대',
       updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
     })
   }
+  window.alert('저장되었습니다.')
+  showFormModal.value = false
 }
 
 function onSaveConfirm() {
@@ -254,24 +320,13 @@ function onCopy() {
     window.alert('복사할 요구사항을 선택하세요.')
     return
   }
-  showCopyAlert.value = true
-}
-
-function confirmCopy() {
-  const copies = selectedRows.value.map((row) => ({
-    ...JSON.parse(JSON.stringify(row)),
-    id: `req-copy-${Date.now()}-${Math.random()}`,
-    reqId: `REQ-${String(requirements.value.length + 1).padStart(3, '0')}`,
-    confirmRequester: '미확정',
-    confirmTech: '미확정',
-    registeredAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    updatedBy: null,
-    updatedAt: null,
-  }))
-  requirements.value.unshift(...copies)
-  showCopyAlert.value = false
-  selectedIds.value = new Set()
-  window.alert(`${copies.length}건이 복사되었습니다.`)
+  if (selectedRows.value.length > 1) {
+    window.alert('요구사항 복사는 1건만 선택해 주세요.')
+    return
+  }
+  formMode.value = 'copy'
+  formTarget.value = selectedRows.value[0]
+  showFormModal.value = true
 }
 
 function onScreenSetting() {
@@ -617,6 +672,7 @@ function onPageSizeChange() {
       :data="formTarget"
       @save="onFormSave"
     />
+    <RequirementBulkRegisterModal v-model="showBulkModal" @register="onBulkRegister" />
 
     <!-- Alerts -->
     <Teleport to="body">
@@ -626,19 +682,6 @@ function onPageSizeChange() {
           <p v-else-if="showSaveAlert === 'unconfirmed'">미확정 상태입니다. 확정 후 저장하세요.</p>
           <p v-else>선택한 요구사항이 요건확정 처리되었습니다.</p>
           <button type="button" class="btn btn--primary" @click="showSaveAlert = null">확인</button>
-        </div>
-      </div>
-
-      <div v-if="showCopyAlert" class="alert-scrim" @mousedown.self="showCopyAlert = false">
-        <div class="alert-box">
-          <p>
-            선택한 요구사항을 복사하시겠습니까?<br />
-            요구사항명과 시스템정보만 복사되며, 업무유형·화면 및 기타 정보는 기본값으로 생성됩니다.
-          </p>
-          <div class="alert-box__actions">
-            <button type="button" class="btn btn--ghost" @click="showCopyAlert = false">취소</button>
-            <button type="button" class="btn btn--primary" @click="confirmCopy">확인</button>
-          </div>
         </div>
       </div>
     </Teleport>

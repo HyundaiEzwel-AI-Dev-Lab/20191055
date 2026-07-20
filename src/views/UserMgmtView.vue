@@ -2,7 +2,6 @@
 // PAG-M-SYS-01 사용자 관리
 import { computed, reactive, ref } from 'vue'
 import {
-  userMgmtMeta,
   deptOptions,
   roleOptions,
   statusOptions,
@@ -23,6 +22,7 @@ const selectedIds = ref([])
 const showDetail = ref(false)
 const showRegister = ref(false)
 const detailTarget = ref(null)
+const detailRole = ref('사용자')
 const registerForm = reactive({
   id: '',
   name: '',
@@ -64,7 +64,35 @@ function toggleSelectAll(e) {
 
 function openDetail(row) {
   detailTarget.value = row
+  detailRole.value = row.role
   showDetail.value = true
+}
+
+function saveDetail() {
+  if (!detailTarget.value) return
+  if (!detailRole.value || detailRole.value === '전체') {
+    window.alert('권한을 선택해 주세요.')
+    return
+  }
+  if (!window.confirm('사용자 정보를 저장하시겠습니까?')) return
+  detailTarget.value.role = detailRole.value
+  showDetail.value = false
+  window.alert('저장되었습니다.')
+}
+
+function resetDetailPassword() {
+  if (!detailTarget.value) return
+  const temp = tempPassword()
+  if (!window.confirm(`${detailTarget.value.name}님의 비밀번호를 임시 비밀번호(${temp})로 초기화하시겠습니까?`)) return
+  window.alert(`비밀번호가 임시 비밀번호(${temp})로 초기화되었습니다.`)
+}
+
+function unlockDetailFails() {
+  if (!detailTarget.value) return
+  if (!window.confirm(`${detailTarget.value.name}님의 오류 횟수를 해제하시겠습니까?`)) return
+  detailTarget.value.failCount = 0
+  if (detailTarget.value.status === '잠금') detailTarget.value.status = '재직'
+  window.alert('오류 횟수를 해제했습니다.')
 }
 
 function unlockFails() {
@@ -72,6 +100,7 @@ function unlockFails() {
     window.alert('대상 사용자를 선택해 주세요.')
     return
   }
+  if (!window.confirm(`${selectedIds.value.length}명의 오류 횟수를 해제하시겠습니까?`)) return
   rows.value.forEach((r) => {
     if (selectedIds.value.includes(r.id)) {
       r.failCount = 0
@@ -82,12 +111,22 @@ function unlockFails() {
   selectedIds.value = []
 }
 
+function tempPassword() {
+  const today = new Date()
+  const y = today.getFullYear()
+  const m = String(today.getMonth() + 1).padStart(2, '0')
+  const d = String(today.getDate()).padStart(2, '0')
+  return `ez!${y}${m}${d}`
+}
+
 function resetPassword() {
   if (!selectedIds.value.length) {
     window.alert('대상 사용자를 선택해 주세요.')
     return
   }
-  window.alert(`${selectedIds.value.length}명의 패스워드를 초기화했습니다.`)
+  const temp = tempPassword()
+  if (!window.confirm(`선택한 ${selectedIds.value.length}명의 비밀번호를 임시 비밀번호(${temp})로 초기화하시겠습니까?`)) return
+  window.alert(`${selectedIds.value.length}명의 비밀번호가 임시 비밀번호(${temp})로 초기화되었습니다.`)
 }
 
 function openRegister() {
@@ -127,11 +166,6 @@ function saveRegister() {
 
 <template>
   <div class="admin-page">
-    <h1 class="admin-page__title">
-      사용자 관리
-      <span class="admin-page__hint">{{ userMgmtMeta.hint }}</span>
-    </h1>
-
     <section class="filter card">
       <div class="filter__row filter__row--4">
         <div class="filter__field">
@@ -240,18 +274,33 @@ function saveRegister() {
         <div class="modal-field"><label>구분</label><span>{{ detailTarget.type }}</span></div>
         <div class="modal-field">
           <label>권한</label>
-          <select v-model="detailTarget.role" class="filter__select">
+          <select v-model="detailRole" class="filter__select">
             <option v-for="o in roleOptions.filter((r) => r !== '전체')" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
         <div class="modal-field"><label>상태</label><span>{{ detailTarget.status }}</span></div>
-        <div class="modal-field"><label>오류횟수</label><span>{{ detailTarget.failCount }}회</span></div>
+        <div class="modal-field">
+          <label>오류횟수</label>
+          <span>
+            {{ detailTarget.failCount }}회
+            <button
+              v-if="detailTarget.failCount >= 5"
+              type="button"
+              class="link-btn"
+              @click="unlockDetailFails"
+            >5회 오류 해제</button>
+          </span>
+        </div>
         <div class="modal-field"><label>이메일</label><span>{{ detailTarget.email }}</span></div>
         <div class="modal-field"><label>휴대전화</label><span>{{ detailTarget.phone }}</span></div>
+        <div class="modal-field">
+          <label>비밀번호</label>
+          <span><button type="button" class="link-btn" @click="resetDetailPassword">비밀번호 초기화</button></span>
+        </div>
       </div>
       <template #footer>
         <button type="button" class="btn btn--ghost" @click="showDetail = false">닫기</button>
-        <button type="button" class="btn btn--primary" @click="showDetail = false">저장</button>
+        <button type="button" class="btn btn--primary" @click="saveDetail">저장</button>
       </template>
     </BaseModal>
 

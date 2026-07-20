@@ -16,6 +16,7 @@ import {
 } from '@/data/dashboard'
 import { getScheduleChange } from '@/data/scheduleChange'
 import ScheduleChangeModal from '@/components/dashboard/ScheduleChangeModal.vue'
+import RequirementListModal from '@/components/dashboard/RequirementListModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
@@ -38,6 +39,8 @@ const appliedFilters = ref({ ...filters.value })
 
 const showScheduleModal = ref(false)
 const scheduleModalData = ref(null)
+const showRequirementModal = ref(false)
+const requirementContext = ref(null)
 
 const initiatorGradient = computed(() => buildConicGradient(initiators))
 const devTypeGradient = computed(() => buildConicGradient(devTypes))
@@ -75,20 +78,21 @@ const filteredProjects = computed(() => {
 function buildConicGradient(items) {
   const total = items.reduce((s, i) => s + i.count, 0)
   if (!total) return 'conic-gradient(var(--lnb-line) 0 100%)'
-  const gap = 2.4 // deg, 세그먼트 사이 여백
+  const gap = 2.4 // deg, 세그먼트 사이 여백 (마지막→첫 구간도 동일하게 적용)
   let acc = 0
-  const parts = []
+  const parts = [`var(--lnb-side) 0deg ${gap / 2}deg`]
   items.forEach((item, i) => {
     const start = (acc / total) * 360
     acc += item.count
     const end = (acc / total) * 360
-    const segStart = i === 0 ? start : start + gap / 2
-    const segEnd = i === items.length - 1 ? end : end - gap / 2
+    const segStart = start + gap / 2
+    const segEnd = end - gap / 2
     parts.push(`${item.color} ${segStart}deg ${segEnd}deg`)
     if (i < items.length - 1) {
       parts.push(`var(--lnb-side) ${segEnd}deg ${segEnd + gap}deg`)
     }
   })
+  parts.push(`var(--lnb-side) ${360 - gap / 2}deg 360deg`)
   return `conic-gradient(${parts.join(', ')})`
 }
 
@@ -128,8 +132,14 @@ function onProjectClick(row) {
   router.push('/project/info')
 }
 
-function onDeptClick(dept) {
-  window.alert(`요구사항 팝업 (POP-M-DAS-02)\n요청부서: ${dept}`)
+function onDeptClick(row) {
+  requirementContext.value = {
+    id: row.id,
+    name: row.name,
+    requestDept: row.requestDept,
+    stage: row.stage,
+  }
+  showRequirementModal.value = true
 }
 
 function onOverdueClick(row) {
@@ -396,7 +406,7 @@ function onOverdueClick(row) {
                 <span v-else class="tbl__date--empty">-</span>
               </td>
               <td>
-                <button type="button" class="tbl__link" @click.stop="onDeptClick(row.requestDept)">
+                <button type="button" class="tbl__link" @click.stop="onDeptClick(row)">
                   {{ row.requestDept }}
                 </button>
               </td>
@@ -414,6 +424,10 @@ function onOverdueClick(row) {
     <ScheduleChangeModal
       v-model="showScheduleModal"
       :data="scheduleModalData"
+    />
+    <RequirementListModal
+      v-model="showRequirementModal"
+      :context="requirementContext"
     />
   </div>
 </template>

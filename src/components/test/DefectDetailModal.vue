@@ -46,9 +46,14 @@ function appendHistory(action, body) {
 
 function save() {
   if (!props.row) return
+  if (!form.value.assignee.trim()) {
+    window.alert('담당자를 입력해 주세요.')
+    return
+  }
+  if (!window.confirm('결함 정보를 저장하시겠습니까?')) return
   const updates = {
     status: form.value.status,
-    assignee: form.value.assignee,
+    assignee: form.value.assignee.trim(),
   }
   if (form.value.comment) {
     appendHistory(form.value.status, form.value.comment)
@@ -58,9 +63,14 @@ function save() {
 }
 
 function setStatus(status) {
+  if (!form.value.assignee.trim()) {
+    window.alert('담당자를 입력해 주세요.')
+    return
+  }
+  if (!window.confirm(`${status} 처리하시겠습니까?`)) return
   form.value.status = status
   appendHistory(status, form.value.comment || `${status} 처리`)
-  emit('save', { status, assignee: form.value.assignee })
+  emit('save', { status, assignee: form.value.assignee.trim() })
   emit('close')
 }
 </script>

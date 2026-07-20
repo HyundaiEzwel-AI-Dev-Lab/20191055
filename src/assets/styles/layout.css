@@ -809,14 +809,35 @@
   height: 10px;
 }
 
-/* ===== subbar (페이지 타이틀) ===== */
+/* ===== subbar (페이지 타이틀 + 브레드크럼) ===== */
 .app-subbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 20px 24px 14px;
   flex-shrink: 0;
   background: transparent;
+}
+
+.app-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.app-breadcrumb__item {
+  color: var(--color-text-muted);
+}
+
+.app-breadcrumb__item.is-current {
+  color: var(--lnb-txt);
+  font-weight: 600;
+}
+
+.app-breadcrumb__sep {
+  color: var(--color-text-muted);
 }
 
 .app-subbar__title {

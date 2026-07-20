@@ -73,20 +73,21 @@ const filteredRecords = computed(() => {
 function buildConicGradient(items) {
   const total = items.reduce((s, i) => s + i.count, 0)
   if (!total) return 'conic-gradient(var(--lnb-line) 0 100%)'
-  const gap = 2.4 // deg, 세그먼트 사이 여백
+  const gap = 2.4 // deg, 세그먼트 사이 여백 (마지막→첫 구간도 동일하게 적용)
   let acc = 0
-  const parts = []
+  const parts = [`var(--lnb-side) 0deg ${gap / 2}deg`]
   items.forEach((item, i) => {
     const start = (acc / total) * 360
     acc += item.count
     const end = (acc / total) * 360
-    const segStart = i === 0 ? start : start + gap / 2
-    const segEnd = i === items.length - 1 ? end : end - gap / 2
+    const segStart = start + gap / 2
+    const segEnd = end - gap / 2
     parts.push(`${item.color} ${segStart}deg ${segEnd}deg`)
     if (i < items.length - 1) {
       parts.push(`var(--lnb-side) ${segEnd}deg ${segEnd + gap}deg`)
     }
   })
+  parts.push(`var(--lnb-side) ${360 - gap / 2}deg 360deg`)
   return `conic-gradient(${parts.join(', ')})`
 }
 

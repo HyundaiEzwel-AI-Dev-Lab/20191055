@@ -104,10 +104,12 @@ function onErrorRegistered(payload) {
   if (cell) {
     cell.result = '오류'
     cell.fixStatus = '접수'
+    if (!cell.executedAt) cell.executedAt = '2026-04-17'
   }
   row.errorCount = (row.errorCount || 0) + 1
   row.fixPending = (row.fixPending || 0) + 1
   row.result = '오류'
+  recalcRow(row)
   closeErrorRegister()
   void payload
 }
@@ -115,9 +117,16 @@ function onErrorRegistered(payload) {
 function setStepResult(row, step, testerName, result) {
   const cell = step.byTester[testerName]
   if (!cell) return
+  if (result === '오류') {
+    openErrorRegister(row, step, testerName)
+    return
+  }
   cell.result = result
   if (result !== '대기' && !cell.executedAt) {
     cell.executedAt = '2026-04-17'
+  }
+  if (result === '정상') {
+    cell.fixStatus = null
   }
   recalcRow(row)
 }

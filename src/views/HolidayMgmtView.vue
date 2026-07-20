@@ -2,7 +2,6 @@
 // PAG-M-SYS-07 휴무일 관리
 import { computed, reactive, ref } from 'vue'
 import {
-  holidayMeta,
   holidayTypeOptions,
   yearOptions,
   holidayList,
@@ -56,6 +55,13 @@ function saveForm() {
     window.alert('일자와 휴무일명은 필수입니다.')
     return
   }
+  const duplicated = rows.value.some(
+    (r) => r.date === form.date && r.id !== form.id,
+  )
+  if (duplicated) {
+    window.alert('이미 등록된 일자입니다.')
+    return
+  }
   if (form.isNew) {
     rows.value.push({
       id: `h-${Date.now()}`,
@@ -94,11 +100,6 @@ function onExcelDownload() {
 
 <template>
   <div class="admin-page">
-    <h1 class="admin-page__title">
-      휴무일 관리
-      <span class="admin-page__hint">{{ holidayMeta.hint }}</span>
-    </h1>
-
     <section class="filter card">
       <div class="filter__row filter__row--3">
         <div class="filter__field">

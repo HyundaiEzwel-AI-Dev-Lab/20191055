@@ -1,4 +1,5 @@
 // PAG-M-SYS-04 신청 승인 관리
+import { reactive } from 'vue'
 
 export const approvalMeta = {
   hint: '시스템 관리 · WBS 일정변경 요청 승인',
@@ -9,7 +10,59 @@ export const requestTypeOptions = ['전체', '일정', '일시중단']
 export const dateTypeOptions = ['요청일', '승인일']
 export { pageSizeOptions } from './commonOptions'
 
-export const approvalList = [
+function formatApprovalRange(start, end) {
+  if (!start || !end) return '-'
+  const [ys, ms, ds] = start.split('-')
+  const [, me, de] = end.split('-')
+  return `${ys}/${ms}/${ds}~${me}/${de}`
+}
+
+/** WBS 일괄 일정변경(POP-S-WBS-04) → 승인요청 추가 */
+export function addScheduleChangeRequest({
+  projectName,
+  projectId,
+  openDate,
+  tasks,
+  planStart,
+  planEnd,
+  reason,
+  requester = '김현대',
+}) {
+  const nextId = Math.max(0, ...approvalList.map((r) => r.id)) + 1
+  const uniqueBefore = [
+    ...new Set(
+      tasks.map((t) => formatApprovalRange(t.planStart, t.planEnd)).filter((v) => v !== '-'),
+    ),
+  ]
+  const before =
+    uniqueBefore.length === 1
+      ? uniqueBefore[0]
+      : uniqueBefore.length
+        ? `개별일정 (${tasks.length}건)`
+        : '-'
+  const name =
+    tasks.length > 1 ? `${projectName || '프로젝트'} 외 ${tasks.length - 1}건` : projectName || '-'
+
+  const row = {
+    id: nextId,
+    status: '승인요청',
+    type: '일정',
+    projectName: name,
+    projectId: projectId || '',
+    openDate: openDate || '-',
+    before,
+    after: formatApprovalRange(planStart, planEnd),
+    requester,
+    requestDate: new Date().toISOString().slice(0, 10),
+    approveDate: '-',
+    reason,
+    wbsIds: tasks.map((t) => t.wbsId),
+  }
+  approvalList.unshift(row)
+  return row
+}
+
+export const approvalList = reactive([
   {
     id: 28,
     status: '승인요청',
@@ -94,7 +147,7 @@ export const approvalList = [
     approveDate: '-',
     reason: '디자인 일정 지연 반영',
   },
-]
+])
 
 export function matchApprovalFilters(row, filters) {
   if (filters.status !== '전체' && row.status !== filters.status) return false

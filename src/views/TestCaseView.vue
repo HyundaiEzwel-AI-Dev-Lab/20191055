@@ -66,11 +66,6 @@ function onExcelDownload() {
 
 <template>
   <div class="admin-page">
-    <h1 class="admin-page__title">
-      테스트 라이브러리
-      <span class="admin-page__hint">{{ testLibraryMeta.hint }}</span>
-    </h1>
-
     <div class="notice notice--warn">⚠ {{ testLibraryMeta.notice }}</div>
 
     <section class="filter card">

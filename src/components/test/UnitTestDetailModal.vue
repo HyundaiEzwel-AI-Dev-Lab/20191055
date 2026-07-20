@@ -94,6 +94,15 @@ const newDefect = computed(() => {
 })
 
 function save() {
+  if (!overallResult.value || overallResult.value === '대기') {
+    window.alert('테스트 결과를 선택해 주세요.')
+    return
+  }
+  if (overallResult.value === '오류' && !defectTitle.value.trim()) {
+    window.alert('오류인 경우 결함 제목을 입력해 주세요.')
+    return
+  }
+  if (!window.confirm('단위테스트 결과를 저장하시겠습니까?')) return
   emit('save', {
     testResult: overallResult.value,
     memo: memo.value,
@@ -199,6 +208,7 @@ function save() {
           <h4>첨부파일</h4>
           <button type="button" class="btn btn--ghost btn--sm" @click="addAttachment">+ 파일 추가</button>
         </div>
+        <p class="file-hint">등록 가능 확장자: jpg, png, word, excel, ppt, pptx</p>
         <ul v-if="attachments.length" class="attach-list">
           <li v-for="file in attachments" :key="file.id">
             <span class="attach-name">{{ file.name }}</span>
@@ -389,6 +399,12 @@ function save() {
 .empty-hint {
   margin: 0;
   font-size: 12px;
+  color: var(--muted);
+}
+
+.file-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
   color: var(--muted);
 }
 

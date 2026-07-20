@@ -59,11 +59,21 @@ function removeRows() {
     window.alert('삭제할 화면을 선택해 주세요.')
     return
   }
+  if (!window.confirm(`${selectedIds.value.length}건을 삭제하시겠습니까?`)) return
   rows.value = rows.value.filter((r) => !selectedIds.value.includes(r.id))
   selectedIds.value = []
 }
 
 function saveRows() {
+  const empty = rows.value.find((r) => !String(r.name || '').trim())
+  if (empty) {
+    window.alert('화면명이 비어 있는 행이 있습니다.')
+    return
+  }
+  if (!window.confirm(`${rows.value.length}건을 저장하시겠습니까?`)) return
+  rows.value.forEach((r) => {
+    if (r.name) r.updatedBy = '김현대'
+  })
   window.alert(`${rows.value.length}건의 화면코드를 저장했습니다.`)
 }
 
@@ -82,11 +92,6 @@ function onExcelDownload() {
 
 <template>
   <div class="admin-page">
-    <h1 class="admin-page__title">
-      화면(메뉴) 관리
-      <span class="admin-page__hint">{{ menuMgmtMeta.hint }}</span>
-    </h1>
-
     <div class="notice">ⓘ {{ menuMgmtMeta.notice }}</div>
 
     <div class="admin-split">

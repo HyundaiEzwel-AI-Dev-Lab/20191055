@@ -3,7 +3,6 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  approvalMeta,
   approvalStatusOptions,
   requestTypeOptions,
   dateTypeOptions,
@@ -16,7 +15,7 @@ import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
 const router = useRouter()
-const rows = ref(approvalList.map((r) => ({ ...r })))
+const rows = approvalList
 const filters = ref({
   status: '전체',
   type: '전체',
@@ -28,9 +27,9 @@ const applied = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
 const selectedIds = ref([])
-const selectedRow = ref(rows.value[0] || null)
+const selectedRow = ref(rows[0] || null)
 
-const filtered = computed(() => rows.value.filter((r) => matchApprovalFilters(r, applied.value)))
+const filtered = computed(() => rows.filter((r) => matchApprovalFilters(r, applied.value)))
 const paged = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filtered.value.slice(start, start + pageSize.value)
@@ -71,7 +70,7 @@ function selectRow(row) {
 
 function applyStatus(status) {
   const targets = selectedIds.value.length
-    ? rows.value.filter((r) => selectedIds.value.includes(r.id))
+    ? rows.filter((r) => selectedIds.value.includes(r.id))
     : selectedRow.value
       ? [selectedRow.value]
       : []
@@ -86,6 +85,8 @@ function applyStatus(status) {
     window.alert('승인요청 상태의 건만 처리할 수 있습니다.')
     return
   }
+
+  if (!window.confirm(`${pending.length}건을 ${status} 처리하시겠습니까?`)) return
 
   pending.forEach((r) => {
     r.status = status
@@ -119,11 +120,6 @@ function onExcelDownload() {
 
 <template>
   <div class="admin-page">
-    <h1 class="admin-page__title">
-      신청 승인 관리
-      <span class="admin-page__hint">{{ approvalMeta.hint }}</span>
-    </h1>
-
     <section class="filter card">
       <div class="filter__row filter__row--5">
         <div class="filter__field">

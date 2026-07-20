@@ -1,7 +1,8 @@
 <script setup>
 // PAG-S-REQ-04/06 요구사항 등록·상세
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
 import {
   requirementTypes,
   registerTaskTypes,
@@ -26,6 +27,8 @@ const form = reactive({
   system: 'FO',
   bizCategory: '',
   screenMenu: '',
+  screenPath: '',
+  screenName: '',
   taskTypes: [],
   status: '접수',
   priority: '보통',
@@ -35,19 +38,52 @@ const form = reactive({
 })
 
 const isEdit = computed(() => props.mode === 'edit')
-const title = computed(() => (isEdit.value ? '요구사항 상세' : '요구사항 등록'))
+const isCopy = computed(() => props.mode === 'copy')
+const title = computed(() => {
+  if (isCopy.value) return '요구사항 등록 (복사)'
+  return isEdit.value ? '요구사항 상세' : '요구사항 등록'
+})
 const bizOptions = computed(() => bizCategoryMap[form.system] || [])
-const canEdit = computed(() => !props.data || props.data.status !== '반려')
+const canEdit = computed(() => !isEdit.value || !props.data || props.data.status !== '반려')
 const isConfirmed = computed(
-  () => props.data?.confirmRequester === '확정' && props.data?.confirmTech === '확정',
+  () =>
+    isEdit.value &&
+    props.data?.confirmRequester === '확정' &&
+    props.data?.confirmTech === '확정',
 )
+const originalLocked = computed(() => isEdit.value || isCopy.value)
 const memoCount = computed(() => form.memo.length)
+const showScreenSearch = ref(false)
+const screenDisplay = computed(() => {
+  if (form.screenName && form.screenPath) return `${form.screenName} (${form.screenPath})`
+  if (form.screenName) return form.screenName
+  return form.screenMenu || ''
+})
 
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    if (props.data) {
+    if (isCopy.value && props.data) {
+      Object.assign(form, {
+        reqId: '자동 채번',
+        name: props.data.name,
+        original: props.data.original,
+        analysis: '',
+        reqType: '최초 요건',
+        system: props.data.system,
+        bizCategory: props.data.bizCategory,
+        screenMenu: '',
+        screenPath: '',
+        screenName: '',
+        taskTypes: [],
+        status: '접수',
+        priority: '보통',
+        confirmRequester: false,
+        confirmTech: false,
+        memo: '',
+      })
+    } else if (props.data) {
       Object.assign(form, {
         reqId: props.data.reqId,
         name: props.data.name,
@@ -56,7 +92,9 @@ watch(
         reqType: props.data.reqType === '추가' ? '추가 요구사항' : '최초 요건',
         system: props.data.system,
         bizCategory: props.data.bizCategory,
-        screenMenu: props.data.screenMenu,
+        screenMenu: props.data.screenMenu || props.data.screenName || '',
+        screenPath: props.data.screenPath || '',
+        screenName: props.data.screenName || props.data.screenMenu || '',
         taskTypes: [...props.data.taskTypes],
         status: props.data.status,
         priority: props.data.priority,
@@ -74,6 +112,8 @@ watch(
         system: 'FO',
         bizCategory: '법인숙박',
         screenMenu: '',
+        screenPath: '',
+        screenName: '',
         taskTypes: [],
         status: '접수',
         priority: '보통',
@@ -89,6 +129,17 @@ function close() {
   emit('update:modelValue', false)
 }
 
+function openScreenSearch() {
+  if (!canEdit.value || isConfirmed.value) return
+  showScreenSearch.value = true
+}
+
+function onScreenSelect(screen) {
+  form.screenName = screen.name
+  form.screenPath = screen.path
+  form.screenMenu = screen.name
+}
+
 function toggleTaskType(type) {
   if (isEdit.value && isConfirmed.value) return
   const idx = form.taskTypes.indexOf(type)
@@ -102,14 +153,18 @@ function onSystemChange() {
 }
 
 function save() {
-  if (!form.name.trim() || !form.original.trim()) {
+  if (
+    !form.name.trim() ||
+    !form.original.trim() ||
+    !form.system ||
+    !form.bizCategory ||
+    !form.taskTypes.length
+  ) {
     window.alert('미입력 항목을 입력하세요.')
     return
   }
   if (!window.confirm('저장하시겠습니까?')) return
   emit('save', { ...form })
-  window.alert('저장되었습니다.')
-  close()
 }
 </script>
 
@@ -142,7 +197,7 @@ function save() {
           rows="4"
           maxlength="2000"
           placeholder="현업에서 발의한 개발 요청사항 입력"
-          :disabled="isEdit"
+          :disabled="originalLocked"
         />
       </div>
 
@@ -202,12 +257,25 @@ function save() {
         </div>
         <div class="fld">
           <label>화면(메뉴)</label>
-          <input
-            v-model="form.screenMenu"
-            class="inp"
-            type="text"
-            :disabled="!canEdit || isConfirmed"
-          />
+          <div class="screen-search">
+            <button
+              type="button"
+              class="screen-search__field"
+              :disabled="!canEdit || isConfirmed"
+              @click="openScreenSearch"
+            >
+              <span v-if="screenDisplay" class="screen-search__value">{{ screenDisplay }}</span>
+              <span v-else class="screen-search__ph">화면(메뉴) 검색</span>
+            </button>
+            <button
+              type="button"
+              class="btn btn--ghost btn--sm screen-search__btn"
+              :disabled="!canEdit || isConfirmed"
+              @click="openScreenSearch"
+            >
+              검색
+            </button>
+          </div>
         </div>
       </div>
       <div class="fld fld--req">
@@ -309,6 +377,12 @@ function save() {
       </button>
     </template>
   </BaseModal>
+
+  <RequirementScreenSearchModal
+    v-model="showScreenSearch"
+    :system="form.system"
+    @select="onScreenSelect"
+  />
 </template>
 
 <style scoped>
@@ -472,5 +546,46 @@ function save() {
   gap: 6px;
   font-size: 12.5px;
   cursor: pointer;
+}
+
+.screen-search {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.screen-search__field {
+  flex: 1;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--lnb-line);
+  border-radius: 7px;
+  background: var(--lnb-side);
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--lnb-txt);
+}
+
+.screen-search__field:disabled {
+  background: var(--field);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.screen-search__ph {
+  color: var(--lnb-muted);
+}
+
+.screen-search__value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-search__btn {
+  flex-shrink: 0;
 }
 </style>

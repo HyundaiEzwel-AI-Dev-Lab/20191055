@@ -26,6 +26,157 @@ export const bizCategoryMap = {
 export const requirementTypes = ['최초 요건', '추가 요구사항']
 export const registerTaskTypes = ['기획', '디자인', '퍼블리싱', '개발', '테스트']
 
+/** PAG-S-REQ-05 일괄등록 엑셀 양식 컬럼 */
+export const requirementBulkTemplateColumns = [
+  { key: 'reqType', label: '구분' },
+  { key: 'system', label: '시스템' },
+  { key: 'bizCategory', label: '업무구분' },
+  { key: 'screenMenu', label: '화면(메뉴)' },
+  { key: 'name', label: '요구사항명' },
+  { key: 'original', label: '요구사항원안' },
+  { key: 'taskTypes', label: '업무유형' },
+  { key: 'priority', label: '우선순위' },
+]
+
+export const requirementBulkTemplateSample = [
+  {
+    reqType: '최초 요건',
+    system: 'FO',
+    bizCategory: '법인숙박',
+    screenMenu: '복지혜택 신청',
+    name: '샘플 요구사항명',
+    original: '현업 발의 요구사항 원안을 입력합니다.',
+    taskTypes: '기획,개발,테스트',
+    priority: '보통',
+  },
+]
+
+/**
+ * 업로드 파싱 목업 — 성공/실패 행 혼합
+ * taskTypes는 문자열 CSV로 유지한 뒤 validate에서 배열로 변환
+ */
+export function getRequirementBulkPreview() {
+  return [
+    {
+      rowNo: 1,
+      reqType: '최초 요건',
+      system: 'FO',
+      bizCategory: '법인숙박',
+      screenMenu: '복지혜택 신청',
+      name: '일괄등록 고객사 맞춤페이지',
+      original: '법인숙박 맞춤페이지 노출 요건',
+      taskTypes: '디자인,퍼블리싱,개발',
+      priority: '높음',
+    },
+    {
+      rowNo: 2,
+      reqType: '추가 요구사항',
+      system: 'HIMS',
+      bizCategory: '프로모션',
+      screenMenu: '',
+      name: '프로모션 정산 배치',
+      original: '정산 배치 주기 변경',
+      taskTypes: '기획,개발',
+      priority: '보통',
+    },
+    {
+      rowNo: 3,
+      reqType: '최초 요건',
+      system: 'FO',
+      bizCategory: '',
+      screenMenu: '주문',
+      name: '',
+      original: '원안만 있는 잘못된 행',
+      taskTypes: '개발',
+      priority: '낮음',
+    },
+    {
+      rowNo: 4,
+      reqType: '최초 요건',
+      system: 'HPAS',
+      bizCategory: '결제',
+      screenMenu: '결제수단',
+      name: '결제수단 노출 개선',
+      original: '',
+      taskTypes: '',
+      priority: '보통',
+    },
+    {
+      rowNo: 5,
+      reqType: '추가 요구사항',
+      system: 'HCAS',
+      bizCategory: '복지혜택',
+      screenMenu: '혜택신청',
+      name: '복지혜택 신청 문구 변경',
+      original: '신청 화면 안내 문구 수정',
+      taskTypes: '기획,퍼블리싱',
+      priority: '낮음',
+    },
+  ]
+}
+
+function parseTaskTypes(raw) {
+  if (Array.isArray(raw)) return raw.filter(Boolean)
+  return String(raw || '')
+    .split(/[,|/]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+/** @returns {{ ok: boolean, errors: string[], taskTypes: string[] }} */
+export function validateRequirementBulkRow(row) {
+  const errors = []
+  const reqType = String(row.reqType || '').trim()
+  const system = String(row.system || '').trim()
+  const bizCategory = String(row.bizCategory || '').trim()
+  const name = String(row.name || '').trim()
+  const original = String(row.original || '').trim()
+  const taskTypes = parseTaskTypes(row.taskTypes)
+
+  if (!reqType) errors.push('구분 필수')
+  else if (!requirementTypes.includes(reqType) && reqType !== '최초' && reqType !== '추가') {
+    errors.push('구분 값 오류')
+  }
+
+  if (!system) errors.push('시스템 필수')
+  else if (!systemOptions.includes(system)) errors.push('시스템 값 오류')
+
+  if (!bizCategory) errors.push('업무구분 필수')
+  else if (system && bizCategoryMap[system] && !bizCategoryMap[system].includes(bizCategory)) {
+    errors.push('업무구분 불일치')
+  }
+
+  if (!name) errors.push('요구사항명 필수')
+  if (!original) errors.push('요구사항원안 필수')
+  if (!taskTypes.length) errors.push('업무유형 필수')
+  else {
+    const invalid = taskTypes.filter((t) => !registerTaskTypes.includes(t))
+    if (invalid.length) errors.push(`업무유형 오류(${invalid.join(',')})`)
+  }
+
+  const priority = String(row.priority || '보통').trim() || '보통'
+  if (!['낮음', '보통', '높음'].includes(priority)) errors.push('우선순위 값 오류')
+
+  return { ok: errors.length === 0, errors, taskTypes, priority }
+}
+
+export function normalizeRequirementBulkRow(row, validation) {
+  const reqTypeRaw = String(row.reqType || '').trim()
+  const reqType =
+    reqTypeRaw === '추가' || reqTypeRaw.startsWith('추가') ? '추가 요구사항' : '최초 요건'
+  return {
+    reqType,
+    system: String(row.system || '').trim(),
+    bizCategory: String(row.bizCategory || '').trim(),
+    screenMenu: String(row.screenMenu || '').trim(),
+    name: String(row.name || '').trim(),
+    original: String(row.original || '').trim(),
+    taskTypes: validation.taskTypes,
+    priority: validation.priority || '보통',
+    status: '접수',
+  }
+}
+
 const baseRequirements = [
   {
     id: 'req1',

@@ -80,7 +80,7 @@ function clearTimer() {
 // 1. 인증번호 발송 (본인확인)
 function sendCode() {
   if (!form.name.trim() || !form.empId.trim() || !form.phone.trim()) {
-    openInfo('등록된 임직원 정보와 입력하신 정보가 일치하지 않습니다')
+    openInfo('이름, 사번/ID, 휴대전화는 필수 입력 항목입니다.')
     return
   }
   const user = findUserForReset({
@@ -110,6 +110,10 @@ function resend() {
 
 // 3. 인증
 function verify() {
+  if (!form.code.trim()) {
+    openInfo('인증번호를 입력해주세요.')
+    return
+  }
   if (remaining.value <= 0) {
     openInfo('인증시간이 만료되었습니다.')
     return
@@ -137,6 +141,10 @@ function checkPolicy(v) {
 
 // 4b. 저장
 function save() {
+  if (!verified.value) {
+    openInfo('본인 인증을 완료한 후 비밀번호를 변경할 수 있습니다.')
+    return
+  }
   if (!form.next) {
     openInfo('신규 비밀번호를 입력해주세요.')
     return

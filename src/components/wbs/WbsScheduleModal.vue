@@ -35,6 +35,18 @@ function close() {
 }
 
 function save() {
+  if (!planStart.value || !planEnd.value) {
+    window.alert('계획일정을 입력해 주세요.')
+    return
+  }
+  if (planStart.value > planEnd.value) {
+    window.alert('계획 종료일은 시작일 이후여야 합니다.')
+    return
+  }
+  if (execStart.value && execEnd.value && execStart.value > execEnd.value) {
+    window.alert('실행 종료일은 시작일 이후여야 합니다.')
+    return
+  }
   emit('save', {
     planStart: planStart.value,
     planEnd: planEnd.value,
@@ -52,6 +64,9 @@ function save() {
     @close="close"
   >
     <template v-if="task">
+      <p v-if="task.changedAt" class="last-modified">
+        최종수정 {{ task.changedAt }} ({{ task.changedBy }})
+      </p>
       <dl class="info-dl">
         <div class="info-dl__row">
           <dt>업무유형</dt>
@@ -94,6 +109,13 @@ function save() {
 </template>
 
 <style scoped>
+.last-modified {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--lnb-muted);
+  text-align: right;
+}
+
 .info-dl {
   margin: 0 0 16px;
   background: var(--lnb-hover);

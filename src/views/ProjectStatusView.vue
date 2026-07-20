@@ -14,6 +14,7 @@ import {
 } from '@/data/projectStatus'
 import { getScheduleChange } from '@/data/scheduleChange'
 import ScheduleChangeModal from '@/components/dashboard/ScheduleChangeModal.vue'
+import RequirementListModal from '@/components/dashboard/RequirementListModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 import { useProjectRegister } from '@/composables/useProjectRegister'
@@ -36,6 +37,8 @@ const currentPage = ref(1)
 
 const showScheduleModal = ref(false)
 const scheduleModalData = ref(null)
+const showRequirementModal = ref(false)
+const requirementContext = ref(null)
 const showInProgressTip = ref(false)
 
 const filteredProjects = computed(() => {
@@ -84,8 +87,15 @@ function onRegisterClick() {
   openRegisterModal()
 }
 
-function onDeptClick() {
-  window.alert('요구사항 팝업 (POP-M-DAS-02)\n해당 프로젝트의 요구사항 목록을 표시합니다.')
+function onDeptClick(row) {
+  requirementContext.value = {
+    id: row.id,
+    projectId: row.projectId,
+    name: row.name,
+    requestDept: row.requestDept,
+    stage: row.stage,
+  }
+  showRequirementModal.value = true
 }
 
 function onOverdueClick(row) {
@@ -344,6 +354,10 @@ function onPageSizeChange() {
     </section>
 
     <ScheduleChangeModal v-model="showScheduleModal" :data="scheduleModalData" />
+    <RequirementListModal
+      v-model="showRequirementModal"
+      :context="requirementContext"
+    />
   </div>
 </template>
 
