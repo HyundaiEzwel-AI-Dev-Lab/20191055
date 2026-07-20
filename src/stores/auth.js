@@ -28,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
       email: account.email || `${account.id}@ezwel.com`,
       role: account.role || '개발자',
       position: account.position || '책임',
-      lastLogin: account.lastLogin || '2026/03/20 09:12',
+      lastLogin: account.lastLogin || '2026-07-07 08:52',
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user.value))
   }

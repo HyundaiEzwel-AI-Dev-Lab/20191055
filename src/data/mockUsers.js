@@ -55,13 +55,25 @@ export const mockUsers = [
     status: 'active',
     failCount: 5,
   },
+  {
+    id: '2024099',
+    password: 'Ezwel123!',
+    name: '무배정',
+    phone: '01099999999',
+    status: 'active',
+    failCount: 0,
+    dept: 'IT기획팀',
+    email: '2024099@ezwel.com',
+    role: '사용자',
+    position: '사원',
+  },
 ]
 
 export function findUserById(id) {
   return mockUsers.find((u) => u.id === id)
 }
 
-// 비밀번호 재설정: 이름 + 사번/ID + 휴대전화 일치 여부 체크
-export function findUserForReset({ name, empId, phone }) {
-  return mockUsers.find((u) => u.id === empId && u.name === name && u.phone === phone)
+// 비밀번호 재설정: 이름 + 사번/ID 일치 여부 체크 (v0.9 휴대폰 인증 SPEC OUT)
+export function findUserForReset({ name, empId }) {
+  return mockUsers.find((u) => u.id === empId && u.name === name)
 }

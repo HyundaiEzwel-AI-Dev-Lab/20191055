@@ -1,5 +1,6 @@
 <script setup>
 // PAG-S-REQ-04/06 요구사항 등록·상세
+// 상세 수정 가능: 접수·수용 & 미확정 / 불가: 반려·양측 확정 (화면없음 예외)
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
@@ -39,37 +40,109 @@ const form = reactive({
 
 const isEdit = computed(() => props.mode === 'edit')
 const isCopy = computed(() => props.mode === 'copy')
+const isRegister = computed(() => props.mode === 'register')
+
 const title = computed(() => {
   if (isCopy.value) return '요구사항 등록 (복사)'
   return isEdit.value ? '요구사항 상세' : '요구사항 등록'
 })
+
 const bizOptions = computed(() => bizCategoryMap[form.system] || [])
-const canEdit = computed(() => !isEdit.value || !props.data || props.data.status !== '반려')
-const isConfirmed = computed(
-  () =>
-    isEdit.value &&
-    props.data?.confirmRequester === '확정' &&
-    props.data?.confirmTech === '확정',
-)
+
+/** 요청자·테크 모두 확정 (저장 기준) */
+const bothConfirmed = computed(() => {
+  if (!isEdit.value || !props.data) return false
+  return props.data.confirmRequester === '확정' && props.data.confirmTech === '확정'
+})
+
+/** 반려 또는 양측 확정 → 본문 수정 불가 (SB 98·100) */
+const isReadOnly = computed(() => {
+  if (!isEdit.value) return false
+  if (props.data?.status === '반려') return true
+  if (props.data?.confirmLocked) return true
+  return bothConfirmed.value
+})
+
+/** 기본 정보·업무범주·추가정보 편집 가능 */
+const canEditFields = computed(() => {
+  if (isRegister.value || isCopy.value) return true
+  return isEdit.value && !isReadOnly.value
+})
+
+/** 원안: 등록만 입력, 상세/복사는 잠금 (SB 96·98) */
 const originalLocked = computed(() => isEdit.value || isCopy.value)
+
+/** 구분: 등록·복사만 변경, 상세는 잠금 */
+const reqTypeLocked = computed(() => isEdit.value)
+
+/**
+ * 요건확정 토글
+ * - 접수: 불가 (SB 94·98)
+ * - 수용 & 미확정: 가능
+ * - 이미 확정된 쪽: 변경 불가
+ * - 반려/양측확정(본문잠금): 불가
+ */
+const canEditConfirmRequester = computed(() => {
+  if (!canEditFields.value) return false
+  if (form.status !== '수용') return false
+  if (props.data?.confirmRequester === '확정') return false
+  return true
+})
+
+const canEditConfirmTech = computed(() => {
+  if (!canEditFields.value) return false
+  if (form.status !== '수용') return false
+  if (props.data?.confirmTech === '확정') return false
+  return true
+})
+
+/** 확정 + 화면없음 → 화면만 1회 수정 가능 (SB 101) */
+const isNoScreen = computed(() => {
+  const name = form.screenName || form.screenMenu || ''
+  return !name || name === '화면없음' || name === '-'
+})
+
+const canEditScreenOnly = computed(
+  () => isEdit.value && isReadOnly.value && bothConfirmed.value && isNoScreen.value,
+)
+
+const canEditScreen = computed(() => canEditFields.value || canEditScreenOnly.value)
+
+const showSaveButton = computed(() => canEditFields.value || canEditScreenOnly.value)
+
 const memoCount = computed(() => form.memo.length)
 const showScreenSearch = ref(false)
+const confirmTipOpen = ref(false)
+
+const confirmTooltip =
+  '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 최종 개발 요구사항 확인 완료 (확정 후 요건 수정 불가)\n- 미확정 : 최종 개발 요구사항 확정 전 (요건 수정 가능)'
+
 const screenDisplay = computed(() => {
   if (form.screenName && form.screenPath) return `${form.screenName} (${form.screenPath})`
   if (form.screenName) return form.screenName
   return form.screenMenu || ''
 })
 
+const metaLine = computed(() => {
+  if (!isEdit.value || !props.data) return ''
+  const reg = `등록 ${props.data.registeredAt || '-'} (${props.data.registeredBy || '-'})`
+  const upd = props.data.updatedAt
+    ? `최종수정 ${props.data.updatedAt} (${props.data.updatedBy || '-'})`
+    : '최종수정 -'
+  return `${reg}  |  ${upd}`
+})
+
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
+    confirmTipOpen.value = false
     if (isCopy.value && props.data) {
       Object.assign(form, {
         reqId: '자동 채번',
         name: props.data.name,
         original: props.data.original,
-        analysis: '',
+        analysis: props.data.analysis || '',
         reqType: '최초 요건',
         system: props.data.system,
         bizCategory: props.data.bizCategory,
@@ -83,7 +156,7 @@ watch(
         confirmTech: false,
         memo: '',
       })
-    } else if (props.data) {
+    } else if (props.data && isEdit.value) {
       Object.assign(form, {
         reqId: props.data.reqId,
         name: props.data.name,
@@ -95,7 +168,7 @@ watch(
         screenMenu: props.data.screenMenu || props.data.screenName || '',
         screenPath: props.data.screenPath || '',
         screenName: props.data.screenName || props.data.screenMenu || '',
-        taskTypes: [...props.data.taskTypes],
+        taskTypes: [...(props.data.taskTypes || [])],
         status: props.data.status,
         priority: props.data.priority,
         confirmRequester: props.data.confirmRequester === '확정',
@@ -130,7 +203,7 @@ function close() {
 }
 
 function openScreenSearch() {
-  if (!canEdit.value || isConfirmed.value) return
+  if (!canEditScreen.value) return
   showScreenSearch.value = true
 }
 
@@ -141,26 +214,76 @@ function onScreenSelect(screen) {
 }
 
 function toggleTaskType(type) {
-  if (isEdit.value && isConfirmed.value) return
+  if (!canEditFields.value) return
   const idx = form.taskTypes.indexOf(type)
   if (idx >= 0) form.taskTypes.splice(idx, 1)
   else form.taskTypes.push(type)
 }
 
 function onSystemChange() {
+  if (!canEditFields.value) return
   const opts = bizCategoryMap[form.system] || []
   form.bizCategory = opts[0] || ''
+  form.screenMenu = ''
+  form.screenPath = ''
+  form.screenName = ''
+}
+
+function onStatusChange(next) {
+  if (!canEditFields.value) return
+  form.status = next
+  if (next === '접수') {
+    form.confirmRequester = false
+    form.confirmTech = false
+  }
+}
+
+function onConfirmToggle(field, event) {
+  const checked = event.target.checked
+  if (field === 'confirmRequester' && !canEditConfirmRequester.value) {
+    event.target.checked = form.confirmRequester
+    return
+  }
+  if (field === 'confirmTech' && !canEditConfirmTech.value) {
+    event.target.checked = form.confirmTech
+    return
+  }
+  if (checked) {
+    const ok = window.confirm('확정 후 변경할 수 없습니다. 변경하시겠습니까?')
+    if (!ok) {
+      event.target.checked = false
+      form[field] = false
+      return
+    }
+  }
+  form[field] = checked
 }
 
 function save() {
-  if (
-    !form.name.trim() ||
-    !form.original.trim() ||
-    !form.system ||
-    !form.bizCategory ||
-    !form.taskTypes.length
-  ) {
+  if (canEditScreenOnly.value) {
+    if (!form.screenName || form.screenName === '화면없음') {
+      window.alert('화면(메뉴)을 선택해 주세요.')
+      return
+    }
+    if (!window.confirm('저장하시겠습니까?')) return
+    emit('save', { ...form, screenOnly: true })
+    return
+  }
+
+  if (!form.name.trim() || !form.original.trim() || !form.system || !form.bizCategory) {
     window.alert('미입력 항목을 입력하세요.')
+    return
+  }
+  if (form.status === '수용' && !form.taskTypes.length) {
+    window.alert('수용 상태에서는 업무유형을 1개 이상 선택해 주세요.')
+    return
+  }
+  if (form.status === '수용' && !form.screenName && !form.screenMenu) {
+    window.alert('수용 상태에서는 화면(메뉴)을 선택해 주세요.')
+    return
+  }
+  if (!form.taskTypes.length && isRegister.value) {
+    window.alert('업무유형을 1개 이상 선택해 주세요.')
     return
   }
   if (!window.confirm('저장하시겠습니까?')) return
@@ -184,7 +307,7 @@ function save() {
             class="inp"
             type="text"
             maxlength="100"
-            :disabled="!canEdit || isConfirmed"
+            :disabled="!canEditFields"
           />
         </div>
       </div>
@@ -209,7 +332,7 @@ function save() {
           rows="4"
           maxlength="2000"
           placeholder="테크(기획/개발)에서 상세 분석/정의한 내용 입력"
-          :disabled="!canEdit || isConfirmed"
+          :disabled="!canEditFields"
         />
       </div>
 
@@ -222,7 +345,7 @@ function save() {
             type="button"
             class="seg__btn"
             :class="{ 'seg__btn--on': form.reqType === t }"
-            :disabled="isEdit"
+            :disabled="reqTypeLocked || !canEditFields"
             @click="form.reqType = t"
           >
             {{ t }}
@@ -239,7 +362,7 @@ function save() {
           <select
             v-model="form.system"
             class="inp"
-            :disabled="!canEdit || isConfirmed"
+            :disabled="!canEditFields"
             @change="onSystemChange"
           >
             <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
@@ -247,11 +370,7 @@ function save() {
         </div>
         <div class="fld fld--req">
           <label>업무구분</label>
-          <select
-            v-model="form.bizCategory"
-            class="inp"
-            :disabled="!canEdit || isConfirmed"
-          >
+          <select v-model="form.bizCategory" class="inp" :disabled="!canEditFields">
             <option v-for="b in bizOptions" :key="b" :value="b">{{ b }}</option>
           </select>
         </div>
@@ -261,7 +380,7 @@ function save() {
             <button
               type="button"
               class="screen-search__field"
-              :disabled="!canEdit || isConfirmed"
+              :disabled="!canEditScreen"
               @click="openScreenSearch"
             >
               <span v-if="screenDisplay" class="screen-search__value">{{ screenDisplay }}</span>
@@ -270,7 +389,7 @@ function save() {
             <button
               type="button"
               class="btn btn--ghost btn--sm screen-search__btn"
-              :disabled="!canEdit || isConfirmed"
+              :disabled="!canEditScreen"
               @click="openScreenSearch"
             >
               검색
@@ -287,7 +406,7 @@ function save() {
             type="button"
             class="chip-btn"
             :class="{ 'chip-btn--on': form.taskTypes.includes(t) }"
-            :disabled="!canEdit || isConfirmed"
+            :disabled="!canEditFields"
             @click="toggleTaskType(t)"
           >
             {{ t }}
@@ -308,8 +427,8 @@ function save() {
               type="button"
               class="seg__btn"
               :class="{ 'seg__btn--on': form.status === s }"
-              :disabled="!canEdit || isConfirmed"
-              @click="form.status = s"
+              :disabled="!canEditFields"
+              @click="onStatusChange(s)"
             >
               {{ s }}
             </button>
@@ -324,7 +443,7 @@ function save() {
               type="button"
               class="seg__btn"
               :class="{ 'seg__btn--on': form.priority === p }"
-              :disabled="!canEdit || isConfirmed"
+              :disabled="!canEditFields"
               @click="form.priority = p"
             >
               {{ p }}
@@ -334,21 +453,35 @@ function save() {
       </div>
 
       <div class="confirm-row">
+        <span class="confirm-label">
+          요건확정
+          <button
+            type="button"
+            class="confirm-tip"
+            @click.stop="confirmTipOpen = !confirmTipOpen"
+            @blur="confirmTipOpen = false"
+          >
+            !
+          </button>
+          <span v-if="confirmTipOpen" class="confirm-tip__bubble">{{ confirmTooltip }}</span>
+        </span>
         <label class="confirm-item">
           <input
-            v-model="form.confirmRequester"
             type="checkbox"
-            :disabled="!canEdit || form.status === '접수' || isConfirmed"
+            :checked="form.confirmRequester"
+            :disabled="!canEditConfirmRequester"
+            @change="onConfirmToggle('confirmRequester', $event)"
           />
-          요건확정 (요청자)
+          요청자
         </label>
         <label class="confirm-item">
           <input
-            v-model="form.confirmTech"
             type="checkbox"
-            :disabled="!canEdit || form.status === '접수' || isConfirmed"
+            :checked="form.confirmTech"
+            :disabled="!canEditConfirmTech"
+            @change="onConfirmToggle('confirmTech', $event)"
           />
-          요건확정 (테크)
+          테크
         </label>
       </div>
 
@@ -359,16 +492,20 @@ function save() {
           class="textarea"
           rows="2"
           maxlength="500"
-          :disabled="!canEdit || isConfirmed"
+          :disabled="!canEditFields"
         />
         <span class="count">{{ memoCount }} / 500자</span>
       </div>
+
+      <p v-if="metaLine" class="meta-line">{{ metaLine }}</p>
     </section>
 
     <template #footer>
-      <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <button type="button" class="btn btn--ghost" @click="close">
+        {{ showSaveButton ? '취소' : '닫기' }}
+      </button>
       <button
-        v-if="canEdit && !isConfirmed"
+        v-if="showSaveButton"
         type="button"
         class="btn btn--primary"
         @click="save"
@@ -421,7 +558,8 @@ function save() {
   grid-column: span 2;
 }
 
-.fld--req label::after {
+.fld--req label::after,
+label.fld--req::after {
   content: ' *';
   color: var(--red);
 }
@@ -436,7 +574,7 @@ function save() {
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--lnb-line);
-  border-radius: 7px;
+  border-radius: var(--radius-sm, 7px);
   font-family: inherit;
   font-size: 12px;
   background: var(--lnb-side);
@@ -453,13 +591,14 @@ function save() {
 .textarea:disabled {
   background: var(--field);
   cursor: not-allowed;
+  opacity: 0.85;
 }
 
 .textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--lnb-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md, 8px);
   font-family: inherit;
   font-size: 13px;
   line-height: 1.5;
@@ -475,7 +614,7 @@ function save() {
 .seg {
   display: inline-flex;
   border: 1px solid var(--lnb-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md, 8px);
   overflow: hidden;
 }
 
@@ -501,7 +640,7 @@ function save() {
 }
 
 .seg__btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
@@ -530,14 +669,59 @@ function save() {
 }
 
 .chip-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .confirm-row {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.confirm-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lnb-txt);
+}
+
+.confirm-tip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--lnb-line);
+  background: #fff;
+  color: var(--teal-600);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.confirm-tip__bubble {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 280px;
+  padding: 10px 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md, 8px);
+  background: #fff;
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+  color: var(--lnb-txt);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: pre-line;
 }
 
 .confirm-item {
@@ -546,6 +730,17 @@ function save() {
   gap: 6px;
   font-size: 12.5px;
   cursor: pointer;
+}
+
+.confirm-item:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.meta-line {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--lnb-muted);
 }
 
 .screen-search {
@@ -559,7 +754,7 @@ function save() {
   min-height: 32px;
   padding: 6px 10px;
   border: 1px solid var(--lnb-line);
-  border-radius: 7px;
+  border-radius: var(--radius-sm, 7px);
   background: var(--lnb-side);
   text-align: left;
   font-family: inherit;

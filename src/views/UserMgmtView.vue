@@ -4,6 +4,7 @@ import { computed, reactive, ref } from 'vue'
 import {
   deptOptions,
   roleOptions,
+  positionOptions,
   statusOptions,
   pageSizeOptions,
   userList,
@@ -28,11 +29,12 @@ const registerForm = reactive({
   name: '',
   dept: '테크기획팀',
   role: '사용자',
-  position: '',
+  position: '사원',
   email: '',
-  phone: '',
-  type: '임직원',
+  active: true,
 })
+const idChecked = ref(false)
+const registerTempPassword = ref('')
 
 const filtered = computed(() => rows.value.filter((r) => matchUserFilters(r, applied.value)))
 const paged = computed(() => {
@@ -135,32 +137,73 @@ function openRegister() {
     name: '',
     dept: '테크기획팀',
     role: '사용자',
-    position: '',
+    position: '사원',
     email: '',
-    phone: '',
-    type: '임직원',
+    active: true,
   })
+  idChecked.value = false
+  registerTempPassword.value = tempPassword()
   showRegister.value = true
 }
 
+function onRegisterIdInput() {
+  idChecked.value = false
+  registerForm.id = registerForm.id.replace(/[^A-Za-z0-9]/g, '')
+}
+
+function checkDuplicateId() {
+  const id = registerForm.id.trim()
+  if (!id) {
+    window.alert('아이디를 입력해 주세요.')
+    return
+  }
+  if (!/^[a-zA-Z0-9]+$/.test(id)) {
+    window.alert('아이디는 영문과 숫자만 사용할 수 있습니다.')
+    return
+  }
+  if (rows.value.some((r) => r.id === id)) {
+    idChecked.value = false
+    window.alert('이미 사용 중인 아이디입니다.')
+    return
+  }
+  idChecked.value = true
+  window.alert('사용 가능한 아이디입니다.')
+}
+
 function saveRegister() {
-  if (!registerForm.id.trim() || !registerForm.name.trim()) {
-    window.alert('사번(ID)과 이름은 필수입니다.')
+  const id = registerForm.id.trim()
+  if (!id || !registerForm.name.trim()) {
+    window.alert('아이디와 이름은 필수입니다.')
     return
   }
-  if (rows.value.some((r) => r.id === registerForm.id.trim())) {
-    window.alert('이미 존재하는 사번(ID)입니다.')
+  if (!/^[a-zA-Z0-9]+$/.test(id)) {
+    window.alert('아이디는 영문과 숫자만 사용할 수 있습니다.')
     return
   }
+  if (!idChecked.value) {
+    window.alert('아이디 중복확인을 해주세요.')
+    return
+  }
+  if (registerForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email.trim())) {
+    window.alert('올바른 이메일 형식을 입력해 주세요.')
+    return
+  }
+  if (!window.confirm('사용자를 등록하시겠습니까?')) return
   rows.value.unshift({
-    ...registerForm,
-    id: registerForm.id.trim(),
+    id,
     name: registerForm.name.trim(),
-    status: '재직',
+    dept: registerForm.dept,
+    role: registerForm.role,
+    position: registerForm.position,
+    email: registerForm.email.trim(),
+    phone: '',
+    type: '임직원',
+    status: registerForm.active ? '재직' : '휴직',
     failCount: 0,
   })
   showRegister.value = false
   search()
+  window.alert(`등록되었습니다.\n초기 비밀번호: ${registerTempPassword.value}`)
 }
 </script>
 
@@ -307,17 +350,58 @@ function saveRegister() {
     <BaseModal :visible="showRegister" title="사용자 등록" @close="showRegister = false">
       <div class="modal-grid">
         <div class="modal-field">
-          <label>사번(ID)</label>
-          <input v-model="registerForm.id" class="filter__input" type="text" />
+          <label>아이디</label>
+          <div class="modal-field__inline">
+            <input
+              v-model="registerForm.id"
+              class="filter__input"
+              type="text"
+              placeholder="영문·숫자"
+              @input="onRegisterIdInput"
+            />
+            <button type="button" class="btn btn--ghost btn--sm" @click="checkDuplicateId">중복확인</button>
+          </div>
         </div>
         <div class="modal-field">
           <label>이름</label>
           <input v-model="registerForm.name" class="filter__input" type="text" />
         </div>
         <div class="modal-field">
-          <label>소속팀</label>
+          <label>사용자상태</label>
+          <div class="segmented-control">
+            <button
+              type="button"
+              class="segmented-control__item"
+              :class="{ 'is-active': registerForm.active }"
+              @click="registerForm.active = true"
+            >
+              활성
+            </button>
+            <button
+              type="button"
+              class="segmented-control__item"
+              :class="{ 'is-active': !registerForm.active }"
+              @click="registerForm.active = false"
+            >
+              비활성
+            </button>
+          </div>
+        </div>
+        <div class="modal-field modal-field--wide">
+          <label>비밀번호</label>
+          <input :value="registerTempPassword" class="filter__input" type="text" readonly />
+          <p class="modal-hint">등록 시 초기 비밀번호로 자동 등록</p>
+        </div>
+        <div class="modal-field">
+          <label>부서</label>
           <select v-model="registerForm.dept" class="filter__select">
             <option v-for="o in deptOptions.filter((d) => d !== '전체')" :key="o" :value="o">{{ o }}</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>직위</label>
+          <select v-model="registerForm.position" class="filter__select">
+            <option v-for="o in positionOptions" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
         <div class="modal-field">
@@ -326,24 +410,9 @@ function saveRegister() {
             <option v-for="o in roleOptions.filter((r) => r !== '전체' && r !== '미설정')" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
-        <div class="modal-field">
-          <label>직급</label>
-          <input v-model="registerForm.position" class="filter__input" type="text" />
-        </div>
-        <div class="modal-field">
-          <label>구분</label>
-          <select v-model="registerForm.type" class="filter__select">
-            <option value="임직원">임직원</option>
-            <option value="외주">외주</option>
-          </select>
-        </div>
-        <div class="modal-field">
+        <div class="modal-field modal-field--wide">
           <label>이메일</label>
-          <input v-model="registerForm.email" class="filter__input" type="text" />
-        </div>
-        <div class="modal-field">
-          <label>휴대전화</label>
-          <input v-model="registerForm.phone" class="filter__input" type="text" />
+          <input v-model="registerForm.email" class="filter__input" type="email" placeholder="example@ezwel.com" />
         </div>
       </div>
       <template #footer>
@@ -353,3 +422,26 @@ function saveRegister() {
     </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.modal-field__inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.modal-field__inline .filter__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-field--wide {
+  grid-column: 1 / -1;
+}
+
+.modal-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--lnb-muted);
+}
+</style>

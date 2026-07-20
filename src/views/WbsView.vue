@@ -14,14 +14,11 @@ import {
   statusLabel,
   statusClass,
   matchWbsFilters,
-  getCalendarTasks,
-  getCalendarRange,
-  getTaskTypeColor,
-  calendarBlockLabel,
 } from '@/data/wbs'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 import WbsScheduleReasonModal from '@/components/wbs/WbsScheduleReasonModal.vue'
 import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
+import WbsCalendar from '@/components/wbs/WbsCalendar.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 import { addScheduleChangeRequest } from '@/data/approval'
@@ -34,21 +31,24 @@ const projectStore = useProjectStore()
 const tasks = ref([])
 const viewMode = ref('list')
 const myTasksOnly = ref(false)
-const showExcluded = ref(false)
 const selectedIds = ref(new Set())
 const hoverReqId = ref(null)
+const statusFilterOpen = ref(false)
 
 const filters = ref({
   keyword: '',
   taskType: '전체',
   system: '',
-  progressStatus: '전체',
+  progressStatus: ['전체'],
   scheduleCompliance: '전체',
   progressBaseDate: wbsMeta.progressBaseDate,
   showExcluded: false,
 })
 
-const appliedFilters = ref({ ...filters.value })
+const appliedFilters = ref({
+  ...filters.value,
+  progressStatus: [...filters.value.progressStatus],
+})
 
 const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
@@ -62,27 +62,18 @@ const showSaveAlert = ref(false)
 const calYear = ref(2026)
 const calMonth = ref(4)
 
+const statusFilterLabel = computed(() => {
+  const sel = filters.value.progressStatus || []
+  if (!sel.length || sel.includes('전체')) return '전체'
+  if (sel.length === 1) return sel[0]
+  return `${sel[0]} 외 ${sel.length - 1}`
+})
+
 const filteredTasks = computed(() =>
   tasks.value.filter((row) =>
     matchWbsFilters(row, appliedFilters.value, myTasksOnly.value),
   ),
 )
-
-const calendarTasks = computed(() =>
-  getCalendarTasks(filteredTasks.value, calYear.value, calMonth.value),
-)
-
-const calendarDays = computed(() => {
-  const first = new Date(calYear.value, calMonth.value - 1, 1)
-  const last = new Date(calYear.value, calMonth.value, 0)
-  const startPad = first.getDay()
-  const days = []
-  for (let i = 0; i < startPad; i++) days.push({ empty: true })
-  for (let d = 1; d <= last.getDate(); d++) {
-    days.push({ day: d, date: `${calYear.value}-${String(calMonth.value).padStart(2, '0')}-${String(d).padStart(2, '0')}` })
-  }
-  return days
-})
 
 const selectedRows = computed(() => tasks.value.filter((t) => selectedIds.value.has(t.id)))
 
@@ -112,16 +103,41 @@ function resetFilters() {
     keyword: '',
     taskType: '전체',
     system: '',
-    progressStatus: '전체',
+    progressStatus: ['전체'],
     scheduleCompliance: '전체',
     progressBaseDate: wbsMeta.progressBaseDate,
     showExcluded: false,
   }
-  appliedFilters.value = { ...filters.value }
+  appliedFilters.value = {
+    ...filters.value,
+    progressStatus: [...filters.value.progressStatus],
+  }
 }
 
 function search() {
-  appliedFilters.value = { ...filters.value, showExcluded: showExcluded.value }
+  appliedFilters.value = {
+    ...filters.value,
+    progressStatus: [...filters.value.progressStatus],
+  }
+  statusFilterOpen.value = false
+}
+
+function toggleStatusFilter(option) {
+  const cur = [...(filters.value.progressStatus || [])]
+  if (option === '전체') {
+    filters.value.progressStatus = ['전체']
+    return
+  }
+  let next = cur.filter((v) => v !== '전체')
+  if (next.includes(option)) next = next.filter((v) => v !== option)
+  else next.push(option)
+  filters.value.progressStatus = next.length ? next : ['전체']
+}
+
+function isStatusChecked(option) {
+  const sel = filters.value.progressStatus || []
+  if (option === '전체') return sel.includes('전체') || !sel.length
+  return sel.includes(option)
 }
 
 function toggleSelect(id, disabled) {
@@ -163,15 +179,68 @@ function onScheduleClick(row) {
 function onScheduleSave(payload) {
   if (!scheduleTarget.value) return
   Object.assign(scheduleTarget.value, payload)
+  if (payload.status === '완료' && payload.scheduleStatus === 'delay' && payload.scheduleReason) {
+    scheduleTarget.value.scheduleReason = payload.scheduleReason
+  }
   scheduleTarget.value.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
   scheduleTarget.value.changedBy = '김현대'
 }
 
-function onStatusClick(row) {
-  if (row.status === '완료' && row.scheduleStatus === 'delay') {
-    reasonTarget.value = row
-    showReasonModal.value = true
+function onScheduleChangeRequest(payload) {
+  const project = projectStore.currentProject
+  const targetTasks = payload.tasks || []
+  addScheduleChangeRequest({
+    projectName: project?.name || project?.title || '현재 프로젝트',
+    projectId: project?.id || '',
+    openDate: project?.openDate || '-',
+    tasks: targetTasks,
+    planStart: payload.planStart || targetTasks[0]?.newPlanStart || targetTasks[0]?.planStart,
+    planEnd: payload.planEnd || targetTasks[0]?.newPlanEnd || targetTasks[0]?.planEnd,
+    reason: `[${payload.type || '일정변경'}] ${payload.reason || ''}`,
+  })
+
+  // 행별 변경 일정 반영 (승인요청 목업 — 목록에 즉시 반영)
+  if (payload.type === '계획일 변경') {
+    targetTasks.forEach((t) => {
+      const live = tasks.value.find((x) => x.id === t.id)
+      if (!live) return
+      if (t.newPlanStart) live.planStart = t.newPlanStart
+      if (t.newPlanEnd) live.planEnd = t.newPlanEnd
+      live.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      live.changedBy = '김현대'
+    })
   }
+}
+
+function onOpenMultiChangeFromSchedule(task) {
+  if (!task) return
+  bulkTargets.value = [task]
+  showBulkScheduleModal.value = true
+}
+
+function onScheduleChange() {
+  if (!selectedRows.value.length) {
+    window.alert('일정변경할 업무를 선택하세요.')
+    return
+  }
+  bulkTargets.value = [...selectedRows.value]
+  showBulkScheduleModal.value = true
+}
+
+function onBulkScheduleRequest(payload) {
+  onScheduleChangeRequest(payload)
+  selectedIds.value = new Set()
+  bulkTargets.value = []
+}
+
+function canOpenScheduleReason(row) {
+  return row?.status === '완료' && row?.scheduleStatus === 'delay'
+}
+
+function onStatusClick(row) {
+  if (!canOpenScheduleReason(row)) return
+  reasonTarget.value = row
+  showReasonModal.value = true
 }
 
 function onRequirementClick(row) {
@@ -250,53 +319,8 @@ function onSave() {
   showSaveAlert.value = true
 }
 
-function onScheduleChange() {
-  if (!selectedRows.value.length) {
-    window.alert('일정변경할 업무를 선택하세요.')
-    return
-  }
-  bulkTargets.value = [...selectedRows.value]
-  showBulkScheduleModal.value = true
-}
-
-function onBulkScheduleRequest({ planStart, planEnd, reason, tasks: targetTasks }) {
-  const project = projectStore.currentProject
-  addScheduleChangeRequest({
-    projectName: project?.name || project?.title || '현재 프로젝트',
-    projectId: project?.id || '',
-    openDate: project?.openDate || '-',
-    tasks: targetTasks,
-    planStart,
-    planEnd,
-    reason,
-  })
-  selectedIds.value = new Set()
-  bulkTargets.value = []
-  window.alert(`${targetTasks.length}건의 일정변경이 승인요청되었습니다.`)
-}
-
-function tasksForDay(dateStr) {
-  return calendarTasks.value.filter((t) => {
-    const range = getCalendarRange(t)
-    if (!range?.start) return false
-    const start = range.start
-    const end = range.end || range.start
-    return dateStr >= start && dateStr <= end
-  })
-}
-
-function prevMonth() {
-  if (calMonth.value === 1) {
-    calMonth.value = 12
-    calYear.value--
-  } else calMonth.value--
-}
-
-function nextMonth() {
-  if (calMonth.value === 12) {
-    calMonth.value = 1
-    calYear.value++
-  } else calMonth.value++
+function onCalendarSelect(task) {
+  onScheduleClick(task)
 }
 </script>
 
@@ -355,9 +379,29 @@ function nextMonth() {
         </div>
         <div class="filter__field">
           <label>진행상태</label>
-          <select v-model="filters.progressStatus" class="filter__select">
-            <option v-for="o in progressStatusOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
+          <div class="status-filter" @keydown.escape="statusFilterOpen = false">
+            <button
+              type="button"
+              class="status-filter__trigger"
+              @click="statusFilterOpen = !statusFilterOpen"
+            >
+              {{ statusFilterLabel }}
+            </button>
+            <div v-if="statusFilterOpen" class="status-filter__panel">
+              <label
+                v-for="o in progressStatusOptions"
+                :key="o"
+                class="status-filter__item"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isStatusChecked(o)"
+                  @change="toggleStatusFilter(o)"
+                />
+                {{ o }}
+              </label>
+            </div>
+          </div>
         </div>
         <div class="filter__field">
           <label>계획준수</label>
@@ -376,8 +420,12 @@ function nextMonth() {
       </div>
     </section>
 
-    <!-- 툴바 -->
+    <!-- 툴바 (SB 112): 좌측 건수·작업제외 / 우측 엑셀·액션 -->
     <div class="toolbar">
+      <span class="toolbar__count">총 <b>{{ filteredTasks.length }}</b>건</span>
+      <button type="button" class="btn btn--ghost btn--sm" @click="onExclude">작업제외</button>
+      <div class="toolbar__spacer" />
+      <ExcelDownloadButton @click="onExcelDownload" />
       <button
         type="button"
         class="toolbar__toggle"
@@ -386,16 +434,8 @@ function nextMonth() {
       >
         내 업무만
       </button>
-      <span class="toolbar__count">총 <b>{{ filteredTasks.length }}</b>건</span>
-      <label class="toolbar__check">
-        <input v-model="showExcluded" type="checkbox" @change="search" />
-        작업제외
-      </label>
-      <ExcelDownloadButton @click="onExcelDownload" />
-      <div class="toolbar__spacer" />
       <button type="button" class="btn btn--ghost btn--sm" @click="onScheduleChange">일정변경</button>
       <button type="button" class="btn btn--ghost btn--sm" @click="onCopy">복사</button>
-      <button type="button" class="btn btn--ghost btn--sm" @click="onExclude">작업제외</button>
       <button type="button" class="btn btn--primary btn--sm" @click="onSave">저장</button>
     </div>
 
@@ -501,15 +541,13 @@ function nextMonth() {
                 </div>
               </td>
               <td>
-                <button
-                  type="button"
-                  class="st"
-                  :class="`st--${statusClass(row)}`"
-                  :disabled="!(row.status === '완료' && row.scheduleStatus === 'delay')"
-                  @click="onStatusClick(row)"
-                >
+                <!-- SB 114: 완료(경과)일 때만 '경과' 클릭 → POP-S-WBS-03 -->
+                <span v-if="canOpenScheduleReason(row)" class="st st--delay">
+                  완료(<button type="button" class="st__reason" @click="onStatusClick(row)">경과</button>)
+                </span>
+                <span v-else class="st" :class="`st--${statusClass(row)}`">
                   {{ statusLabel(row) }}
-                </button>
+                </span>
               </td>
               <td>{{ row.confirmed }}</td>
             </tr>
@@ -522,48 +560,19 @@ function nextMonth() {
     </div>
 
     <!-- 캘린더형 -->
-    <div v-else class="calendar card">
-      <div class="calendar__nav">
-        <button type="button" class="cal-nav-btn" @click="prevMonth">‹</button>
-        <span class="calendar__title">{{ calYear }}년 {{ calMonth }}월</span>
-        <button type="button" class="cal-nav-btn" @click="nextMonth">›</button>
-        <button type="button" class="cal-today-btn">오늘</button>
-      </div>
-      <div class="calendar__weekdays">
-        <span v-for="d in ['일', '월', '화', '수', '목', '금', '토']" :key="d">{{ d }}</span>
-      </div>
-      <div class="calendar__grid">
-        <div
-          v-for="(cell, idx) in calendarDays"
-          :key="idx"
-          class="calendar__cell"
-          :class="{ 'calendar__cell--empty': cell.empty }"
-        >
-          <template v-if="!cell.empty">
-            <span class="calendar__day">{{ cell.day }}</span>
-            <div class="calendar__blocks">
-              <div
-                v-for="(task, ti) in tasksForDay(cell.date)"
-                :key="task.id"
-                class="cal-block"
-                :style="{ background: getTaskTypeColor(task.taskType) }"
-                :title="calendarBlockLabel(task, ti)"
-              >
-                {{ calendarBlockLabel(task, ti).slice(0, 18) }}…
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-      <p class="calendar__hint">
-        ※ 캘린더 표기: 대기=계획일정, 진행중=실행시작~계획종료, 완료=실행일정
-      </p>
-    </div>
+    <WbsCalendar
+      v-else
+      v-model:year="calYear"
+      v-model:month="calMonth"
+      :tasks="filteredTasks"
+      @select="onCalendarSelect"
+    />
 
     <WbsScheduleModal
       v-model="showScheduleModal"
       :task="scheduleTarget"
       @save="onScheduleSave"
+      @open-multi-change="onOpenMultiChangeFromSchedule"
     />
     <WbsScheduleReasonModal v-model="showReasonModal" :task="reasonTarget" />
     <WbsBulkScheduleModal
@@ -676,14 +685,16 @@ function nextMonth() {
 }
 
 .wbs__progress {
+  margin-left: 4px;
   font-size: 12px;
   color: var(--ink-2);
-  margin-left: 8px;
+  white-space: nowrap;
 }
 
 .wbs__progress b {
   color: var(--teal-600);
   font-size: 14px;
+  font-weight: 700;
 }
 
 .card {
@@ -767,6 +778,54 @@ function nextMonth() {
 
 .toolbar__count b {
   color: var(--teal-600);
+}
+
+.status-filter {
+  position: relative;
+}
+
+.status-filter__trigger {
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  background: var(--field);
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink-2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237c8a92' d='M3 4.5L6 8l3-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.status-filter__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 140px;
+  padding: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+}
+
+.status-filter__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+.status-filter__item:hover {
+  background: var(--teal-50);
 }
 
 .toolbar__check {
@@ -929,6 +988,8 @@ function nextMonth() {
 }
 
 .st {
+  display: inline-flex;
+  align-items: center;
   font-size: 11px;
   font-weight: 700;
   padding: 3px 8px;
@@ -936,10 +997,6 @@ function nextMonth() {
   border: none;
   font-family: inherit;
   white-space: nowrap;
-}
-
-.st:disabled {
-  cursor: default;
 }
 
 .st--recv {
@@ -967,9 +1024,21 @@ function nextMonth() {
   background: var(--red-bg);
 }
 
-.st:not(:disabled):hover {
-  opacity: 0.85;
+.st__reason {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
   cursor: pointer;
+}
+
+.st__reason:hover {
+  opacity: 0.8;
 }
 
 .muted {

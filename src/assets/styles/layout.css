@@ -1560,9 +1560,16 @@
 }
 
 .hdr-info__name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--lnb-logo);
+  line-height: 1.35;
+}
+
+.hdr-info__id {
+  font-weight: 600;
+  color: var(--lnb-muted);
+  font-size: 14px;
 }
 
 .hdr-info__role {
@@ -1571,11 +1578,68 @@
   margin-top: 4px;
 }
 
+.hdr-info__email {
+  font-size: 12px;
+  color: var(--lnb-txt);
+  margin-top: 4px;
+  word-break: break-all;
+}
+
 .hdr-info__pos {
   font-size: 11px;
   color: var(--teal);
   font-weight: 600;
   margin-top: 2px;
+}
+
+.hdr-info__pw {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 4px;
+  margin: 0 0 2px;
+  border: none;
+  border-bottom: 1px solid var(--lnb-line);
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lnb-txt);
+  text-align: left;
+  transition: color var(--transition-fast);
+}
+
+.hdr-info__pw:hover {
+  color: var(--teal);
+}
+
+.hdr-info__pw-chev {
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--lnb-muted);
+  line-height: 1;
+}
+
+.hdr-info__login {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 4px 14px;
+  font-size: 12px;
+}
+
+.hdr-info__login-lab {
+  color: var(--lnb-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.hdr-info__login-val {
+  color: var(--lnb-txt);
+  text-align: right;
 }
 
 .hdr-info__dl {

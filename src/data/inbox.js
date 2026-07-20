@@ -1,13 +1,24 @@
 // 내업무 (PAG-M-MY-01/02/03) 목업 데이터
 // figma/기획서 예시값 기반
 
+export const INBOX_GUIDE =
+  "프로젝트 관리 > 요구사항 관리에서 요구사항이 '확정'되면 WBS 관리 메뉴에 작업범위가 자동 생성됩니다. WBS 관리 메뉴에서 일정이 등록된 업무만 내 할 일 업무에 일정이 표시됩니다. (단, 캘린더: 일정 등록된 업무만 표시)"
+
+export const emptySummary = {
+  progressProjects: 0,
+  myTasks: 0,
+  weekDue: 0,
+  waiting: 0,
+  delayed: 0,
+}
+
 // 상단 요약
 export const summary = {
-  progressProjects: 5, // 진행 프로젝트 (진행 상태 카운트)
-  myTasks: 4, // 내 할 일
-  weekDue: 2, // 금주 마감
-  waiting: 5, // 대기 (접수)
-  delayed: 1, // 지연
+  progressProjects: 5,
+  myTasks: 45,
+  weekDue: 2,
+  waiting: 5,
+  delayed: 1,
 }
 
 // 진행중 프로젝트 카드
@@ -79,8 +90,7 @@ export const progressProjects = [
   },
 ]
 
-// 내 할 일 (WBS 기준, 마감일 빠른 순)
-export const myTasks = [
+const baseMyTasks = [
   {
     id: 't1',
     name: '단위 테스트',
@@ -89,7 +99,9 @@ export const myTasks = [
     delayed: true,
     progress: 73,
     project: '프로모션 운영 프로세스 및 기능 개선',
-    type: 'unit-test',
+    projectId: 'p3',
+    taskType: '단위테스트',
+    wbsId: 'WBS-010',
   },
   {
     id: 't2',
@@ -99,7 +111,9 @@ export const myTasks = [
     delayed: false,
     progress: 45,
     project: 'DL이앤씨 바우처 정책 변경 개발',
-    type: 'dev',
+    projectId: 'p2',
+    taskType: '개발',
+    wbsId: 'WBS-011',
   },
   {
     id: 't3',
@@ -109,7 +123,9 @@ export const myTasks = [
     delayed: false,
     progress: 50,
     project: 'DL이앤씨 바우처 정책 변경 개발',
-    type: 'dev',
+    projectId: 'p2',
+    taskType: '개발',
+    wbsId: 'WBS-012',
   },
   {
     id: 't4',
@@ -119,45 +135,127 @@ export const myTasks = [
     delayed: false,
     progress: null,
     project: '주문취소 시 쿠폰 할인취소 정보 노출 개선',
-    type: 'dev',
+    projectId: 'p1',
+    taskType: '개발',
+    wbsId: 'WBS-013',
+  },
+  {
+    id: 't5',
+    name: '요건분석',
+    dueLabel: '4/02 마감',
+    dday: 'D-10',
+    delayed: false,
+    progress: 20,
+    project: '프로모션 운영 프로세스 및 기능 개선',
+    projectId: 'p3',
+    taskType: '기획',
+    wbsId: 'WBS-001',
+  },
+  {
+    id: 't6',
+    name: '화면설계',
+    dueLabel: '4/05 마감',
+    dday: 'D-13',
+    delayed: false,
+    progress: 40,
+    project: '모바일 앱 푸시 알림 고도화',
+    projectId: 'p4',
+    taskType: '디자인',
+    wbsId: 'WBS-002',
+  },
+  {
+    id: 't7',
+    name: 'DEV 테스트',
+    dueLabel: '4/08 마감',
+    dday: 'D-16',
+    delayed: false,
+    progress: 10,
+    project: '주문취소 시 쿠폰 할인취소 정보 노출 개선',
+    projectId: 'p1',
+    taskType: 'DEV테스트',
+    wbsId: 'WBS-020',
   },
 ]
 
-// 대기 (접수 상태 프로젝트)
+/** 페이징 확인용 — 총 45건 */
+export const myTasks = [
+  ...baseMyTasks,
+  ...Array.from({ length: 38 }, (_, i) => ({
+    id: `t-extra-${i + 1}`,
+    name: `추가 업무 ${String(i + 1).padStart(2, '0')}`,
+    dueLabel: `4/${String((i % 28) + 1).padStart(2, '0')} 마감`,
+    dday: `D-${i + 1}`,
+    delayed: false,
+    progress: (i * 7) % 100,
+    project: progressProjects[i % progressProjects.length].name,
+    projectId: progressProjects[i % progressProjects.length].id,
+    taskType: ['개발', '퍼블리싱', '기획', '디자인', '단위테스트'][i % 5],
+    wbsId: `WBS-E${String(i + 1).padStart(3, '0')}`,
+  })),
+]
+
 export const waitingProjects = [
   {
-    id: 'w1',
+    id: 'p6',
     owner: '테크담당',
     openDate: '2026/00/00 ( D-00 )',
     stage: '접수',
     name: '전사 프로젝트 관리 시스템 구축',
   },
   {
-    id: 'w2',
+    id: 'p7',
     owner: '상품사업부',
     openDate: '오픈일 미정',
     stage: '접수',
     name: '농협카드 인앱 쇼핑몰',
   },
   {
-    id: 'w3',
+    id: 'p8',
     owner: '마케팅팀',
     openDate: '2026/07/00 ( D-90 )',
     stage: '접수',
     name: '멤버십 등급 체계 개편',
   },
   {
-    id: 'w4',
+    id: 'p9',
     owner: '플랫폼팀',
     openDate: '2026/08/00 ( D-120 )',
     stage: '접수',
     name: '실시간 재고 연동 API 구축',
   },
   {
-    id: 'w5',
+    id: 'p10',
     owner: '고객센터',
     openDate: '오픈일 미정',
     stage: '접수',
     name: 'CS 상담 이력 통합 조회',
   },
 ]
+
+/** 배정 없음 계정(2024099)용 */
+export function getInboxBundle(userId) {
+  if (userId === '2024099') {
+    return {
+      summary: { ...emptySummary },
+      progressProjects: [],
+      myTasks: [],
+      waitingProjects: [],
+    }
+  }
+  return {
+    summary: { ...summary },
+    progressProjects: [...progressProjects],
+    myTasks: [...myTasks],
+    waitingProjects: [...waitingProjects],
+  }
+}
+
+/** 업무유형 → 랜딩 경로 */
+export function routeForTaskType(taskType) {
+  if (taskType === '기획') return '/project/requirement'
+  if (taskType === '단위테스트') return '/project/unit-test'
+  if (taskType === 'DEV테스트' || taskType === 'dev테스트') return '/project/test-run/dev'
+  if (taskType === '운영테스트') return '/project/test-run/uat'
+  // 디자인, 퍼블리싱, 개발
+  return '/project/wbs'
+}

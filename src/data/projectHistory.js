@@ -1,5 +1,6 @@
 // 프로젝트 변경이력 공용 목업
 // PAG-M-PST-03 (통합·전체) / PAG-S-INF-05 (개별·현재 프로젝트)
+// SB 49~54 Case 템플릿: 1-1 설정값 · 1-2 이슈 · 2 WBS · 3-1 우선순위/상태 · 3-2 이슈 · 3-3 상세변경
 
 export const projectHistoryMeta = {
   hint: '변경구분별 상세 양식',
@@ -7,7 +8,8 @@ export const projectHistoryMeta = {
   projectHint: '현재 프로젝트의 변경이력을 조회합니다.',
 }
 
-export const changeCategoryOptions = ['전체', '요구사항', '프로젝트', 'WBS', '담당자', '테스트']
+/** SB 48: 전체 / 요구사항 / 프로젝트 / WBS */
+export const changeCategoryOptions = ['전체', '요구사항', '프로젝트', 'WBS']
 export const changePeriodOptions = [
   { label: '오늘', value: 'today', days: 0 },
   { label: '최근 3일', value: '3d', days: 3 },
@@ -17,6 +19,52 @@ export const changePeriodOptions = [
   { label: '전체', value: 'all', months: null },
 ]
 export { pageSizeOptions } from './commonOptions'
+
+/** 목업 기준일 (조회 ‘오늘’) */
+export const historyBaseDate = '2026-06-23'
+
+function toYmd(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** 기간 프리셋 → 시작일/종료일 (종료일 = 기준일) */
+export function getPeriodDateRange(periodValue, base = historyBaseDate) {
+  const end = new Date(`${base}T00:00:00`)
+  const start = new Date(end)
+  const opt = changePeriodOptions.find((o) => o.value === periodValue)
+  if (!opt || opt.value === 'all') {
+    return { from: '', to: '' }
+  }
+  if (opt.days === 0) {
+    return { from: toYmd(end), to: toYmd(end) }
+  }
+  if (opt.days != null) {
+    start.setDate(start.getDate() - opt.days)
+    return { from: toYmd(start), to: toYmd(end) }
+  }
+  if (opt.months != null) {
+    start.setMonth(start.getMonth() - opt.months)
+    return { from: toYmd(start), to: toYmd(end) }
+  }
+  return { from: '', to: '' }
+}
+
+/** 기본 필터 (최근 1개월 + 달력 범위) */
+export function createHistoryDefaultFilters() {
+  const range = getPeriodDateRange('1m')
+  return {
+    category: '전체',
+    period: '1m',
+    dateFrom: range.from,
+    dateTo: range.to,
+    keyword: '',
+    projectQuery: '',
+    devDept: '전체',
+  }
+}
 
 export const historyDevDeptOptions = [
   '전체',
@@ -28,21 +76,53 @@ export const historyDevDeptOptions = [
   '테크기획팀',
 ]
 
+/** 상세 바로가기 대상 화면 */
+export const HISTORY_DETAIL_ROUTE = {
+  projectSetting: '/project/info',
+  projectIssue: '/project/info',
+  wbs: '/project/wbs',
+  reqPriority: '/project/requirement',
+  reqIssue: '/project/requirement',
+  reqDetail: '/project/requirement',
+  generic: '/project/info',
+}
+
+/** 펼침 템플릿 키 (뷰 분기용) */
+export const HISTORY_TEMPLATE = {
+  projectSetting: 'projectSetting',
+  projectIssue: 'projectIssue',
+  wbs: 'wbs',
+  reqPriority: 'reqPriority',
+  reqIssue: 'reqIssue',
+  reqDetail: 'reqDetail',
+  generic: 'generic',
+}
+
 const baseDate = new Date('2026-06-23')
 
 const projectMeta = {
+  p3: {
+    code: 'PJ1201',
+    name: '프로모션 운영 프로세스 및 기능 개선',
+    devDept: 'e커머스팀',
+  },
+  p1: {
+    code: 'PJ1220',
+    name: '주문취소 시 쿠폰 할인취소 정보 표기',
+    devDept: '플랫폼팀',
+  },
+  p2: {
+    code: 'PJ1215',
+    name: 'DL이앤씨 바우처 정책 변경 개발',
+    devDept: '플랫폼팀',
+  },
   p6: {
     code: 'PJ1010',
     name: '전사 프로젝트 관리 시스템 구축',
     devDept: '플랫폼팀',
   },
-  p1: {
-    code: 'PJ1018',
-    name: '주문취소 시 쿠폰 할인취소 정보 노출 개선',
-    devDept: '플랫폼팀',
-  },
   default: {
-    code: 'PJ1020',
+    code: 'PJ1201',
     name: '프로모션 운영 프로세스 및 기능 개선',
     devDept: 'e커머스팀',
   },
@@ -71,210 +151,270 @@ function resolveMeta(projectId, projectName) {
 
 function enrichRows(projectId, rows, projectName) {
   const meta = resolveMeta(projectId, projectName)
-  return rows.map((row) => ({ ...row, ...meta }))
+  return rows.map((row) => ({
+    ...row,
+    ...meta,
+    template: row.template || resolveHistoryTemplate(row),
+  }))
 }
 
-const historyByProject = {
-  p6: [
+/** category·item 기준 상세 템플릿 키 (SB 49~54 Case) */
+export function resolveHistoryTemplate(row) {
+  if (row?.template) return row.template
+  const cat = row.category || ''
+  const item = row.item || ''
+  if (cat === 'WBS') return 'wbs'
+  if (cat === '프로젝트') {
+    if (item.includes('이슈')) return 'projectIssue'
+    return 'projectSetting'
+  }
+  if (cat === '요구사항') {
+    if (item.includes('이슈')) return 'reqIssue'
+    if (item.includes('상세')) return 'reqDetail'
+    return 'reqPriority'
+  }
+  return 'generic'
+}
+
+/** 요구사항 표기: 명 (ID) */
+export function formatReqLabel(rowOrChg) {
+  const name = rowOrChg?.reqName || rowOrChg?.requirementName || ''
+  const id = rowOrChg?.reqId || rowOrChg?.requirementId || rowOrChg?.requirement || ''
+  if (name && id) return `${name} (${id})`
+  if (name) return name
+  if (id) return String(id)
+  return '-'
+}
+
+/** 상세보기 이동 경로 */
+export function detailRouteForHistory(row) {
+  const kind = resolveHistoryTemplate(row)
+  return HISTORY_DETAIL_ROUTE[kind] || HISTORY_DETAIL_ROUTE.generic
+}
+
+/** WBS는 승인완료만 목록 노출 */
+function isVisibleHistoryRow(row) {
+  if (resolveHistoryTemplate(row) !== 'wbs') return true
+  return row.approvalStatus === '승인완료'
+}
+
+/**
+ * SB Case 1-1 ~ 3-3 전체 목업 생성
+ * @param {string} prefix id prefix (예: ph-p3)
+ * @param {{ includeHiddenWbs?: boolean }} [opts]
+ */
+export function buildHistoryCases(prefix, opts = {}) {
+  const { includeHiddenWbs = true } = opts
+  const rows = [
+    // Case 1-1) 프로젝트 설정값 — 오픈예정일
     {
-      id: 'ph-p6-1',
+      id: `${prefix}-setting-open`,
       category: '프로젝트',
       item: '오픈예정일',
+      template: 'projectSetting',
       changedAt: daysAgo(7).full,
       changedBy: '김현대',
       changedByDept: '웹기획팀',
-      changeLines: [{ label: '오픈예정일', before: '2026-09-01', after: '2026-09-30' }],
-      detail: {
-        title: '오픈예정일 변경',
-        body: '일정 협의에 따라 오픈예정일이 조정되었습니다.',
-        fields: [
-          { label: '변경 전', value: '2026-09-01' },
-          { label: '변경 후', value: '2026-09-30' },
-          { label: '사유', value: 'UAT 일정 반영' },
-        ],
-      },
+      changeLines: [{ label: '오픈예정일', before: '2026/06/01', after: '2026/07/01' }],
+      setting: { field: '오픈예정일', before: '2026/06/01', after: '2026/07/01' },
     },
+    // Case 1-1) 프로젝트 설정값 — 테스트사용여부
     {
-      id: 'ph-p6-2',
+      id: `${prefix}-setting-test`,
       category: '프로젝트',
-      item: '프로젝트명',
+      item: '테스트사용여부',
+      template: 'projectSetting',
       changedAt: daysAgo(12).full,
       changedBy: '권선희',
       changedByDept: '테크기획팀',
-      changeLines: [
-        {
-          label: '프로젝트명',
-          before: '전사 PMS 구축',
-          after: '전사 프로젝트 관리 시스템 구축',
-        },
-      ],
-      detail: {
-        title: '프로젝트명 변경',
-        body: '공식 명칭 확정에 따른 프로젝트명 변경',
-        fields: [
-          { label: '변경 전', value: '전사 PMS 구축' },
-          { label: '변경 후', value: '전사 프로젝트 관리 시스템 구축' },
-        ],
+      changeLines: [{ label: '테스트사용여부', before: '단위테스트', after: '단위테스트, DEV테스트' }],
+      setting: {
+        field: '테스트사용여부',
+        before: '단위테스트',
+        after: '단위테스트, DEV테스트',
       },
     },
+    // Case 1-2) 프로젝트 이슈등록
     {
-      id: 'ph-p6-3',
-      category: '요구사항',
-      item: '이슈등록',
-      changedAt: daysAgo(18).full,
-      changedBy: '김현대',
-      changedByDept: '웹기획팀',
-      changeLines: [{ label: '이슈', before: '-', after: '테스트 라이브러리 연동 범위 협의' }],
-      detail: {
-        title: '요구사항 이슈 등록',
-        body: 'REQ-012 · 테스트 라이브러리 시나리오 매핑 이슈 등록',
-        fields: [
-          { label: '요구사항 ID', value: 'REQ-012' },
-          { label: '이슈 내용', value: '테스트 라이브러리 연동 범위 협의 필요' },
-        ],
-      },
-    },
-    {
-      id: 'ph-p6-4',
-      category: 'WBS',
-      item: '일정변경',
-      changedAt: daysAgo(25).full,
-      changedBy: '이현대',
-      changedByDept: '플랫폼팀',
-      changeLines: [
-        { label: 'WBS-003', before: '2026-05-01 ~ 2026-05-20', after: '2026-05-10 ~ 2026-05-28' },
-      ],
-      detail: {
-        title: 'WBS 일정변경',
-        body: 'WBS-003 API 개발 일정 변경',
-        fields: [
-          { label: '업무', value: 'WBS-003 로그인 API 개발' },
-          { label: '변경 전', value: '2026-05-01 ~ 2026-05-20' },
-          { label: '변경 후', value: '2026-05-10 ~ 2026-05-28' },
-          { label: '사유', value: '선행 설계 지연' },
-        ],
-      },
-    },
-    {
-      id: 'ph-p6-5',
-      category: '담당자',
-      item: '테스터 변경',
-      changedAt: daysAgo(32).full,
-      changedBy: '권선희',
-      changedByDept: '테크기획팀',
-      changeLines: [{ label: '테스트', before: '김현대(상품기획팀)', after: '이현대(상품기획팀)' }],
-      detail: {
-        title: '테스터 변경',
-        body: '테스트 담당자 교체',
-        fields: [
-          { label: '변경 전', value: '김현대 / 상품기획팀' },
-          { label: '변경 후', value: '이현대 / 상품기획팀' },
-          { label: '적용일', value: '2026-06-01' },
-        ],
-      },
-    },
-    {
-      id: 'ph-p6-6',
-      category: '테스트',
-      item: '시나리오 등록',
-      changedAt: daysAgo(40).full,
-      changedBy: '박테스트',
-      changedByDept: 'QA팀',
-      changeLines: [{ label: '케이스', before: '-', after: 'TC-001 복지혜택 신청 정상 플로우' }],
-      detail: {
-        title: '시나리오 등록',
-        body: 'DEV 테스트 시나리오 1건 등록',
-        fields: [
-          { label: '케이스 ID', value: 'TC-001' },
-          { label: '케이스명', value: '복지혜택 신청 정상 플로우' },
-        ],
-      },
-    },
-  ],
-  p1: [
-    {
-      id: 'ph-p1-1',
+      id: `${prefix}-project-issue`,
       category: '프로젝트',
-      item: '처리단계',
+      item: '이슈등록',
+      template: 'projectIssue',
       changedAt: daysAgo(5).full,
       changedBy: '김현대',
       changedByDept: '웹기획팀',
-      changeLines: [{ label: '처리단계', before: '처리중', after: '테스트' }],
-      detail: {
-        title: '처리단계 변경',
-        fields: [
-          { label: '변경 전', value: '처리중' },
-          { label: '변경 후', value: '테스트' },
-        ],
-      },
+      changeLines: [{ label: '이슈', before: '-', after: 'Spec Out' }],
+      issueBody: '특별포인트 온라인 정산 프로세스와 동일하므로 Spec Out',
     },
+    // Case 2) WBS — 승인완료 (다건 리스트)
     {
-      id: 'ph-p1-2',
+      id: `${prefix}-wbs-plan`,
       category: 'WBS',
-      item: '일정변경',
-      changedAt: daysAgo(14).full,
+      item: '계획일정',
+      template: 'wbs',
+      approvalStatus: '승인완료',
+      changedAt: daysAgo(9).full,
       changedBy: '이현대',
       changedByDept: '플랫폼팀',
       changeLines: [
-        { label: 'WBS-012', before: '2026-04-01 ~ 2026-04-15', after: '2026-04-05 ~ 2026-04-18' },
+        { label: '계획일정', before: '2026/06/01-2026/06/30', after: '2026/06/10-2026/07/10' },
       ],
-      detail: {
-        title: 'WBS 일정변경',
-        body: '쿠폰 화면 퍼블 일정 조정',
-        fields: [
-          { label: '업무', value: 'WBS-012 쿠폰 UI 퍼블' },
-          { label: '변경 전', value: '2026-04-01 ~ 2026-04-15' },
-          { label: '변경 후', value: '2026-04-05 ~ 2026-04-18' },
-        ],
-      },
+      wbsChanges: [
+        {
+          changeItem: '계획일정',
+          taskName: 'HIMS / 주문 / 주문내역상세',
+          system: 'HIMS',
+          biz: '주문',
+          screen: '주문내역상세',
+          reqName: '주문상세 내역 수정',
+          reqId: '4684',
+          before: '2026/06/01-2026/06/30',
+          after: '2026/06/10-2026/07/10',
+          reason: '업무 우선순위 변경 (4월 첫주 프로젝트 A 우선 개발 진행)',
+        },
+        {
+          changeItem: '계획일정',
+          taskName: 'HIMS / 주문 / 주문취소',
+          system: 'HIMS',
+          biz: '주문',
+          screen: '주문취소',
+          reqName: '주문취소 쿠폰 반영',
+          reqId: '4685',
+          before: '2026/06/15-2026/07/05',
+          after: '2026/06/20-2026/07/15',
+          reason: '선행 화면 일정 연동',
+        },
+      ],
     },
-  ],
-}
-
-function defaultHistory(projectId) {
-  const d1 = daysAgo(10)
-  const d2 = daysAgo(22)
-  return [
+    // Case 3-1) 요구사항 설정값 — 우선순위
     {
-      id: `ph-${projectId}-1`,
-      category: '프로젝트',
-      item: '등록',
-      changedAt: d2.full,
-      changedBy: '김현대',
-      changedByDept: 'IT기획팀',
-      changeLines: [{ label: '상태', before: '-', after: '접수' }],
-      detail: {
-        title: '프로젝트 등록',
-        body: '프로젝트 최초 등록',
-        fields: [{ label: '처리단계', value: '접수' }],
-      },
+      id: `${prefix}-req-priority`,
+      category: '요구사항',
+      item: '우선순위',
+      template: 'reqPriority',
+      changedAt: daysAgo(4).full,
+      changedBy: '권선희',
+      changedByDept: '테크기획팀',
+      changeLines: [{ label: '우선순위', before: '중', after: '상' }],
+      reqName: '주문상세 내역 수정',
+      reqId: '4684',
+      fieldLabel: '우선순위',
+      before: '중',
+      after: '상',
+      priority: { before: '중', after: '상' },
     },
+    // Case 3-1) 요구사항 설정값 — 상태
     {
-      id: `ph-${projectId}-2`,
-      category: '프로젝트',
-      item: '오픈예정일',
-      changedAt: d1.full,
+      id: `${prefix}-req-status`,
+      category: '요구사항',
+      item: '상태',
+      template: 'reqPriority',
+      changedAt: daysAgo(6).full,
       changedBy: '김현대',
-      changedByDept: 'IT기획팀',
-      changeLines: [{ label: '오픈예정일', before: '-', after: '2026-10-31' }],
-      detail: {
-        title: '오픈예정일 등록',
-        fields: [{ label: '오픈예정일', value: '2026-10-31' }],
+      changedByDept: '웹기획팀',
+      changeLines: [{ label: '상태', before: '검토', after: '수용' }],
+      reqName: '로그인 SSO 연동',
+      reqId: '4601',
+      fieldLabel: '상태',
+      before: '검토',
+      after: '수용',
+      priority: { before: '검토', after: '수용' },
+    },
+    // Case 3-2) 요구사항 이슈등록
+    {
+      id: `${prefix}-req-issue`,
+      category: '요구사항',
+      item: '이슈등록',
+      template: 'reqIssue',
+      changedAt: daysAgo(3).full,
+      changedBy: '김현대',
+      changedByDept: '웹기획팀',
+      changeLines: [{ label: '이슈', before: '-', after: 'Spec Out' }],
+      reqName: '주문상세 내역 수정',
+      reqId: '4684',
+      issueBody: '특별포인트 온라인 정산 프로세스와 동일하므로 Spec Out',
+    },
+    // Case 3-3) 요구사항 상세변경
+    {
+      id: `${prefix}-req-detail`,
+      category: '요구사항',
+      item: '상세변경',
+      template: 'reqDetail',
+      changedAt: daysAgo(8).full,
+      changedBy: '김현대',
+      changedByDept: '웹기획팀',
+      changeLines: [{ label: '상세내용', before: '기간 내 설정', after: '기간 외 설정 가능' }],
+      reqName: '프로모션 코너기간 설정',
+      reqId: '4684',
+      reason: '개발 검토 반영',
+      beforeBody: '코너기간 설정 시 프로모션 기간 내 설정 가능',
+      afterBody: '코너기간 설정 시 프로모션 기간 이외 기간으로 설정 가능',
+      reqDetail: {
+        reason: '개발 검토 반영',
+        before: '코너기간 설정 시 프로모션 기간 내 설정 가능',
+        after: '코너기간 설정 시 프로모션 기간 이외 기간으로 설정 가능',
       },
     },
   ]
+
+  if (includeHiddenWbs) {
+    // 승인요청 — 목록 미노출 (필터 검증용)
+    rows.push({
+      id: `${prefix}-wbs-pending`,
+      category: 'WBS',
+      item: '계획일정',
+      template: 'wbs',
+      approvalStatus: '승인요청',
+      changedAt: daysAgo(2).full,
+      changedBy: '이현대',
+      changedByDept: '플랫폼팀',
+      changeLines: [
+        { label: '계획일정', before: '2026/06/01-2026/06/10', after: '2026/06/05-2026/06/15' },
+      ],
+      wbsChanges: [
+        {
+          changeItem: '계획일정',
+          taskName: 'HIMS / 배치 / 스케줄',
+          reqName: '배치 점검',
+          reqId: '4690',
+          before: '2026/06/01-2026/06/10',
+          after: '2026/06/05-2026/06/15',
+          reason: '인프라 점검 일정 반영',
+        },
+      ],
+    })
+  }
+
+  return rows
+}
+
+/** 프로젝트별 이력 (미등록 id는 buildHistoryCases 기본셋) */
+const historyByProject = {
+  p3: buildHistoryCases('ph-p3'),
+  p1: [
+    ...buildHistoryCases('ph-p1', { includeHiddenWbs: false }).filter((r) =>
+      ['projectSetting', 'wbs', 'reqPriority'].includes(r.template),
+    ),
+  ],
+  p2: buildHistoryCases('ph-p2', { includeHiddenWbs: false }),
+  p6: buildHistoryCases('ph-p6'),
+}
+
+function defaultHistory(projectId) {
+  return buildHistoryCases(`ph-${projectId}`)
 }
 
 export function getProjectHistory(projectId, projectName = '') {
   const raw = historyByProject[projectId] || defaultHistory(projectId)
-  return enrichRows(projectId, JSON.parse(JSON.stringify(raw)), projectName)
+  return enrichRows(projectId, JSON.parse(JSON.stringify(raw)), projectName).filter(
+    isVisibleHistoryRow,
+  )
 }
 
 /** 통합관리: 전체 프로젝트 변경이력 */
 export function getAllProjectHistory() {
-  const keys = Object.keys(historyByProject)
-  const rows = keys.flatMap((id) => getProjectHistory(id))
-  rows.push(...getProjectHistory('p-demo', '프로모션 운영 프로세스 및 기능 개선'))
+  const ids = ['p3', 'p1', 'p2', 'p6', 'p4', 'p5']
+  const rows = ids.flatMap((id) => getProjectHistory(id))
   return rows.sort((a, b) => String(b.changedAt).localeCompare(String(a.changedAt)))
 }
 
@@ -282,23 +422,17 @@ function parseChangedAt(value) {
   return new Date(value.replace(' ', 'T'))
 }
 
-function withinPeriod(changedAt, periodValue) {
-  const opt = changePeriodOptions.find((o) => o.value === periodValue)
-  if (!opt) return true
-  if (opt.value === 'all') return true
+function withinDateRange(changedAt, dateFrom, dateTo) {
+  if (!dateFrom && !dateTo) return true
   const changed = parseChangedAt(changedAt)
-  const from = new Date(baseDate)
-  from.setHours(0, 0, 0, 0)
-  if (opt.days === 0) {
-    return changed.toDateString() === baseDate.toDateString()
+  const day = new Date(changed.getFullYear(), changed.getMonth(), changed.getDate())
+  if (dateFrom) {
+    const from = new Date(`${dateFrom}T00:00:00`)
+    if (day < from) return false
   }
-  if (opt.days != null) {
-    from.setDate(from.getDate() - opt.days)
-    return changed >= from && changed <= baseDate
-  }
-  if (opt.months != null) {
-    from.setMonth(from.getMonth() - opt.months)
-    return changed >= from && changed <= baseDate
+  if (dateTo) {
+    const to = new Date(`${dateTo}T00:00:00`)
+    if (day > to) return false
   }
   return true
 }
@@ -318,11 +452,17 @@ export function matchHistoryFilters(row, filters) {
       .toLowerCase()
     if (!hay.includes(q)) return false
   }
-  if (!withinPeriod(row.changedAt, filters.period)) return false
+  if (filters.dateFrom || filters.dateTo) {
+    if (!withinDateRange(row.changedAt, filters.dateFrom, filters.dateTo)) return false
+  } else if (filters.period && filters.period !== 'all') {
+    const range = getPeriodDateRange(filters.period)
+    if (!withinDateRange(row.changedAt, range.from, range.to)) return false
+  }
   return true
 }
 
-export function splitDateTime(changedAt) {
-  const [date, time] = changedAt.split(' ')
+export function splitDateTime(value) {
+  if (!value) return { date: '-', time: '' }
+  const [date, time = ''] = String(value).split(' ')
   return { date, time }
 }

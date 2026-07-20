@@ -11,6 +11,7 @@ import {
   scheduleOptions,
   getDelayTasks,
 } from '@/data/techResource'
+import { pageSizeOptions } from '@/data/commonOptions'
 import DelayTaskModal from '@/components/dashboard/DelayTaskModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload, flattenPersonProjects } from '@/utils/excelDownload'
@@ -18,6 +19,8 @@ import { mockExcelDownload, flattenPersonProjects } from '@/utils/excelDownload'
 const router = useRouter()
 
 const filterExpanded = ref(false)
+const pageSize = ref(20)
+const currentPage = ref(1)
 const filters = ref({
   dept: '전체',
   member: '',
@@ -81,6 +84,19 @@ const filteredRecords = computed(() => {
     })
 })
 
+const pagedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredRecords.value.slice(start, start + pageSize.value)
+})
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredRecords.value.length / pageSize.value)),
+)
+
+function onPageSizeChange() {
+  currentPage.value = 1
+}
+
 function resetFilters() {
   filters.value = {
     dept: '전체',
@@ -90,10 +106,12 @@ function resetFilters() {
     schedule: '전체',
   }
   appliedFilters.value = { ...filters.value }
+  currentPage.value = 1
 }
 
 function search() {
   appliedFilters.value = { ...filters.value }
+  currentPage.value = 1
 }
 
 function onExcelDownload() {
@@ -247,7 +265,10 @@ function formatExecProgress(progress) {
       <div class="listcard__head">
         <h3 class="sec-title">인력별 투입 현황</h3>
         <span class="listcard__cnt">총 <b>{{ filteredRecords.length }}</b>명</span>
-        <ExcelDownloadButton push-end @click="onExcelDownload" />
+        <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
+          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
+        </select>
+        <ExcelDownloadButton @click="onExcelDownload" />
       </div>
       <div class="listcard__scroll">
         <table class="tbl tbl--grouped">
@@ -276,7 +297,7 @@ function formatExecProgress(progress) {
             </tr>
           </thead>
           <tbody>
-            <template v-for="person in filteredRecords" :key="person.id">
+            <template v-for="person in pagedRecords" :key="person.id">
               <template v-if="person.projects.length === 0">
                 <tr class="tbl__row">
                   <td>{{ person.no }}</td>
@@ -369,12 +390,32 @@ function formatExecProgress(progress) {
         </table>
       </div>
       <div class="pager">
-        <button type="button" class="pager__pg">«</button>
-        <button type="button" class="pager__pg pager__pg--on">1</button>
-        <button type="button" class="pager__pg">2</button>
-        <button type="button" class="pager__pg">3</button>
-        <button type="button" class="pager__pg">»</button>
-        <span class="pager__info">100건씩 보기</span>
+        <button
+          type="button"
+          class="pager__pg"
+          :disabled="currentPage <= 1"
+          @click="currentPage = Math.max(1, currentPage - 1)"
+        >
+          «
+        </button>
+        <button
+          v-for="p in totalPages"
+          :key="p"
+          type="button"
+          class="pager__pg"
+          :class="{ 'pager__pg--on': p === currentPage }"
+          @click="currentPage = p"
+        >
+          {{ p }}
+        </button>
+        <button
+          type="button"
+          class="pager__pg"
+          :disabled="currentPage >= totalPages"
+          @click="currentPage = Math.min(totalPages, currentPage + 1)"
+        >
+          »
+        </button>
       </div>
     </section>
 
@@ -631,6 +672,17 @@ function formatExecProgress(progress) {
   color: var(--teal-600);
 }
 
+.listcard__pagesize {
+  height: 28px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
+}
+
 .listcard__scroll {
   overflow-x: auto;
 }
@@ -816,6 +868,11 @@ function formatExecProgress(progress) {
   border-color: var(--teal);
   color: #fff;
   font-weight: 700;
+}
+
+.pager__pg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .pager__info {

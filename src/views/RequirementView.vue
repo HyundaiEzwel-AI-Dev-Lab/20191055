@@ -10,7 +10,6 @@ import {
   periodOptions,
   pageSizeOptions,
   systemOptions,
-  bizCategoryMap,
   getRequirementList,
   statusClass,
   priorityClass,
@@ -54,11 +53,12 @@ const formTarget = ref(null)
 const showBulkModal = ref(false)
 
 const showSaveAlert = ref(null)
+const saveAlertCount = ref(0)
+const confirmTipOpen = ref(false)
 
-const bizFilterOptions = computed(() => {
-  if (!filters.value.system) return []
-  return bizCategoryMap[filters.value.system] || []
-})
+const confirmSelectOptions = ['미확정', '확정']
+const confirmTooltip =
+  '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 요구사항 확인 완료 (확정 후 변경 불가)\n- 미확정 : 요구사항 확인 전 상태 (초기 등록 상태)'
 
 const filteredList = computed(() =>
   requirements.value.filter((row) => matchFilters(row, appliedFilters.value)),
@@ -113,10 +113,6 @@ function search() {
   expandAll.value = false
 }
 
-function onSystemFilterChange() {
-  filters.value.bizCategory = ''
-}
-
 function toggleExpand(id) {
   const next = new Set(expandedIds.value)
   if (next.has(id)) next.delete(id)
@@ -160,9 +156,17 @@ function isAllSelected() {
   )
 }
 
-function displayDetail(row) {
-  if (row.analysis) return row.analysis
-  return row.original
+function isConfirmLocked(row) {
+  if (row.status === '반려') return true
+  if (row.confirmLocked) return true
+  // 접수 상태에서는 확정 전환 불가 (SB 94)
+  if (row.status === '접수') return true
+  return false
+}
+
+function onConfirmChange(row, field, value) {
+  if (isConfirmLocked(row)) return
+  row[field] = value
 }
 
 function onIssueClick(row) {
@@ -279,21 +283,36 @@ function onFormSave(form) {
       issues: [],
     })
   } else if (formTarget.value) {
-    Object.assign(formTarget.value, {
-      name: form.name,
-      analysis: form.analysis,
-      status: form.status,
-      priority: form.priority,
-      taskTypes: [...form.taskTypes],
-      confirmRequester: form.confirmRequester ? '확정' : '미확정',
-      confirmTech: form.confirmTech ? '확정' : '미확정',
-      memo: form.memo,
-      screenPath: form.screenPath || form.screenMenu || formTarget.value.screenPath,
-      screenName: form.screenName || form.screenMenu || formTarget.value.screenName,
-      screenMenu: form.screenMenu || form.screenName || '',
-      updatedBy: '김현대',
-      updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    })
+    if (form.screenOnly) {
+      Object.assign(formTarget.value, {
+        screenPath: form.screenPath || form.screenMenu || formTarget.value.screenPath,
+        screenName: form.screenName || form.screenMenu || formTarget.value.screenName,
+        screenMenu: form.screenMenu || form.screenName || '',
+        updatedBy: '김현대',
+        updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      })
+    } else {
+      const bothOn = !!form.confirmRequester && !!form.confirmTech
+      Object.assign(formTarget.value, {
+        name: form.name,
+        analysis: form.analysis,
+        status: form.status,
+        priority: form.priority,
+        taskTypes: [...form.taskTypes],
+        confirmRequester: form.confirmRequester ? '확정' : '미확정',
+        confirmTech: form.confirmTech ? '확정' : '미확정',
+        confirmLocked: bothOn || formTarget.value.confirmLocked,
+        memo: form.memo,
+        system: form.system,
+        bizCategory: form.bizCategory,
+        systemPath: `${form.system}>${form.bizCategory}`,
+        screenPath: form.screenPath || form.screenMenu || formTarget.value.screenPath,
+        screenName: form.screenName || form.screenMenu || formTarget.value.screenName,
+        screenMenu: form.screenMenu || form.screenName || '',
+        updatedBy: '김현대',
+        updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      })
+    }
   }
   window.alert('저장되었습니다.')
   showFormModal.value = false
@@ -305,12 +324,16 @@ function onSaveConfirm() {
     return
   }
   const hasUnconfirmed = selectedRows.value.some(
-    (r) => r.confirmRequester === '미확정' || r.confirmTech === '미확정',
+    (r) => r.confirmRequester !== '확정' || r.confirmTech !== '확정',
   )
   if (hasUnconfirmed) {
     showSaveAlert.value = 'unconfirmed'
     return
   }
+  selectedRows.value.forEach((r) => {
+    r.confirmLocked = true
+  })
+  saveAlertCount.value = selectedRows.value.length
   showSaveAlert.value = 'done'
   selectedIds.value = new Set()
 }
@@ -330,6 +353,17 @@ function onCopy() {
 }
 
 function onScreenSetting() {
+  if (!selectedRows.value.length) {
+    window.alert('화면경로를 설정할 요구사항을 선택하세요.')
+    return
+  }
+  const keys = new Set(
+    selectedRows.value.map((r) => `${r.system}|${r.bizCategory}`),
+  )
+  if (keys.size > 1) {
+    window.alert('서로 다른 시스템/업무구분이 선택되어 있습니다. 동일한 시스템/업무구분만 선택해 주세요.')
+    return
+  }
   window.alert('화면(메뉴) 설정 팝업 (공통)\n선택한 요구사항의 화면명을 일괄 설정합니다.')
 }
 
@@ -384,11 +418,7 @@ function onPageSizeChange() {
         </div>
         <div class="filter__field">
           <label>업무범주</label>
-          <select
-            v-model="filters.system"
-            class="filter__select"
-            @change="onSystemFilterChange"
-          >
+          <select v-model="filters.system" class="filter__select">
             <option value="">시스템 선택</option>
             <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
           </select>
@@ -413,14 +443,7 @@ function onPageSizeChange() {
         </div>
       </div>
 
-      <div v-if="filterExpanded" class="filter__row filter__row--4">
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="filters.bizCategory" class="filter__select" :disabled="!filters.system">
-            <option value="">전체</option>
-            <option v-for="b in bizFilterOptions" :key="b" :value="b">{{ b }}</option>
-          </select>
-        </div>
+      <div v-if="filterExpanded" class="filter__row filter__row--3">
         <div class="filter__field">
           <label>기간</label>
           <select v-model="filters.periodType" class="filter__select">
@@ -495,25 +518,44 @@ function onPageSizeChange() {
         <table class="req-table">
           <thead>
             <tr>
-              <th class="col-check">
+              <th class="col-check" rowspan="2">
                 <input
                   type="checkbox"
                   :checked="isAllSelected()"
                   @change="toggleSelectAll($event.target.checked)"
                 />
               </th>
-              <th>요구사항 ID</th>
-              <th>시스템/업무</th>
-              <th>화면경로</th>
-              <th>화면명</th>
-              <th>요구사항명</th>
-              <th>업무유형</th>
-              <th>상태</th>
-              <th>우선순위</th>
+              <th rowspan="2">요구사항 ID</th>
+              <th rowspan="2">시스템/업무</th>
+              <th rowspan="2">화면경로</th>
+              <th rowspan="2">화면명</th>
+              <th rowspan="2">요구사항명</th>
+              <th rowspan="2">업무유형</th>
+              <th rowspan="2">상태</th>
+              <th rowspan="2">우선순위</th>
+              <th colspan="2" class="confirm-head">
+                <div class="confirm-head__title">
+                  <span>요건확정</span>
+                  <button
+                    type="button"
+                    class="confirm-tip"
+                    :aria-expanded="confirmTipOpen"
+                    @click.stop="confirmTipOpen = !confirmTipOpen"
+                    @blur="confirmTipOpen = false"
+                  >
+                    !
+                  </button>
+                  <div v-if="confirmTipOpen" class="confirm-tip__bubble" role="tooltip">
+                    {{ confirmTooltip }}
+                  </div>
+                </div>
+              </th>
+              <th rowspan="2">이슈</th>
+              <th rowspan="2">등록자</th>
+            </tr>
+            <tr class="confirm-subhead">
               <th>요청자</th>
               <th>테크</th>
-              <th>이슈</th>
-              <th>등록자</th>
             </tr>
           </thead>
           <tbody>
@@ -556,20 +598,26 @@ function onPageSizeChange() {
                   </span>
                 </td>
                 <td>
-                  <span
-                    class="confirm-badge"
-                    :class="`confirm-badge--${confirmClass(row.confirmRequester)}`"
+                  <select
+                    class="confirm-select"
+                    :class="`confirm-select--${confirmClass(row.confirmRequester)}`"
+                    :value="row.confirmRequester === '확정' ? '확정' : '미확정'"
+                    :disabled="isConfirmLocked(row)"
+                    @change="onConfirmChange(row, 'confirmRequester', $event.target.value)"
                   >
-                    {{ row.confirmRequester }}
-                  </span>
+                    <option v-for="o in confirmSelectOptions" :key="o" :value="o">{{ o }}</option>
+                  </select>
                 </td>
                 <td>
-                  <span
-                    class="confirm-badge"
-                    :class="`confirm-badge--${confirmClass(row.confirmTech)}`"
+                  <select
+                    class="confirm-select"
+                    :class="`confirm-select--${confirmClass(row.confirmTech)}`"
+                    :value="row.confirmTech === '확정' ? '확정' : '미확정'"
+                    :disabled="isConfirmLocked(row)"
+                    @change="onConfirmChange(row, 'confirmTech', $event.target.value)"
                   >
-                    {{ row.confirmTech }}
-                  </span>
+                    <option v-for="o in confirmSelectOptions" :key="o" :value="o">{{ o }}</option>
+                  </select>
                 </td>
                 <td>
                   <button
@@ -589,11 +637,15 @@ function onPageSizeChange() {
               <tr v-if="expandedIds.has(row.id)" class="detail-row">
                 <td colspan="13">
                   <div class="detail-panel">
-                    <div class="detail-panel__content">
-                      <p class="detail-panel__label">
-                        {{ row.analysis ? '요구사항 분석' : '요구사항 원안' }}
-                      </p>
-                      <p class="detail-panel__text">{{ displayDetail(row) }}</p>
+                    <div class="detail-panel__blocks">
+                      <div class="detail-panel__content">
+                        <p class="detail-panel__label">요구사항 원안</p>
+                        <p class="detail-panel__text">{{ row.original || '-' }}</p>
+                      </div>
+                      <div class="detail-panel__content">
+                        <p class="detail-panel__label">요구사항 분석</p>
+                        <p class="detail-panel__text">{{ row.analysis || '-' }}</p>
+                      </div>
                     </div>
                     <div class="detail-panel__meta">
                       <span>
@@ -680,7 +732,7 @@ function onPageSizeChange() {
         <div class="alert-box">
           <p v-if="showSaveAlert === 'none'">요건확정 처리할 요구사항을 선택하세요.</p>
           <p v-else-if="showSaveAlert === 'unconfirmed'">미확정 상태입니다. 확정 후 저장하세요.</p>
-          <p v-else>선택한 요구사항이 요건확정 처리되었습니다.</p>
+          <p v-else>선택한 {{ saveAlertCount }}건이 요건확정 처리되었습니다.</p>
           <button type="button" class="btn btn--primary" @click="showSaveAlert = null">확인</button>
         </div>
       </div>
@@ -1019,30 +1071,91 @@ function onPageSizeChange() {
   background: var(--gray-bg);
 }
 
-.confirm-badge {
+.confirm-head {
+  text-align: center;
+  vertical-align: middle;
+  background: var(--field);
+}
+
+.confirm-head__title {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  justify-content: center;
+  gap: 4px;
   font-size: 11px;
-  background: #fff;
-}
-
-.confirm-badge--pending {
-  color: var(--orange);
   font-weight: 700;
+  line-height: 1.2;
 }
 
-.confirm-badge--confirmed {
+.confirm-subhead th {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--field);
+  padding: 6px 8px;
+}
+
+.confirm-tip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--lnb-line);
+  background: #fff;
+  color: var(--teal-600);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.confirm-tip__bubble {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md, 8px);
+  background: #fff;
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+  color: var(--lnb-txt);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: pre-line;
+  text-align: left;
+}
+
+.confirm-select {
+  min-width: 72px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-sm, 6px);
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.confirm-select--pending {
+  color: var(--orange);
+}
+
+.confirm-select--confirmed {
   color: var(--teal-600);
   background: var(--teal-50);
   border-color: var(--teal-100);
 }
 
-.confirm-badge--checked {
-  color: var(--muted);
+.confirm-select:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
 .issue-link {
@@ -1074,6 +1187,13 @@ function onPageSizeChange() {
   padding: 14px 16px 14px 48px;
 }
 
+.detail-panel__blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .detail-panel__label {
   margin: 0 0 6px;
   font-size: 11px;
@@ -1082,13 +1202,13 @@ function onPageSizeChange() {
 }
 
 .detail-panel__text {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
   color: var(--ink-2);
   white-space: pre-wrap;
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 10;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

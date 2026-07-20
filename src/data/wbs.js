@@ -11,6 +11,37 @@ export const taskTypeOptions = ['전체', '기획', '디자인', '퍼블리싱',
 export const progressStatusOptions = ['전체', '대기', '진행중', '완료', '취소']
 export const scheduleComplianceOptions = ['전체', '정상', '경과', '단축']
 export const difficultyOptions = ['상', '중', '하']
+export const priorityOptions = ['낮음', '보통', '높음']
+
+/** POP-S-WBS-04 단건 계획일 변경 사유 */
+export const planChangeReasons = [
+  '장애 대응',
+  '우선순위 변경',
+  '외부 일정',
+  '요건 변경',
+  '착수일 미체크',
+  '선행 업무 일정 변경',
+  '기타(직접입력)',
+]
+
+/** POP-S-WBS-05 다건 계획일 변경 사유 */
+export const bulkPlanChangeReasons = ['선행 업무 일정 변경', '기타(직접입력)']
+
+/** POP-S-WBS-06 실행 홀딩 사유 */
+export const holdChangeReasons = [
+  '장애 대응',
+  '우선순위 변경',
+  '외부 일정',
+  '요건 변경',
+  '담당자 변경',
+  '선행 업무 일정 변경',
+  '기타(직접입력)',
+]
+
+export const approverOptions = ['담당 개발팀장', '웹기획팀장']
+
+/** 목업 기준일 (계획일 도래 판정) */
+export const wbsMockToday = '2026-04-30'
 
 export { systemOptions, bizCategoryMap } from './requirement'
 
@@ -100,9 +131,10 @@ const baseTasks = [
     scheduleStatus: 'delay',
     confirmed: '확정',
     excluded: false,
-    changedAt: '2026-04-30 10:10:20',
-    changedBy: '권현대',
-    scheduleReason: '담당부서 요청으로 일정 변경',
+    changedAt: '2026-04-11 16:20:08',
+    changedBy: '김현대',
+    changedByEmpId: '2155555',
+    scheduleReason: '담당부서 요청으로 오픈일 변경',
   },
   {
     id: 'w4',
@@ -410,7 +442,14 @@ export function matchWbsFilters(row, filters, myTasksOnly, currentUser = '권현
   }
   if (filters.taskType !== '전체' && row.taskType !== filters.taskType) return false
   if (filters.system && !row.systemPath.startsWith(filters.system)) return false
-  if (filters.progressStatus !== '전체' && row.status !== filters.progressStatus) return false
+  if (Array.isArray(filters.progressStatus)) {
+    const selected = filters.progressStatus
+    if (selected.length && !selected.includes('전체') && !selected.includes(row.status)) {
+      return false
+    }
+  } else if (filters.progressStatus && filters.progressStatus !== '전체') {
+    if (row.status !== filters.progressStatus) return false
+  }
   if (filters.scheduleCompliance !== '전체') {
     const map = { 정상: 'normal', 경과: 'delay', 단축: 'short' }
     if (row.scheduleStatus !== map[filters.scheduleCompliance]) return false
@@ -450,4 +489,61 @@ export function calendarBlockLabel(task, index) {
   const type = task.taskType === '개발' ? `개발${suffix}` : task.taskType
   const name = task.requirementName || task.screenName
   return `[${type}] ${name} – ${task.assigneeDisplay}`
+}
+
+function parseYmd(ymd) {
+  if (!ymd) return null
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function formatYmd(date) {
+  const p = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+}
+
+/** 영업일 기준 n일 가산 (주말 제외) */
+export function addBusinessDays(ymd, days) {
+  const date = parseYmd(ymd)
+  if (!date || days <= 0) return ymd
+  let left = days
+  while (left > 0) {
+    date.setDate(date.getDate() + 1)
+    const dow = date.getDay()
+    if (dow !== 0 && dow !== 6) left -= 1
+  }
+  return formatYmd(date)
+}
+
+/** 계획 공수(영업일) — 시작·종료 포함 */
+export function countBusinessDays(start, end) {
+  const s = parseYmd(start)
+  const e = parseYmd(end)
+  if (!s || !e || e < s) return 0
+  let n = 0
+  const cur = new Date(s)
+  while (cur <= e) {
+    const dow = cur.getDay()
+    if (dow !== 0 && dow !== 6) n += 1
+    cur.setDate(cur.getDate() + 1)
+  }
+  return n
+}
+
+/** 홀딩 후 재착수 예정일 산정 (SB 124) */
+export function calcRestartRange(task, holdStart, holdEnd) {
+  if (!holdEnd || !task?.planStart || !task?.planEnd) {
+    return { start: '', end: '' }
+  }
+  const planMd = countBusinessDays(task.planStart, task.planEnd)
+  const execMd =
+    task.execStart && holdStart
+      ? Math.max(0, countBusinessDays(task.execStart, holdStart) - 1)
+      : task.execStart
+        ? 1
+        : 0
+  const remain = Math.max(1, planMd - execMd)
+  const restartStart = addBusinessDays(holdEnd, 1)
+  const restartEnd = addBusinessDays(restartStart, remain - 1)
+  return { start: restartStart, end: restartEnd }
 }

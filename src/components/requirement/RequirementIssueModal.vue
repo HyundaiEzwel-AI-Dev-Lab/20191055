@@ -1,5 +1,5 @@
 <script setup>
-// 요구사항 이슈/협의 레이어 팝업
+// POP-S-REQ-02 이슈관리 (요구사항 관련 이슈 등록 및 처리 현황)
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { computed } from 'vue'
 
@@ -10,13 +10,22 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
+const rootIssues = computed(() => props.requirement?.issues || [])
+const totalCount = computed(() => rootIssues.value.length)
+
 const title = computed(() => {
-  if (!props.requirement) return '이슈/협의'
-  return `이슈/협의 — ${props.requirement.reqId} ${props.requirement.name}`
+  if (!props.requirement) return '이슈관리'
+  return `이슈관리 — ${props.requirement.reqId}`
 })
 
 function close() {
   emit('update:modelValue', false)
+}
+
+function formatTime(issue) {
+  if (!issue?.createdAt) return ''
+  if (issue.editedAt) return `${issue.createdAt} (${issue.editedAt})`
+  return issue.createdAt
 }
 </script>
 
@@ -24,19 +33,54 @@ function close() {
   <BaseModal
     :title="title"
     :visible="modelValue && !!requirement"
+    wide
     @close="close"
   >
     <template v-if="requirement">
-      <div v-if="!requirement.issues?.length" class="empty">
-        등록된 이슈/협의가 없습니다.
+      <p class="issue-guide">요구사항 관련 이슈 등록 및 처리 현황 관리</p>
+      <div class="issue-summary">총 <b>{{ totalCount }}</b>건</div>
+
+      <div v-if="!rootIssues.length" class="empty">등록된 이슈/협의가 없습니다.</div>
+
+      <div v-else class="issue-list">
+        <article v-for="issue in rootIssues" :key="issue.id" class="issue">
+          <header class="issue__head">
+            <span class="issue__author">{{ issue.author }} / {{ issue.dept }}</span>
+            <span class="issue__time">{{ formatTime(issue) }}</span>
+            <span v-if="issue.mention" class="issue__mention">
+              @{{ issue.mention.name }} / {{ issue.mention.dept }}
+            </span>
+          </header>
+
+          <p class="issue__body">{{ issue.body }}</p>
+
+          <div v-if="issue.collaborator || issue.details?.length" class="issue__meta">
+            <p v-if="issue.collaborator" class="issue__collab">
+              - 협의자 : {{ issue.collaborator }}
+            </p>
+            <template v-if="issue.details?.length">
+              <p class="issue__collab">- 협의내용</p>
+              <ol class="issue__details">
+                <li v-for="(line, idx) in issue.details" :key="idx">{{ line }}</li>
+              </ol>
+            </template>
+          </div>
+
+          <div v-if="issue.replies?.length" class="issue__replies">
+            <article
+              v-for="reply in issue.replies"
+              :key="reply.id"
+              class="issue issue--reply"
+            >
+              <header class="issue__head">
+                <span class="issue__author">{{ reply.author }} / {{ reply.dept }}</span>
+                <span class="issue__time">{{ reply.createdAt }}</span>
+              </header>
+              <p class="issue__body">{{ reply.body }}</p>
+            </article>
+          </div>
+        </article>
       </div>
-      <article v-for="issue in requirement.issues" :key="issue.id" class="issue">
-        <header class="issue__head">
-          <span class="issue__author">{{ issue.author }} / {{ issue.dept }}</span>
-          <span class="issue__time">{{ issue.createdAt }}</span>
-        </header>
-        <p class="issue__body">{{ issue.body }}</p>
-      </article>
     </template>
 
     <template #footer>
@@ -46,6 +90,22 @@ function close() {
 </template>
 
 <style scoped>
+.issue-guide {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--lnb-muted);
+}
+
+.issue-summary {
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--lnb-txt);
+}
+
+.issue-summary b {
+  color: var(--teal-600);
+}
+
 .empty {
   text-align: center;
   padding: 32px;
@@ -53,8 +113,16 @@ function close() {
   font-size: 12px;
 }
 
+.issue-list {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--lnb-side, #fff);
+}
+
 .issue {
-  padding: 12px 0;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--lnb-line);
 }
 
@@ -62,16 +130,28 @@ function close() {
   border-bottom: none;
 }
 
+.issue--reply {
+  margin-top: 10px;
+  margin-left: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--lnb-hover, #f7f8f9);
+  border-bottom: 1px solid var(--lnb-line);
+}
+
 .issue__head {
   display: flex;
   gap: 10px;
   margin-bottom: 6px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .issue__author {
   font-size: 12px;
   font-weight: 700;
+  color: var(--lnb-logo, #1c1d21);
 }
 
 .issue__time {
@@ -79,10 +159,42 @@ function close() {
   color: var(--lnb-muted);
 }
 
+.issue__mention {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal-600);
+}
+
 .issue__body {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
   color: var(--lnb-txt);
+  white-space: pre-wrap;
+}
+
+.issue__meta {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--teal-50, #e6f4f2);
+}
+
+.issue__collab {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--lnb-txt);
+}
+
+.issue__details {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--lnb-txt);
+}
+
+.issue__replies {
+  margin-top: 4px;
 }
 </style>

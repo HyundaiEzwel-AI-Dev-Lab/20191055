@@ -21,11 +21,13 @@ function close() {
     @close="close"
   >
     <template v-if="task">
-      <p class="task-name">{{ task.requirementName }} ({{ task.wbsId }})</p>
       <div class="reason-box">
-        <p>{{ task.scheduleReason || '변동 사유가 등록되지 않았습니다.' }}</p>
+        <p class="reason-box__text">
+          {{ task.scheduleReason || '변동 사유가 등록되지 않았습니다.' }}
+        </p>
         <p class="reason-box__meta">
-          {{ task.changedBy }} · {{ task.changedAt }}
+          {{ task.changedBy }}{{ task.changedByEmpId ? `(${task.changedByEmpId})` : '' }}
+          {{ task.changedAt }}
         </p>
       </div>
     </template>
@@ -37,28 +39,23 @@ function close() {
 </template>
 
 <style scoped>
-.task-name {
-  margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .reason-box {
   background: var(--teal-50);
   border: 1px solid var(--teal-100);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
 }
 
-.reason-box p {
+.reason-box__text {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
+  color: var(--lnb-txt);
 }
 
 .reason-box__meta {
-  margin-top: 10px !important;
-  font-size: 11px;
+  margin: 10px 0 0;
+  font-size: 12px;
   color: var(--lnb-muted);
 }
 </style>

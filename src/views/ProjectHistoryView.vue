@@ -1,8 +1,10 @@
 <script setup>
 // PAG-M-PST-03 / PAG-S-INF-05 프로젝트 변경이력 (통합·개별 공용)
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
+import { useSubTabsStore } from '@/stores/subTabs'
 import {
   changeCategoryOptions,
   changePeriodOptions,
@@ -12,25 +14,31 @@ import {
   getAllProjectHistory,
   matchHistoryFilters,
   splitDateTime,
+  resolveHistoryTemplate,
+  detailRouteForHistory,
+  HISTORY_TEMPLATE,
+  formatReqLabel,
+  createHistoryDefaultFilters,
+  getPeriodDateRange,
 } from '@/data/projectHistory'
-import ProjectHistoryDetailModal from '@/components/project/ProjectHistoryDetailModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
 const route = useRoute()
+const router = useRouter()
 const projectStore = useProjectStore()
+const tabsStore = useTabsStore()
+const subTabsStore = useSubTabsStore()
 
 /** 통합관리 진입 시 전체, 프로젝트 메뉴 진입 시 현재 프로젝트만 */
 const isIntegrated = computed(() => route.name === 'project-history')
 
 const rows = ref([])
-const filters = ref(createDefaultFilters())
+const filters = ref(createHistoryDefaultFilters())
 const appliedFilters = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
 const expandedId = ref(null)
-const detailTarget = ref(null)
-const showDetailModal = ref(false)
 
 const colSpan = computed(() => (isIntegrated.value ? 7 : 5))
 
@@ -46,16 +54,6 @@ const pagedList = computed(() => {
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredList.value.length / pageSize.value)),
 )
-
-function createDefaultFilters() {
-  return {
-    category: '전체',
-    period: '1m',
-    keyword: '',
-    projectQuery: '',
-    devDept: '전체',
-  }
-}
 
 function loadData() {
   if (isIntegrated.value) {
@@ -75,13 +73,24 @@ watch(() => projectStore.currentProject?.id, () => {
 })
 
 function resetFilters() {
-  filters.value = createDefaultFilters()
+  filters.value = createHistoryDefaultFilters()
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   expandedId.value = null
 }
 
+function onPeriodChange() {
+  const range = getPeriodDateRange(filters.value.period)
+  filters.value.dateFrom = range.from
+  filters.value.dateTo = range.to
+}
+
 function search() {
+  const { dateFrom, dateTo } = filters.value
+  if (dateFrom && dateTo && dateFrom > dateTo) {
+    window.alert('시작일은 종료일보다 클 수 없습니다.')
+    return
+  }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   expandedId.value = null
@@ -91,9 +100,37 @@ function toggleExpand(id) {
   expandedId.value = expandedId.value === id ? null : id
 }
 
+function openProject(project, routePath = '/project/info') {
+  const id = project.id || project.projectId || project.projectKey
+  const name = project.name || project.projectName || project.project || '프로젝트'
+  const stage = project.stage || '처리중'
+  projectStore.setCurrentProject({ id, name, stage })
+  tabsStore.openProjectTab({
+    projectId: id,
+    title: name,
+    projectName: name,
+    route: routePath,
+  })
+  const subId = routePath.includes('wbs')
+    ? 'wbs'
+    : routePath.includes('requirement')
+      ? 'requirement'
+      : 'info'
+  const subTitle =
+    subId === 'wbs' ? 'WBS' : subId === 'requirement' ? '요구사항' : '프로젝트 정보'
+  subTabsStore.openSubTab(id, { id: subId, title: subTitle, route: routePath })
+  router.push(routePath)
+}
+
 function openDetail(row) {
-  detailTarget.value = row
-  showDetailModal.value = true
+  openProject(
+    {
+      id: row.projectKey,
+      name: row.projectName,
+      stage: '처리중',
+    },
+    detailRouteForHistory(row),
+  )
 }
 
 function onExcelDownload() {
@@ -127,6 +164,15 @@ function onExcelDownload() {
 function displayNo(index) {
   return filteredList.value.length - ((currentPage.value - 1) * pageSize.value + index)
 }
+
+function templateKind(row) {
+  return resolveHistoryTemplate(row)
+}
+
+function wbsTaskPath(chg) {
+  if (chg.taskName) return chg.taskName
+  return [chg.system, chg.biz, chg.screen].filter(Boolean).join(' / ') || '-'
+}
 </script>
 
 <template>
@@ -139,13 +185,20 @@ function displayNo(index) {
             <option v-for="o in changeCategoryOptions" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
-        <div class="filter__field">
+        <div class="filter__field filter__field--date">
           <label>변경일</label>
-          <select v-model="filters.period" class="filter__select">
-            <option v-for="o in changePeriodOptions" :key="o.value" :value="o.value">
-              {{ o.label }}
-            </option>
-          </select>
+          <div class="filter__date">
+            <select v-model="filters.period" class="filter__select filter__select--period" @change="onPeriodChange">
+              <option v-for="o in changePeriodOptions" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
+            <div class="filter__range">
+              <input v-model="filters.dateFrom" class="filter__input filter__input--date" type="date" />
+              <span class="filter__range-sep">~</span>
+              <input v-model="filters.dateTo" class="filter__input filter__input--date" type="date" />
+            </div>
+          </div>
         </div>
         <div v-if="isIntegrated" class="filter__field">
           <label>프로젝트</label>
@@ -226,19 +279,154 @@ function displayNo(index) {
               <tr v-if="expandedId === row.id" class="detail-row">
                 <td :colspan="colSpan">
                   <div class="detail-panel">
-                    <p class="detail-panel__hint">
-                      변경 내용 영역 · 변경항목에 따라 템플릿에 맞춰 표기
-                    </p>
-                    <p
-                      v-for="(line, lineIdx) in row.changeLines"
-                      :key="lineIdx"
-                      class="detail-panel__line"
-                    >
-                      {{ line.label }}
-                      <b class="detail-panel__before">{{ line.before }}</b>
-                      →
-                      <b class="detail-panel__after">{{ line.after }}</b>
-                    </p>
+                    <!-- Case 1-1) 프로젝트 설정값 -->
+                    <template v-if="templateKind(row) === HISTORY_TEMPLATE.projectSetting">
+                      <dl class="detail-dl">
+                        <div class="detail-dl__row">
+                          <dt>변경항목</dt>
+                          <dd>{{ row.setting?.field || row.item }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>원래값</dt>
+                          <dd class="before">{{ row.setting?.before ?? row.before ?? '-' }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>변경값</dt>
+                          <dd class="after">{{ row.setting?.after ?? row.after ?? '-' }}</dd>
+                        </div>
+                      </dl>
+                    </template>
+
+                    <!-- Case 1-2) 프로젝트 이슈등록 -->
+                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.projectIssue">
+                      <dl class="detail-dl">
+                        <div class="detail-dl__row">
+                          <dt>변경항목</dt>
+                          <dd>{{ row.item }}</dd>
+                        </div>
+                        <div class="detail-dl__row detail-dl__row--block">
+                          <dt>내용</dt>
+                          <dd class="detail-panel__body">{{ row.issueBody || row.detail?.body || '-' }}</dd>
+                        </div>
+                      </dl>
+                    </template>
+
+                    <!-- Case 2) WBS (복수 시 리스트) -->
+                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.wbs">
+                      <div
+                        v-for="(chg, cIdx) in (row.wbsChanges || [])"
+                        :key="cIdx"
+                        class="wbs-block"
+                      >
+                        <dl class="detail-dl">
+                          <div class="detail-dl__row">
+                            <dt>변경항목</dt>
+                            <dd>{{ chg.changeItem || row.item }}</dd>
+                          </div>
+                          <div class="detail-dl__row">
+                            <dt>변경업무</dt>
+                            <dd>{{ wbsTaskPath(chg) }}</dd>
+                          </div>
+                          <div class="detail-dl__row">
+                            <dt>요구사항 (명/ID)</dt>
+                            <dd>{{ formatReqLabel(chg) }}</dd>
+                          </div>
+                          <div class="detail-dl__row">
+                            <dt>원래값</dt>
+                            <dd class="before">{{ chg.before || '-' }}</dd>
+                          </div>
+                          <div class="detail-dl__row">
+                            <dt>변경값</dt>
+                            <dd class="after">{{ chg.after || '-' }}</dd>
+                          </div>
+                          <div class="detail-dl__row detail-dl__row--block">
+                            <dt>변경사유</dt>
+                            <dd>{{ chg.reason || '-' }}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </template>
+
+                    <!-- Case 3-1) 요구사항 설정값 (우선순위·상태) -->
+                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqPriority">
+                      <dl class="detail-dl">
+                        <div class="detail-dl__row">
+                          <dt>변경항목</dt>
+                          <dd>{{ row.fieldLabel || row.item }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>요구사항 (명/ID)</dt>
+                          <dd>{{ formatReqLabel(row) }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>원래값</dt>
+                          <dd class="before">{{ row.priority?.before ?? row.before ?? '-' }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>변경값</dt>
+                          <dd class="after">{{ row.priority?.after ?? row.after ?? '-' }}</dd>
+                        </div>
+                      </dl>
+                    </template>
+
+                    <!-- Case 3-2) 요구사항 이슈등록 -->
+                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqIssue">
+                      <dl class="detail-dl">
+                        <div class="detail-dl__row">
+                          <dt>변경항목</dt>
+                          <dd>{{ row.item }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>요구사항 (명/ID)</dt>
+                          <dd>{{ formatReqLabel(row) }}</dd>
+                        </div>
+                        <div class="detail-dl__row detail-dl__row--block">
+                          <dt>내용</dt>
+                          <dd class="detail-panel__body">{{ row.issueBody || row.detail?.body || '-' }}</dd>
+                        </div>
+                      </dl>
+                    </template>
+
+                    <!-- Case 3-3) 요구사항 상세변경 -->
+                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqDetail">
+                      <dl class="detail-dl">
+                        <div class="detail-dl__row">
+                          <dt>변경항목</dt>
+                          <dd>{{ row.item }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>요구사항 (명/ID)</dt>
+                          <dd>{{ formatReqLabel(row) }}</dd>
+                        </div>
+                        <div class="detail-dl__row">
+                          <dt>변경사유</dt>
+                          <dd>{{ row.reqDetail?.reason || row.reason || '-' }}</dd>
+                        </div>
+                        <div class="detail-dl__row detail-dl__row--block">
+                          <dt>변경 전 내용</dt>
+                          <dd class="detail-panel__body before">{{ row.reqDetail?.before || row.beforeBody || '-' }}</dd>
+                        </div>
+                        <div class="detail-dl__row detail-dl__row--block">
+                          <dt>변경 후 내용</dt>
+                          <dd class="detail-panel__body after">{{ row.reqDetail?.after || row.afterBody || '-' }}</dd>
+                        </div>
+                      </dl>
+                    </template>
+
+                    <!-- fallback -->
+                    <template v-else>
+                      <p
+                        v-for="(line, lineIdx) in row.changeLines"
+                        :key="lineIdx"
+                        class="detail-panel__line"
+                      >
+                        {{ line.label }}
+                        <b class="before">{{ line.before }}</b>
+                        →
+                        <b class="after">{{ line.after }}</b>
+                      </p>
+                    </template>
+
                     <button
                       type="button"
                       class="btn btn--ghost btn--sm"
@@ -286,12 +474,6 @@ function displayNo(index) {
         </button>
       </div>
     </div>
-
-    <ProjectHistoryDetailModal
-      :visible="showDetailModal"
-      :record="detailTarget"
-      @close="showDetailModal = false"
-    />
   </div>
 </template>
 
@@ -303,6 +485,7 @@ function displayNo(index) {
 }
 
 .filter {
+  padding: 14px 16px;
   margin-bottom: 12px;
 }
 
@@ -313,11 +496,11 @@ function displayNo(index) {
 }
 
 .filter__row--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(140px, 0.8fr) minmax(280px, 1.6fr) minmax(140px, 1fr);
 }
 
 .filter__row--4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(120px, 0.7fr) minmax(280px, 1.5fr) minmax(140px, 1fr) minmax(120px, 0.8fr);
 }
 
 .filter__field {
@@ -329,16 +512,50 @@ function displayNo(index) {
 .filter__field label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-2);
+  color: var(--lnb-muted);
 }
 
 .filter__input,
 .filter__select {
   padding: 7px 10px;
   font-size: 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
+  font-family: inherit;
+}
+
+.filter__date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter__select--period {
+  width: auto;
+  min-width: 110px;
+  flex-shrink: 0;
+}
+
+.filter__range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.filter__range-sep {
+  color: var(--lnb-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.filter__input--date {
+  flex: 1;
+  min-width: 0;
 }
 
 .filter__actions {
@@ -364,10 +581,11 @@ function displayNo(index) {
 }
 
 .toolbar__mini {
+  margin-left: auto;
   padding: 4px 8px;
   font-size: 12px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm, 6px);
   background: #fff;
 }
 
@@ -448,13 +666,29 @@ function displayNo(index) {
 }
 
 .detail-panel {
-  padding: 10px 14px 12px 42px;
+  padding: 12px 14px 14px 42px;
 }
 
-.detail-panel__hint {
-  margin: 0 0 8px;
+.detail-panel__label {
+  margin: 0 0 4px;
   font-size: 11px;
+  font-weight: 600;
   color: var(--muted);
+}
+
+.detail-panel__meta {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.detail-panel__body {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre-wrap;
 }
 
 .detail-panel__line {
@@ -462,13 +696,51 @@ function displayNo(index) {
   font-size: 13px;
 }
 
-.detail-panel__before {
+.detail-dl {
+  margin: 0 0 10px;
+}
+
+.detail-dl__row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.detail-dl__row dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.detail-dl__row dd {
+  margin: 0;
+  color: var(--lnb-txt);
+}
+
+.detail-dl__row--block {
+  align-items: start;
+}
+
+.detail-dl__row--block .detail-panel__body {
+  margin: 0;
+}
+
+.wbs-block + .wbs-block {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.before {
   color: var(--muted);
   font-weight: 600;
 }
 
-.detail-panel__after {
+.after {
   color: var(--teal-600);
+  font-weight: 600;
 }
 
 .empty {

@@ -19,6 +19,7 @@ const showNoti = ref(false)
 const showProjects = ref(false)
 const showInfo = ref(false)
 const showPasswordReset = ref(false)
+const passwordPrefill = ref(null)
 const unreadCount = ref(notifications.filter((n) => !n.read).length)
 
 function scrollTabs(dir) {
@@ -30,6 +31,14 @@ function openPopup(target) {
   showNoti.value = target === 'noti'
   showProjects.value = target === 'projects'
   showInfo.value = target === 'info'
+}
+
+function openPasswordReset() {
+  const u = authStore.user
+  passwordPrefill.value = u
+    ? { name: u.name, empId: u.id }
+    : null
+  showPasswordReset.value = true
 }
 
 function onUnreadChange(count) {
@@ -85,8 +94,12 @@ function onUnreadChange(count) {
     <MyProjectsModal v-model="showProjects" />
     <MyInfoModal
       v-model="showInfo"
-      @password-reset="showPasswordReset = true"
+      @password-reset="openPasswordReset"
     />
-    <PasswordResetModal v-model="showPasswordReset" />
+    <PasswordResetModal
+      v-model="showPasswordReset"
+      :prefill="passwordPrefill"
+      lock-identity
+    />
   </header>
 </template>

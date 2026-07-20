@@ -1,30 +1,63 @@
 <script setup>
 // PAG-M-MY-01/02/03 내업무 (진입화면)
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
+import { useSubTabsStore } from '@/stores/subTabs'
 import {
-  summary,
-  progressProjects,
-  myTasks,
-  waitingProjects,
+  INBOX_GUIDE,
+  getInboxBundle,
+  routeForTaskType,
 } from '@/data/inbox'
 import InboxCalendar from '@/components/inbox/InboxCalendar.vue'
+import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 
-const viewMode = ref('card') // card | calendar
+const router = useRouter()
+const auth = useAuthStore()
+const projectStore = useProjectStore()
+const tabsStore = useTabsStore()
+const subTabsStore = useSubTabsStore()
+
+const viewMode = ref('card')
+const bundle = computed(() => getInboxBundle(auth.user?.id))
+const summary = computed(() => bundle.value.summary)
+const progressProjects = computed(() => bundle.value.progressProjects)
+const myTasks = computed(() => bundle.value.myTasks)
+const waitingProjects = computed(() => bundle.value.waitingProjects)
 
 const avatarPalette = ['#119a8a', '#7c5cf0', '#f59e0b', '#ec4899', '#3b82f6', '#22c55e']
 function avatarColor(i) {
   return avatarPalette[i % avatarPalette.length]
 }
 
-// ---- 카드형: 진행중 프로젝트 롤링 ----
+function openProject(project, route = '/project/info', sub) {
+  const id = project.id || project.projectId
+  const name = project.name || project.project || '프로젝트'
+  const stage = project.stage || '처리중'
+  projectStore.setCurrentProject({ id, name, stage })
+  tabsStore.openProjectTab({
+    projectId: id,
+    title: name,
+    projectName: name,
+    route,
+  })
+  const subId = sub?.id || (route.includes('wbs') ? 'wbs' : route.includes('requirement') ? 'requirement' : route.includes('unit-test') ? 'unit-test' : route.includes('test-run') ? 'test-run' : 'info')
+  const subTitle = sub?.title || (subId === 'wbs' ? 'WBS' : subId === 'requirement' ? '요구사항' : subId === 'unit-test' ? '단위테스트' : subId === 'test-run' ? '테스트 수행' : '프로젝트 정보')
+  subTabsStore.openSubTab(id, { id: subId, title: subTitle, route })
+  router.push(route)
+}
+
+// ---- 진행중 롤링 ----
 const projectPage = ref(0)
 const PROJECTS_PER_PAGE = 3
 const pagedProjects = computed(() => {
   const start = projectPage.value * PROJECTS_PER_PAGE
-  return progressProjects.slice(start, start + PROJECTS_PER_PAGE)
+  return progressProjects.value.slice(start, start + PROJECTS_PER_PAGE)
 })
 const maxProjectPage = computed(() =>
-  Math.max(0, Math.ceil(progressProjects.length / PROJECTS_PER_PAGE) - 1),
+  Math.max(0, Math.ceil(progressProjects.value.length / PROJECTS_PER_PAGE) - 1),
 )
 function prevProjects() {
   if (projectPage.value > 0) projectPage.value--
@@ -33,15 +66,83 @@ function nextProjects() {
   if (projectPage.value < maxProjectPage.value) projectPage.value++
 }
 
-// ---- 카드형: 대기 프로젝트 롤링 ----
+// ---- 내 할 일 40건 페이징 (호버 시만 ◀▶) ----
+const taskPage = ref(0)
+const TASKS_PER_PAGE = 40
+const pagedTasks = computed(() => {
+  const start = taskPage.value * TASKS_PER_PAGE
+  return myTasks.value.slice(start, start + TASKS_PER_PAGE)
+})
+const maxTaskPage = computed(() =>
+  Math.max(0, Math.ceil(myTasks.value.length / TASKS_PER_PAGE) - 1),
+)
+const showTaskPager = computed(() => myTasks.value.length > TASKS_PER_PAGE)
+function prevTasks() {
+  if (taskPage.value > 0) taskPage.value--
+}
+function nextTasks() {
+  if (taskPage.value < maxTaskPage.value) taskPage.value++
+}
+
+const moreMenu = ref(null) // { id, x, y }
+function toggleMore(e, task) {
+  e.stopPropagation()
+  if (moreMenu.value?.id === task.id) {
+    moreMenu.value = null
+    return
+  }
+  const rect = e.currentTarget.getBoundingClientRect()
+  moreMenu.value = { id: task.id, task, x: rect.right - 140, y: rect.bottom + 4 }
+}
+function closeMore() {
+  moreMenu.value = null
+}
+function onDocClick() {
+  closeMore()
+}
+onMounted(() => document.addEventListener('click', onDocClick))
+onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
+
+const showScheduleModal = ref(false)
+const scheduleTarget = ref(null)
+
+function onTaskRowClick(task) {
+  closeMore()
+  const route = routeForTaskType(task.taskType)
+  openProject(
+    { id: task.projectId, name: task.project, stage: '처리중' },
+    route,
+  )
+}
+function onScheduleManage(task) {
+  closeMore()
+  openProject({ id: task.projectId, name: task.project, stage: '처리중' }, '/project/wbs')
+  scheduleTarget.value = {
+    wbsId: task.wbsId,
+    requirementName: task.name,
+    taskType: task.taskType,
+    assigneeDisplay: auth.user?.name || '김현대',
+    planStart: null,
+    planEnd: null,
+    execStart: null,
+    execEnd: null,
+  }
+  showScheduleModal.value = true
+}
+function onWbsDetail(task) {
+  closeMore()
+  openProject({ id: task.projectId, name: task.project, stage: '처리중' }, '/project/wbs')
+}
+
+// ---- 대기 롤링 ----
 const waitingPage = ref(0)
 const WAITING_PER_PAGE = 3
 const pagedWaiting = computed(() => {
   const start = waitingPage.value * WAITING_PER_PAGE
-  return waitingProjects.slice(start, start + WAITING_PER_PAGE)
+  return waitingProjects.value.slice(start, start + WAITING_PER_PAGE)
 })
 const maxWaitingPage = computed(() =>
-  Math.max(0, Math.ceil(waitingProjects.length / WAITING_PER_PAGE) - 1),
+  Math.max(0, Math.ceil(waitingProjects.value.length / WAITING_PER_PAGE) - 1),
 )
 function prevWaiting() {
   if (waitingPage.value > 0) waitingPage.value--
@@ -53,7 +154,6 @@ function nextWaiting() {
 
 <template>
   <div class="inbox">
-    <!-- 상단 요약 바 -->
     <div class="summary">
       <div class="summary__stats">
         <div class="stat-chip stat-chip--brand">
@@ -126,20 +226,25 @@ function nextWaiting() {
       </div>
     </div>
 
-    <!-- ================= 카드형 ================= -->
     <template v-if="viewMode === 'card'">
-      <!-- 진행중 -->
       <section class="block">
         <div class="block__head">
           <h3>진행중 <span class="cnt">({{ progressProjects.length }})</span></h3>
           <div class="roll">
-            <button class="roll__btn" :disabled="projectPage === 0" @click="prevProjects">◀</button>
-            <button class="roll__btn" :disabled="projectPage >= maxProjectPage" @click="nextProjects">▶</button>
+            <button type="button" class="roll__btn" :disabled="projectPage === 0" @click="prevProjects">◀</button>
+            <button type="button" class="roll__btn" :disabled="projectPage >= maxProjectPage" @click="nextProjects">▶</button>
           </div>
         </div>
 
         <div v-if="progressProjects.length" class="pcards">
-          <div v-for="p in pagedProjects" :key="p.id" class="pcard" :class="p.stageType">
+          <button
+            v-for="p in pagedProjects"
+            :key="p.id"
+            type="button"
+            class="pcard"
+            :class="p.stageType"
+            @click="openProject(p, '/project/info')"
+          >
             <div class="pcard__top">
               <span class="pcard__dday">{{ p.openDate }} ( {{ p.dday }} )</span>
               <span class="stbadge" :class="p.stageType">{{ p.stage }}</span>
@@ -185,15 +290,18 @@ function nextWaiting() {
                 <span class="mini-stat__lab">완료</span>
               </div>
             </div>
-          </div>
+          </button>
         </div>
         <div v-else class="empty">• 배정된 프로젝트가 없습니다.</div>
       </section>
 
-      <!-- 내 할 일 -->
       <section class="block">
-        <div class="block__head">
+        <div class="block__head block__head--tasks" :class="{ 'has-pager': showTaskPager }">
           <h3>내 할 일 <span class="cnt">({{ myTasks.length }})</span></h3>
+          <div v-if="showTaskPager" class="roll roll--hover">
+            <button type="button" class="roll__btn" :disabled="taskPage === 0" @click="prevTasks">◀</button>
+            <button type="button" class="roll__btn" :disabled="taskPage >= maxTaskPage" @click="nextTasks">▶</button>
+          </div>
         </div>
 
         <div v-if="myTasks.length" class="listcard">
@@ -204,10 +312,16 @@ function nextWaiting() {
                 <th style="width:220px">마감일 (D-day)</th>
                 <th style="width:110px">공정률</th>
                 <th style="width:34%">프로젝트명</th>
+                <th style="width:44px"></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="t in myTasks" :key="t.id" class="click">
+              <tr
+                v-for="t in pagedTasks"
+                :key="t.id"
+                class="click"
+                @click="onTaskRowClick(t)"
+              >
                 <td>{{ t.name }}</td>
                 <td class="due-cell">
                   <span :class="{ delay: t.delayed }">{{ t.dueLabel }}</span>
@@ -216,36 +330,59 @@ function nextWaiting() {
                 </td>
                 <td>{{ t.progress === null ? '-%' : t.progress + '%' }}</td>
                 <td class="ell">{{ t.project }}</td>
+                <td class="more-cell" @click.stop>
+                  <button type="button" class="more-btn" @click="toggleMore($event, t)">⋯</button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
         <div v-else class="empty">• 진행중인 업무가 없습니다.</div>
+        <p class="guide">{{ INBOX_GUIDE }}</p>
       </section>
 
-      <!-- 대기 -->
       <section class="block">
         <div class="block__head">
           <h3>대기 <span class="cnt">({{ waitingProjects.length }})</span></h3>
           <div class="roll">
-            <button class="roll__btn" :disabled="waitingPage === 0" @click="prevWaiting">◀</button>
-            <button class="roll__btn" :disabled="waitingPage >= maxWaitingPage" @click="nextWaiting">▶</button>
+            <button type="button" class="roll__btn" :disabled="waitingPage === 0" @click="prevWaiting">◀</button>
+            <button type="button" class="roll__btn" :disabled="waitingPage >= maxWaitingPage" @click="nextWaiting">▶</button>
           </div>
         </div>
 
         <div v-if="waitingProjects.length" class="wcards">
-          <div v-for="w in pagedWaiting" :key="w.id" class="wcard click">
+          <button
+            v-for="w in pagedWaiting"
+            :key="w.id"
+            type="button"
+            class="wcard click"
+            @click="openProject(w, '/project/info')"
+          >
             <div class="wcard__meta">{{ w.owner }} | {{ w.openDate }}</div>
             <div class="wcard__name">{{ w.name }}</div>
             <span class="stbadge recv">{{ w.stage }}</span>
-          </div>
+          </button>
         </div>
         <div v-else class="empty">• 접수된 프로젝트가 없습니다.</div>
+        <p class="guide">{{ INBOX_GUIDE }}</p>
       </section>
     </template>
 
-    <!-- ================= 캘린더형 ================= -->
     <InboxCalendar v-else />
+
+    <Teleport to="body">
+      <div
+        v-if="moreMenu"
+        class="more-layer"
+        :style="{ left: `${moreMenu.x}px`, top: `${moreMenu.y}px` }"
+        @click.stop
+      >
+        <button type="button" @click="onScheduleManage(moreMenu.task)">일정관리</button>
+        <button type="button" @click="onWbsDetail(moreMenu.task)">WBS 상세</button>
+      </div>
+    </Teleport>
+
+    <WbsScheduleModal v-model="showScheduleModal" :task="scheduleTarget" />
   </div>
 </template>
 
@@ -366,6 +503,19 @@ function nextWaiting() {
 .block__head .cnt {
   color: var(--lnb-logo);
 }
+.block__head--tasks {
+  gap: 8px;
+}
+.block__head--tasks .roll--hover {
+  margin-left: auto;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.block__head--tasks.has-pager:hover .roll--hover {
+  opacity: 1;
+  pointer-events: auto;
+}
 .roll {
   margin-left: auto;
   display: flex;
@@ -401,6 +551,10 @@ function nextWaiting() {
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  width: 100%;
 }
 .pcard:hover {
   transform: translateY(-3px);
@@ -624,6 +778,9 @@ function nextWaiting() {
   border-radius: 10px;
   padding: 14px 16px;
   cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
 }
 .wcard:hover {
   border-color: var(--lnb-logo);
@@ -646,5 +803,58 @@ function nextWaiting() {
   padding: 22px;
   color: var(--lnb-muted);
   font-size: 12.5px;
+}
+
+.guide {
+  margin: 10px 2px 0;
+  font-size: 11.5px;
+  color: var(--lnb-muted);
+  line-height: 1.55;
+}
+
+.more-cell {
+  text-align: center;
+}
+.more-btn {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--lnb-muted);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.more-btn:hover {
+  background: var(--lnb-hover);
+  color: var(--lnb-logo);
+}
+
+.more-layer {
+  position: fixed;
+  z-index: 10000;
+  min-width: 132px;
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.more-layer button {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--lnb-txt);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.more-layer button:hover {
+  background: var(--teal-50);
+  color: var(--teal-700);
 }
 </style>

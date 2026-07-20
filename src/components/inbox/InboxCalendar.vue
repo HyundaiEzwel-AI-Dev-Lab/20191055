@@ -4,23 +4,27 @@
  * 멀티데이 업무: 주 단위 가로 span 바 (일별 중복 표기 X)
  */
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { calendarTasks, unscheduledTasks, projectColors } from '@/data/inboxCalendar'
 import { myProjects } from '@/data/headerPopups'
+import { INBOX_GUIDE } from '@/data/inbox'
+import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { useTabsStore } from '@/stores/tabs'
-import { useSubTabsStore } from '@/stores/subTabs'
+import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const VISIBLE_LANES = 2
 
-const router = useRouter()
+const auth = useAuthStore()
 const projectStore = useProjectStore()
-const tabsStore = useTabsStore()
-const subTabsStore = useSubTabsStore()
+
+const isEmptyUser = computed(() => auth.user?.id === '2024099')
+const tasks = computed(() => (isEmptyUser.value ? [] : calendarTasks))
+const unsched = computed(() => (isEmptyUser.value ? [] : unscheduledTasks))
 
 const today = new Date(2026, 2, 20)
 const cursor = ref(new Date(2026, 2, 1))
+const showScheduleModal = ref(false)
+const scheduleTarget = ref(null)
 
 const calendarLabel = computed(
   () => `${cursor.value.getFullYear()}년 ${cursor.value.getMonth() + 1}월`,
@@ -60,7 +64,7 @@ function layoutWeekBars(weekCells) {
   const weekStart = weekCells[0].iso
   const weekEnd = weekCells[6].iso
 
-  const segments = calendarTasks
+  const segments = tasks.value
     .filter((t) => t.end >= weekStart && t.start <= weekEnd)
     .map((t) => {
       const segStart = t.start > weekStart ? t.start : weekStart
@@ -150,37 +154,39 @@ function resolveProject(task) {
   return found || { id: 'p1', name: raw || '프로젝트', stage: '처리중' }
 }
 
-function openWbs(task, action) {
+function openScheduleModal(task) {
   const project = resolveProject(task)
   projectStore.setCurrentProject({
     id: project.id,
     name: project.name,
     stage: project.stage,
   })
-  tabsStore.openProjectTab({
-    projectId: project.id,
-    title: project.name,
-    projectName: project.name,
-    route: '/project/wbs',
-  })
-  subTabsStore.openSubTab(project.id, {
-    id: 'wbs',
-    title: 'WBS',
-    route: '/project/wbs',
-  })
-  router.push({
-    path: '/project/wbs',
-    query: action ? { action, task: task.name || '' } : undefined,
-  })
+  scheduleTarget.value = {
+    wbsId: task.id || 'WBS-CAL',
+    requirementName: task.name,
+    taskType: '개발',
+    assigneeDisplay: auth.user?.name || '김현대',
+    planStart: task.start || null,
+    planEnd: task.end || null,
+    execStart: null,
+    execEnd: null,
+  }
+  showScheduleModal.value = true
 }
 
 function onTaskClick(task) {
   if (task.displayStatus === 'done') return
-  openWbs(task, 'schedule')
+  openScheduleModal(task)
 }
 
 function onScheduleRegister(task) {
-  openWbs(task, 'register')
+  openScheduleModal({
+    ...task,
+    name: task.name,
+    start: null,
+    end: null,
+    project: task.project,
+  })
 }
 
 function blockStyle(task) {
@@ -273,10 +279,10 @@ function statusLabel(task) {
 
       <aside class="unsched">
         <div class="unsched__head">
-          일정 미등록 업무 <span class="cnt">({{ unscheduledTasks.length }})</span>
+          일정 미등록 업무 <span class="cnt">({{ unsched.length }})</span>
         </div>
-        <div v-if="unscheduledTasks.length" class="unsched__list">
-          <div v-for="u in unscheduledTasks" :key="u.id" class="ucard">
+        <div v-if="unsched.length" class="unsched__list">
+          <div v-for="u in unsched" :key="u.id" class="ucard">
             <div class="ucard__proj" :title="u.project">{{ u.project }}</div>
             <div class="ucard__name">{{ u.name }}</div>
             <button class="btn-ghost" @click="onScheduleRegister(u)">일정 등록</button>
@@ -285,6 +291,8 @@ function statusLabel(task) {
         <div v-else class="unsched__empty">일정 미등록 업무가 없습니다.</div>
       </aside>
     </div>
+    <p class="cal-guide">{{ INBOX_GUIDE }}</p>
+    <WbsScheduleModal v-model="showScheduleModal" :task="scheduleTarget" />
   </div>
 </template>
 
@@ -292,6 +300,13 @@ function statusLabel(task) {
 .cal-view {
   display: flex;
   flex-direction: column;
+}
+
+.cal-guide {
+  margin: 12px 2px 0;
+  font-size: 11.5px;
+  color: var(--lnb-muted);
+  line-height: 1.55;
 }
 
 .cal-view__body {

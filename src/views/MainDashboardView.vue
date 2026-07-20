@@ -14,6 +14,7 @@ import {
   devDepts,
   stageOptions,
 } from '@/data/dashboard'
+import { pageSizeOptions } from '@/data/commonOptions'
 import { getScheduleChange } from '@/data/scheduleChange'
 import ScheduleChangeModal from '@/components/dashboard/ScheduleChangeModal.vue'
 import RequirementListModal from '@/components/dashboard/RequirementListModal.vue'
@@ -36,6 +37,8 @@ const filters = ref({
 })
 
 const appliedFilters = ref({ ...filters.value })
+const pageSize = ref(20)
+const currentPage = ref(1)
 
 const showScheduleModal = ref(false)
 const scheduleModalData = ref(null)
@@ -75,6 +78,19 @@ const filteredProjects = computed(() => {
   })
 })
 
+const pagedProjects = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredProjects.value.slice(start, start + pageSize.value)
+})
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredProjects.value.length / pageSize.value)),
+)
+
+function onPageSizeChange() {
+  currentPage.value = 1
+}
+
 function buildConicGradient(items) {
   const total = items.reduce((s, i) => s + i.count, 0)
   if (!total) return 'conic-gradient(var(--lnb-line) 0 100%)'
@@ -109,10 +125,12 @@ function resetFilters() {
     openTo: '',
   }
   appliedFilters.value = { ...filters.value }
+  currentPage.value = 1
 }
 
 function search() {
   appliedFilters.value = { ...filters.value }
+  currentPage.value = 1
 }
 
 function onExcelDownload() {
@@ -345,7 +363,10 @@ function onOverdueClick(row) {
       <div class="listcard__head">
         <h3 class="sec-title">프로젝트 목록</h3>
         <span class="listcard__cnt">총 <b>{{ filteredProjects.length }}</b>건</span>
-        <ExcelDownloadButton push-end @click="onExcelDownload" />
+        <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
+          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
+        </select>
+        <ExcelDownloadButton @click="onExcelDownload" />
       </div>
       <div class="listcard__scroll">
         <table class="tbl">
@@ -363,7 +384,7 @@ function onOverdueClick(row) {
           </thead>
           <tbody>
             <tr
-              v-for="row in filteredProjects"
+              v-for="row in pagedProjects"
               :key="row.id"
               class="tbl__row"
               @click="onProjectClick(row)"
@@ -416,8 +437,32 @@ function onOverdueClick(row) {
         </table>
       </div>
       <div class="pager">
-        <button type="button" class="pager__pg pager__pg--on">1</button>
-        <span class="pager__info">100건씩 보기</span>
+        <button
+          type="button"
+          class="pager__pg"
+          :disabled="currentPage <= 1"
+          @click="currentPage = Math.max(1, currentPage - 1)"
+        >
+          «
+        </button>
+        <button
+          v-for="p in totalPages"
+          :key="p"
+          type="button"
+          class="pager__pg"
+          :class="{ 'pager__pg--on': p === currentPage }"
+          @click="currentPage = p"
+        >
+          {{ p }}
+        </button>
+        <button
+          type="button"
+          class="pager__pg"
+          :disabled="currentPage >= totalPages"
+          @click="currentPage = Math.min(totalPages, currentPage + 1)"
+        >
+          »
+        </button>
       </div>
     </section>
 
@@ -874,6 +919,17 @@ function onOverdueClick(row) {
   color: var(--teal-600);
 }
 
+.listcard__pagesize {
+  height: 28px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
+}
+
 .listcard__scroll {
   overflow-x: auto;
 }
@@ -1009,10 +1065,9 @@ function onOverdueClick(row) {
   font-weight: 700;
 }
 
-.pager__info {
-  font-size: 11px;
-  color: var(--lnb-muted);
-  margin-left: 8px;
+.pager__pg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1200px) {
