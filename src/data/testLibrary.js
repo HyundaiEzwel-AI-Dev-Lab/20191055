@@ -80,6 +80,7 @@ export const libraryList = reactive([
     systemPath: 'HIMS > 법인숙박 > 여행레저 > 복지혜택',
     screenName: '복지혜택 신청',
     sourceProject: 'DL이앤씨 숙박바우처 변경 개발',
+    sourceProjectId: 'PJ1031',
     openMonth: '2026-04',
     caseCount: 2,
     stepCount: 4,
@@ -115,6 +116,7 @@ export const libraryList = reactive([
     systemPath: 'FO > 주문클레임 > 주문/결제',
     screenName: '주문취소',
     sourceProject: '주문취소 시 쿠폰 할인취소 정보 표기',
+    sourceProjectId: 'PJ1017',
     openMonth: '2026-04',
     caseCount: 1,
     stepCount: 3,
@@ -142,6 +144,7 @@ export const libraryList = reactive([
     systemPath: 'HIMS > 정산 > 정산 > 대사',
     screenName: '정산대사',
     sourceProject: '정산 대사 자동화',
+    sourceProjectId: 'PJ1012',
     openMonth: '2026-03',
     caseCount: 1,
     stepCount: 2,
@@ -168,6 +171,7 @@ export const libraryList = reactive([
     systemPath: 'FO > 회원/로그인 > SSO',
     screenName: 'SSO 로그인',
     sourceProject: 'SSO 연동 개선',
+    sourceProjectId: 'PJ1028',
     openMonth: '2026-02',
     caseCount: 1,
     stepCount: 2,
@@ -194,6 +198,7 @@ export const libraryList = reactive([
     systemPath: 'HPAS > 결제 > 정산',
     screenName: '결제내역 조회',
     sourceProject: '결제 정산 고도화',
+    sourceProjectId: 'PJ1019',
     openMonth: '2026-01',
     caseCount: 1,
     stepCount: 2,
@@ -227,6 +232,7 @@ export function flattenLibraryCases(list = libraryList) {
       systemPath: lib.systemPath,
       screenName: lib.screenName,
       sourceProject: lib.sourceProject,
+      sourceProjectId: lib.sourceProjectId || '',
       registeredAt: lib.registeredAt,
       registeredBy: lib.registeredBy,
       system: lib.system || parseSystemFromPath(lib.systemPath),
@@ -260,11 +266,11 @@ export function matchLibraryFilters(row, filters) {
     if (q.length >= 2 && !row.caseName.toLowerCase().includes(q.toLowerCase())) return false
     if (q.length === 1) return false // SB: 2자 이상
   }
-  if (
-    filters.sourceProject &&
-    !row.sourceProject.toLowerCase().includes(filters.sourceProject.toLowerCase())
-  ) {
-    return false
+  if (filters.sourceProject) {
+    const q = filters.sourceProject.toLowerCase()
+    const matchesName = row.sourceProject.toLowerCase().includes(q)
+    const matchesId = (row.sourceProjectId || '').toLowerCase().includes(q)
+    if (!matchesName && !matchesId) return false
   }
   if (filters.openMonth && filters.openMonth !== '전체' && row.openMonth !== filters.openMonth) {
     return false

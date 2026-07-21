@@ -243,6 +243,9 @@ function pickScreen(row) {
     filters.value.system = row.system
     filters.value.bizCategory = row.bizCategory
   } else {
+    if (!isNew.value && form.screenName && form.screenName !== row.screenName) {
+      window.alert('화면(메뉴) 변경사항은 기존 테스트에는 반영되지 않으며, 신규로 등록되는 테스트부터 적용됩니다.')
+    }
     form.system = row.system
     form.bizCategory = row.bizCategory
     form.screenName = row.screenName
@@ -415,7 +418,7 @@ function onExcelDownload() {
             v-model="filters.sourceProject"
             class="filter__input"
             type="text"
-            placeholder="프로젝트명"
+            placeholder="프로젝트명 또는 프로젝트ID"
             @keyup.enter="search"
           />
         </div>
@@ -481,7 +484,15 @@ function onExcelDownload() {
             </div>
           </button>
 
-          <div v-if="!paged.length" class="tlb-empty">등록 된 테스트 케이스가 없습니다.</div>
+          <div v-if="!paged.length" class="tlb-empty">
+            <svg class="tlb-empty__img" viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="10" y="20" width="44" height="34" rx="3" />
+              <path d="M10 30h44" />
+              <path d="M22 40h20" />
+              <path d="M22 46h12" />
+            </svg>
+            <p>등록 된 테스트 케이스가 없습니다.</p>
+          </div>
         </div>
 
         <div v-if="totalPages > 1" class="tlb-list__pager">
@@ -1071,10 +1082,22 @@ function onExcelDownload() {
 }
 
 .tlb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   text-align: center;
   color: var(--lnb-muted);
   padding: 48px 16px;
   font-size: 13px;
+}
+
+.tlb-empty__img {
+  color: var(--lnb-line);
+}
+
+.tlb-empty p {
+  margin: 0;
 }
 
 .tlb-empty--detail {

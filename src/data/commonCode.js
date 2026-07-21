@@ -4,16 +4,18 @@ export const commonCodeMeta = {
   hint: 'H-PMS 공통코드 · 분류 → 코드상세',
 }
 
-export const codeCategories = [
-  '프로젝트 처리단계',
-  '요건 우선순위',
-  '업무유형',
-  '발의주체',
-  '개발구분',
-  '적요',
-  '조치상태',
-  '배포상태',
+export const codeCategoryGroups = [
+  {
+    group: '프로젝트',
+    items: ['프로젝트 처리단계', '요건 우선순위', '업무유형', '발의주체', '개발구분', '적요'],
+  },
+  {
+    group: '테스트/결함',
+    items: ['조치상태', '배포상태'],
+  },
 ]
+
+export const codeCategories = codeCategoryGroups.flatMap((g) => g.items)
 
 export const codeDetails = {
   '프로젝트 처리단계': [
@@ -63,5 +65,11 @@ export const codeDetails = {
 }
 
 export function getCodeDetails(category) {
-  return (codeDetails[category] || []).map((r) => ({ ...r }))
+  return (codeDetails[category] || []).map((r) => ({
+    registeredBy: 'system',
+    registeredAt: '2026-01-01 00:00:00',
+    updatedBy: '-',
+    updatedAt: null,
+    ...r,
+  }))
 }

@@ -4,6 +4,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
+import RequirementChangeReasonModal from '@/components/requirement/RequirementChangeReasonModal.vue'
 import {
   requirementTypes,
   registerTaskTypes,
@@ -36,6 +37,8 @@ const form = reactive({
   confirmRequester: false,
   confirmTech: false,
   memo: '',
+  attachments: [],
+  extraCategories: [],
 })
 
 const isEdit = computed(() => props.mode === 'edit')
@@ -112,16 +115,19 @@ const showSaveButton = computed(() => canEditFields.value || canEditScreenOnly.v
 
 const memoCount = computed(() => form.memo.length)
 const showScreenSearch = ref(false)
+const showChangeReasonModal = ref(false)
 const confirmTipOpen = ref(false)
 
 const confirmTooltip =
   '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 최종 개발 요구사항 확인 완료 (확정 후 요건 수정 불가)\n- 미확정 : 최종 개발 요구사항 확정 전 (요건 수정 가능)'
 
-const screenDisplay = computed(() => {
-  if (form.screenName && form.screenPath) return `${form.screenName} (${form.screenPath})`
-  if (form.screenName) return form.screenName
-  return form.screenMenu || ''
-})
+function screenDisplayFor(block) {
+  if (block.screenName && block.screenPath) return `${block.screenName} (${block.screenPath})`
+  if (block.screenName) return block.screenName
+  return block.screenMenu || ''
+}
+
+const screenDisplay = computed(() => screenDisplayFor(form))
 
 const metaLine = computed(() => {
   if (!isEdit.value || !props.data) return ''
@@ -155,6 +161,8 @@ watch(
         confirmRequester: false,
         confirmTech: false,
         memo: '',
+        attachments: [],
+        extraCategories: [],
       })
     } else if (props.data && isEdit.value) {
       Object.assign(form, {
@@ -174,6 +182,8 @@ watch(
         confirmRequester: props.data.confirmRequester === '확정',
         confirmTech: props.data.confirmTech === '확정',
         memo: props.data.memo || '',
+        attachments: [...(props.data.attachments || [])],
+        extraCategories: [],
       })
     } else {
       Object.assign(form, {
@@ -193,6 +203,8 @@ watch(
         confirmRequester: false,
         confirmTech: false,
         memo: '',
+        attachments: [],
+        extraCategories: [],
       })
     }
   },
@@ -202,15 +214,67 @@ function close() {
   emit('update:modelValue', false)
 }
 
-function openScreenSearch() {
-  if (!canEditScreen.value) return
+const activeExtraIndex = ref(null)
+
+const activeScreenSystem = computed(() =>
+  activeExtraIndex.value === null
+    ? form.system
+    : form.extraCategories[activeExtraIndex.value]?.system || 'FO',
+)
+
+function openScreenSearch(index = null) {
+  if (index === null && !canEditScreen.value) return
+  activeExtraIndex.value = index
   showScreenSearch.value = true
 }
 
 function onScreenSelect(screen) {
-  form.screenName = screen.name
-  form.screenPath = screen.path
-  form.screenMenu = screen.name
+  const target = activeExtraIndex.value === null ? form : form.extraCategories[activeExtraIndex.value]
+  if (!target) return
+  target.screenName = screen.name
+  target.screenPath = screen.path
+  target.screenMenu = screen.name
+}
+
+function bizOptionsFor(system) {
+  return bizCategoryMap[system] || []
+}
+
+function addCategoryBlock() {
+  if (!canEditFields.value) return
+  const system = systemOptions.find((s) => s !== form.system) || systemOptions[0]
+  form.extraCategories.push({
+    system,
+    bizCategory: bizOptionsFor(system)[0] || '',
+    screenMenu: '',
+    screenPath: '',
+    screenName: '',
+  })
+}
+
+function removeCategoryBlock(index) {
+  form.extraCategories.splice(index, 1)
+}
+
+function onExtraSystemChange(index) {
+  const block = form.extraCategories[index]
+  if (!block) return
+  const opts = bizOptionsFor(block.system)
+  block.bizCategory = opts[0] || ''
+  block.screenMenu = ''
+  block.screenPath = ''
+  block.screenName = ''
+}
+
+function onAttachmentChange(event) {
+  const files = Array.from(event.target.files || [])
+  files.forEach((file) => form.attachments.push(file.name))
+  event.target.value = ''
+}
+
+function removeAttachment(idx) {
+  if (!canEditFields.value) return
+  form.attachments.splice(idx, 1)
 }
 
 function toggleTaskType(type) {
@@ -240,12 +304,15 @@ function onStatusChange(next) {
 
 function onConfirmToggle(field, event) {
   const checked = event.target.checked
-  if (field === 'confirmRequester' && !canEditConfirmRequester.value) {
-    event.target.checked = form.confirmRequester
-    return
-  }
-  if (field === 'confirmTech' && !canEditConfirmTech.value) {
-    event.target.checked = form.confirmTech
+  const canEdit = field === 'confirmRequester' ? canEditConfirmRequester.value : canEditConfirmTech.value
+  if (!canEdit) {
+    event.target.checked = form[field]
+    if (!canEditFields.value) return
+    if (form.status !== '수용') {
+      window.alert('접수 상태에서는 요건확정을 처리할 수 없습니다. 상태를 수용으로 변경한 후 진행해 주세요.')
+    } else {
+      window.alert('이미 확정된 항목은 변경할 수 없습니다.')
+    }
     return
   }
   if (checked) {
@@ -274,6 +341,10 @@ function save() {
     window.alert('미입력 항목을 입력하세요.')
     return
   }
+  if (form.extraCategories.some((b) => !b.system || !b.bizCategory)) {
+    window.alert('추가된 업무범주의 시스템/업무구분을 선택해 주세요.')
+    return
+  }
   if (form.status === '수용' && !form.taskTypes.length) {
     window.alert('수용 상태에서는 업무유형을 1개 이상 선택해 주세요.')
     return
@@ -287,7 +358,60 @@ function save() {
     return
   }
   if (!window.confirm('저장하시겠습니까?')) return
+
+  if ((isRegister.value || isCopy.value) && form.extraCategories.length) {
+    const blocks = [
+      { system: form.system, bizCategory: form.bizCategory, screenMenu: form.screenMenu, screenPath: form.screenPath, screenName: form.screenName },
+      ...form.extraCategories,
+    ]
+    emit('save', blocks.map((b) => ({ ...form, ...b })))
+    return
+  }
+
+  if (isEdit.value) {
+    showChangeReasonModal.value = true
+    return
+  }
   emit('save', { ...form })
+}
+
+function onChangeReasonSave(reason) {
+  emit('save', { ...form, changeReason: reason })
+}
+
+const HISTORY_FIELD_LABELS = {
+  name: '요구사항명',
+  analysis: '요구사항 분석',
+  status: '상태',
+  priority: '우선순위',
+  taskTypes: '업무유형',
+  memo: '비고',
+}
+
+const historyList = computed(() => props.data?.changeHistory || [])
+const historyTotal = computed(() => historyList.value.length)
+const showAllHistory = ref(false)
+const expandedHistoryId = ref(null)
+
+const visibleHistory = computed(() => {
+  const ordered = historyList.value.slice().reverse()
+  return showAllHistory.value ? ordered : ordered.slice(0, 5)
+})
+
+function toggleHistoryDetail(id) {
+  expandedHistoryId.value = expandedHistoryId.value === id ? null : id
+}
+
+function diffFields(entry) {
+  const before = entry.before || {}
+  const after = entry.after || {}
+  return Object.keys(HISTORY_FIELD_LABELS)
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+    .map((key) => ({
+      label: HISTORY_FIELD_LABELS[key],
+      before: Array.isArray(before[key]) ? before[key].join(', ') : before[key] ?? '-',
+      after: Array.isArray(after[key]) ? after[key].join(', ') : after[key] ?? '-',
+    }))
 }
 </script>
 
@@ -390,13 +514,61 @@ function save() {
               type="button"
               class="btn btn--ghost btn--sm screen-search__btn"
               :disabled="!canEditScreen"
-              @click="openScreenSearch"
+              @click="openScreenSearch()"
             >
               검색
             </button>
           </div>
         </div>
       </div>
+
+      <div
+        v-for="(block, idx) in form.extraCategories"
+        :key="idx"
+        class="frow frow--3 category-block"
+      >
+        <div class="fld fld--req">
+          <label>시스템구분</label>
+          <select v-model="block.system" class="inp" @change="onExtraSystemChange(idx)">
+            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="fld fld--req">
+          <label>업무구분</label>
+          <select v-model="block.bizCategory" class="inp">
+            <option v-for="b in bizOptionsFor(block.system)" :key="b" :value="b">{{ b }}</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>화면(메뉴)</label>
+          <div class="screen-search">
+            <button
+              type="button"
+              class="screen-search__field"
+              @click="openScreenSearch(idx)"
+            >
+              <span v-if="screenDisplayFor(block)" class="screen-search__value">{{ screenDisplayFor(block) }}</span>
+              <span v-else class="screen-search__ph">화면(메뉴) 검색</span>
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm screen-search__btn" @click="openScreenSearch(idx)">
+              검색
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm" @click="removeCategoryBlock(idx)">
+              ✕
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button
+        v-if="(isRegister || isCopy) && canEditFields"
+        type="button"
+        class="btn btn--ghost btn--sm category-add-btn"
+        @click="addCategoryBlock"
+      >
+        ＋ 업무범주 추가
+      </button>
+
       <div class="fld fld--req">
         <label>업무유형</label>
         <div class="chips">
@@ -465,20 +637,20 @@ function save() {
           </button>
           <span v-if="confirmTipOpen" class="confirm-tip__bubble">{{ confirmTooltip }}</span>
         </span>
-        <label class="confirm-item">
+        <label class="confirm-item" :class="{ 'confirm-item--locked': !canEditConfirmRequester }">
           <input
             type="checkbox"
             :checked="form.confirmRequester"
-            :disabled="!canEditConfirmRequester"
+            :disabled="!canEditFields"
             @change="onConfirmToggle('confirmRequester', $event)"
           />
           요청자
         </label>
-        <label class="confirm-item">
+        <label class="confirm-item" :class="{ 'confirm-item--locked': !canEditConfirmTech }">
           <input
             type="checkbox"
             :checked="form.confirmTech"
-            :disabled="!canEditConfirmTech"
+            :disabled="!canEditFields"
             @change="onConfirmToggle('confirmTech', $event)"
           />
           테크
@@ -497,7 +669,76 @@ function save() {
         <span class="count">{{ memoCount }} / 500자</span>
       </div>
 
+      <div class="fld">
+        <label>첨부파일</label>
+        <div class="attach">
+          <span v-for="(file, idx) in form.attachments" :key="`${file}-${idx}`" class="attach__chip">
+            {{ file }}
+            <button
+              v-if="canEditFields"
+              type="button"
+              class="attach__x"
+              @click="removeAttachment(idx)"
+            >
+              ✕
+            </button>
+          </span>
+          <label v-if="canEditFields" class="attach__add">
+            ＋ 파일 추가
+            <input type="file" multiple class="attach__input" @change="onAttachmentChange" />
+          </label>
+        </div>
+      </div>
+
       <p v-if="metaLine" class="meta-line">{{ metaLine }}</p>
+    </section>
+
+    <section v-if="isEdit" class="section">
+      <h3 class="section__title">변경 이력</h3>
+      <div class="history-summary">총 <b>{{ historyTotal }}</b>건</div>
+
+      <div v-if="!historyList.length" class="history-empty">변경 이력이 없습니다.</div>
+
+      <ul v-else class="history-list">
+        <li v-for="entry in visibleHistory" :key="entry.id" class="history-item">
+          <div class="history-item__head">
+            <span class="history-item__round">{{ entry.round }}차</span>
+            <span class="history-item__reason">{{ entry.reason }}</span>
+            <span class="history-item__meta">{{ entry.changedBy }} · {{ entry.changedAt }}</span>
+            <button type="button" class="link-btn" @click="toggleHistoryDetail(entry.id)">
+              {{ expandedHistoryId === entry.id ? '접기' : '상세보기' }}
+            </button>
+          </div>
+          <table v-if="expandedHistoryId === entry.id" class="history-diff">
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th>변경 전</th>
+                <th>변경 후</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!diffFields(entry).length">
+                <td colspan="3">변경된 항목이 없습니다.</td>
+              </tr>
+              <tr v-for="f in diffFields(entry)" :key="f.label">
+                <td>{{ f.label }}</td>
+                <td>{{ f.before }}</td>
+                <td>{{ f.after }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </li>
+      </ul>
+
+      <button
+        v-if="!showAllHistory && historyTotal > 5"
+        type="button"
+        class="btn btn--ghost btn--sm history-more"
+        @click="showAllHistory = true"
+      >
+        더보기 ({{ historyTotal - 5 }}건)
+      </button>
     </section>
 
     <template #footer>
@@ -517,9 +758,10 @@ function save() {
 
   <RequirementScreenSearchModal
     v-model="showScreenSearch"
-    :system="form.system"
+    :system="activeScreenSystem"
     @select="onScreenSelect"
   />
+  <RequirementChangeReasonModal v-model="showChangeReasonModal" @save="onChangeReasonSave" />
 </template>
 
 <style scoped>
@@ -737,6 +979,10 @@ label.fld--req::after {
   opacity: 0.7;
 }
 
+.confirm-item--locked {
+  opacity: 0.7;
+}
+
 .meta-line {
   margin: 8px 0 0;
   font-size: 11px;
@@ -782,5 +1028,149 @@ label.fld--req::after {
 
 .screen-search__btn {
   flex-shrink: 0;
+}
+
+.category-block {
+  padding-top: 10px;
+  border-top: 1px dashed var(--lnb-line);
+}
+
+.category-add-btn {
+  margin-bottom: 12px;
+}
+
+.attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.attach__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--teal-100, var(--lnb-line));
+  background: var(--teal-50, var(--lnb-side));
+  border-radius: 20px;
+  font-size: 11.5px;
+  color: var(--teal-600, var(--lnb-txt));
+}
+
+.attach__x {
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+.attach__x:hover {
+  opacity: 1;
+}
+
+.attach__add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: 20px;
+  background: var(--lnb-side);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.attach__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.history-summary {
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--lnb-txt);
+}
+
+.history-summary b {
+  color: var(--teal-600);
+}
+
+.history-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--lnb-muted);
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  padding: 10px 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--lnb-hover, #f7f8f9);
+}
+
+.history-item__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.history-item__round {
+  font-weight: 700;
+  color: var(--teal-600);
+}
+
+.history-item__reason {
+  flex: 1;
+  min-width: 120px;
+  color: var(--lnb-txt);
+}
+
+.history-item__meta {
+  font-size: 11px;
+  color: var(--lnb-muted);
+}
+
+.history-diff {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.history-diff th,
+.history-diff td {
+  padding: 6px 8px;
+  border: 1px solid var(--lnb-line);
+  text-align: left;
+}
+
+.history-diff th {
+  background: #fff;
+  color: var(--lnb-muted);
+  font-weight: 600;
+}
+
+.history-more {
+  margin-top: 10px;
 }
 </style>

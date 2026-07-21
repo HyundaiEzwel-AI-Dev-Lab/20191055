@@ -1,31 +1,37 @@
 <script setup>
 // PAG-M-SYS-07 휴무일 관리
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
+  holidayMeta,
   holidayTypeOptions,
+  holidayFormTypeOptions,
   yearOptions,
   holidayList,
+  holidayMockToday,
   matchHolidayFilters,
-  holidayTypeClass,
 } from '@/data/holiday'
-import BaseModal from '@/components/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
-const rows = ref(holidayList.map((r) => ({ ...r })))
+const allRows = ref(holidayList.map((r) => ({ ...r })))
 const filters = ref({ year: 2026, type: '전체', keyword: '' })
 const applied = ref({ ...filters.value })
-const showForm = ref(false)
-const form = reactive({ id: '', date: '', name: '', type: '회사휴무', note: '', isNew: true })
+const selectedIds = ref([])
+const markedForDelete = ref([])
 
 const filtered = computed(() =>
-  rows.value
+  allRows.value
     .filter((r) => matchHolidayFilters(r, applied.value))
     .sort((a, b) => a.date.localeCompare(b.date)),
 )
 
+function isPast(date) {
+  return date < holidayMockToday
+}
+
 function search() {
   applied.value = { ...filters.value }
+  selectedIds.value = []
 }
 
 function resetFilters() {
@@ -33,59 +39,70 @@ function resetFilters() {
   search()
 }
 
-function openAdd() {
-  Object.assign(form, {
-    id: '',
+function toggleSelect(id) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx >= 0) selectedIds.value.splice(idx, 1)
+  else selectedIds.value.push(id)
+}
+
+function toggleSelectAll(e) {
+  selectedIds.value = e.target.checked
+    ? filtered.value.filter((r) => !isPast(r.date)).map((r) => r.id)
+    : []
+}
+
+function addRow() {
+  allRows.value.unshift({
+    id: `h-${Date.now()}`,
     date: `${applied.value.year}-01-01`,
     name: '',
     type: '회사휴무',
     note: '',
+    registeredBy: '김현대',
+    registeredAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    updatedBy: '-',
+    updatedAt: null,
     isNew: true,
   })
-  showForm.value = true
 }
 
-function openEdit(row) {
-  Object.assign(form, { ...row, isNew: false })
-  showForm.value = true
+function removeRows() {
+  if (!selectedIds.value.length) {
+    window.alert('삭제할 휴무일을 선택해 주세요.')
+    return
+  }
+  const next = new Set(markedForDelete.value)
+  selectedIds.value.forEach((id) => next.add(id))
+  markedForDelete.value = [...next]
+  selectedIds.value = []
 }
 
-function saveForm() {
-  if (!form.date || !form.name.trim()) {
-    window.alert('일자와 휴무일명은 필수입니다.')
+function saveAll() {
+  const remaining = allRows.value.filter((r) => !markedForDelete.value.includes(r.id))
+  const empty = remaining.find((r) => !r.date || !r.name.trim())
+  if (empty) {
+    window.alert('일자와 휴무일명이 비어 있는 행이 있습니다.')
     return
   }
-  const duplicated = rows.value.some(
-    (r) => r.date === form.date && r.id !== form.id,
-  )
-  if (duplicated) {
-    window.alert('이미 등록된 일자입니다.')
+  const dates = remaining.map((r) => r.date)
+  if (new Set(dates).size !== dates.length) {
+    window.alert('중복된 일자가 있습니다.')
     return
   }
-  if (form.isNew) {
-    rows.value.push({
-      id: `h-${Date.now()}`,
-      date: form.date,
-      name: form.name.trim(),
-      type: form.type,
-      note: form.note.trim(),
-    })
-  } else {
-    const target = rows.value.find((r) => r.id === form.id)
-    if (target) {
-      target.date = form.date
-      target.name = form.name.trim()
-      target.type = form.type
-      target.note = form.note.trim()
+  if (!window.confirm(`선택 삭제 ${markedForDelete.value.length}건을 포함하여 저장하시겠습니까?`)) return
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  remaining.forEach((r) => {
+    if (r.isNew) {
+      delete r.isNew
+    } else {
+      r.updatedBy = '김현대'
+      r.updatedAt = now
     }
-  }
-  showForm.value = false
-  search()
-}
-
-function removeRow(row) {
-  if (!window.confirm(`"${row.name}" 휴무일을 삭제할까요?`)) return
-  rows.value = rows.value.filter((r) => r.id !== row.id)
+  })
+  allRows.value = remaining
+  markedForDelete.value = []
+  selectedIds.value = []
+  window.alert(`${remaining.length}건이 저장되었습니다.`)
 }
 
 function onExcelDownload() {
@@ -94,12 +111,18 @@ function onExcelDownload() {
     { key: 'name', label: '휴무일명' },
     { key: 'type', label: '구분' },
     { key: 'note', label: '비고' },
+    { key: 'registeredBy', label: '등록자' },
+    { key: 'registeredAt', label: '등록일시' },
+    { key: 'updatedBy', label: '수정자' },
+    { key: 'updatedAt', label: '수정일시' },
   ])
 }
 </script>
 
 <template>
   <div class="admin-page">
+    <div class="notice">ⓘ {{ holidayMeta.hint }}</div>
+
     <section class="filter card">
       <div class="filter__row filter__row--3">
         <div class="filter__field">
@@ -136,7 +159,9 @@ function onExcelDownload() {
         {{ applied.year }}년 휴무일 · 총 <b>{{ filtered.length }}</b>일
       </span>
       <div class="toolbar__actions">
-        <button type="button" class="btn btn--primary btn--sm" @click="openAdd">＋ 휴무일 등록</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="addRow">＋</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="removeRows">－</button>
+        <button type="button" class="btn btn--primary btn--sm" @click="saveAll">저장</button>
         <ExcelDownloadButton @click="onExcelDownload" />
       </div>
     </div>
@@ -146,64 +171,65 @@ function onExcelDownload() {
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
               <th>일자</th>
               <th>휴무일명</th>
               <th>구분</th>
               <th>비고</th>
-              <th></th>
+              <th>등록자</th>
+              <th>등록일시</th>
+              <th>수정자</th>
+              <th>수정일시</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in filtered" :key="row.id">
-              <td><span class="tbl__name">{{ row.date }}</span></td>
-              <td>{{ row.name }}</td>
+            <tr
+              v-for="row in filtered"
+              :key="row.id"
+              :class="{ 'is-marked-delete': markedForDelete.includes(row.id) }"
+            >
               <td>
-                <span class="badge" :class="`badge--${holidayTypeClass(row.type)}`">{{ row.type }}</span>
+                <input
+                  type="checkbox"
+                  :disabled="isPast(row.date)"
+                  :checked="selectedIds.includes(row.id)"
+                  @change="toggleSelect(row.id)"
+                />
               </td>
-              <td class="tbl__muted">{{ row.note || '-' }}</td>
               <td>
-                <button type="button" class="link-btn" @click="openEdit(row)">수정</button>
-                <button type="button" class="link-btn link-btn--danger" style="margin-left: 10px" @click="removeRow(row)">삭제</button>
+                <input v-model="row.date" class="cell-input" type="date" />
               </td>
+              <td>
+                <input v-model="row.name" class="cell-input" type="text" placeholder="휴무일명 입력" />
+              </td>
+              <td>
+                <select v-model="row.type" class="cell-select">
+                  <option v-for="o in holidayFormTypeOptions" :key="o" :value="o">{{ o }}</option>
+                </select>
+              </td>
+              <td>
+                <input v-model="row.note" class="cell-input" type="text" placeholder="비고 입력" />
+              </td>
+              <td>{{ row.registeredBy }}</td>
+              <td class="tbl__muted">{{ row.registeredAt }}</td>
+              <td>
+                <span :class="{ 'tbl__muted': row.updatedBy === '-' }">{{ row.updatedBy }}</span>
+              </td>
+              <td class="tbl__muted">{{ row.updatedAt || '-' }}</td>
             </tr>
             <tr v-if="!filtered.length">
-              <td colspan="5" class="empty">조회 결과가 없습니다.</td>
+              <td colspan="9" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-
-    <BaseModal
-      :visible="showForm"
-      :title="form.isNew ? '휴무일 등록' : '휴무일 수정'"
-      @close="showForm = false"
-    >
-      <div class="modal-grid">
-        <div class="modal-field">
-          <label>일자</label>
-          <input v-model="form.date" class="filter__input" type="date" />
-        </div>
-        <div class="modal-field">
-          <label>구분</label>
-          <select v-model="form.type" class="filter__select">
-            <option value="법정공휴일">법정공휴일</option>
-            <option value="회사휴무">회사휴무</option>
-          </select>
-        </div>
-        <div class="modal-field modal-field--wide">
-          <label>휴무일명</label>
-          <input v-model="form.name" class="filter__input" type="text" />
-        </div>
-        <div class="modal-field modal-field--wide">
-          <label>비고</label>
-          <input v-model="form.note" class="filter__input" type="text" />
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn--ghost" @click="showForm = false">취소</button>
-        <button type="button" class="btn btn--primary" @click="saveForm">저장</button>
-      </template>
-    </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.is-marked-delete {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+</style>

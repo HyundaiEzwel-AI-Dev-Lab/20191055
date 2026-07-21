@@ -1,11 +1,13 @@
 <script setup>
 // PAG-S-UAT-14 결함관리
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useTestContext } from '@/composables/useTestContext'
 import {
   defectStatusOptions,
   defectGradeOptions,
   deployStatusOptions,
+  bizCategoryOptions,
   pageSizeOptions,
   defectStatusClass,
 } from '@/data/testConfig'
@@ -15,6 +17,7 @@ import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
 const { mode, config, pageTitle } = useTestContext()
+const route = useRoute()
 
 const rows = ref([])
 const filters = ref({
@@ -23,6 +26,9 @@ const filters = ref({
   status: '전체',
   grade: '전체',
   deployStatus: '전체',
+  bizCategory: '전체',
+  tester: '',
+  assignee: '',
 })
 const appliedFilters = ref({ ...filters.value })
 const pageSize = ref(20)
@@ -51,7 +57,13 @@ function loadData() {
   currentPage.value = 1
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+  if (route.query.bizCategory) {
+    filters.value.bizCategory = String(route.query.bizCategory)
+    appliedFilters.value = { ...filters.value }
+  }
+})
 watch(mode, loadData)
 
 function resetFilters() {
@@ -61,6 +73,9 @@ function resetFilters() {
     status: '전체',
     grade: '전체',
     deployStatus: '전체',
+    bizCategory: '전체',
+    tester: '',
+    assignee: '',
   }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
@@ -88,18 +103,24 @@ function onExcelDownload() {
   const label = `결함 관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`
   mockExcelDownload(label, filteredList.value, [
     { key: 'defectId', label: '결함ID' },
+    { key: 'systemPath', label: '시스템/업무/화면경로' },
     { key: 'caseId', label: '케이스' },
+    { key: 'caseName', label: '케이스명' },
     { key: 'screenName', label: '화면명' },
     { key: 'round', label: '차수' },
     { key: 'stepNo', label: '절차' },
     { key: 'title', label: '결함제목' },
     { key: 'grade', label: '등급' },
+    { key: 'result', label: '결과' },
     { key: 'occurrencePhase', label: '발생시점' },
     { key: 'deployStatus', label: '배포상태' },
     { key: 'status', label: '조치상태' },
+    { key: 'dueDate', label: '조치예정일' },
     { key: 'tester', label: '테스터' },
     { key: 'assignee', label: '담당자' },
     { key: 'registeredAt', label: '등록일' },
+    { key: 'updatedBy', label: '최종수정자' },
+    { key: 'updatedAt', label: '최종수정일' },
   ])
 }
 </script>
@@ -109,7 +130,7 @@ function onExcelDownload() {
     <h1 class="defect__title">{{ pageTitle }}</h1>
 
     <section class="filter card">
-      <div class="filter__row" :class="config.showDeployStatus ? 'filter__row--5' : 'filter__row--4'">
+      <div class="filter__row filter__row--auto">
         <div class="filter__field">
           <label>통합검색</label>
           <input v-model="filters.keyword" class="filter__input" type="text" placeholder="결함 ID, 제목" />
@@ -118,6 +139,12 @@ function onExcelDownload() {
           <label>차수</label>
           <select v-model="filters.round" class="filter__select">
             <option v-for="o in config.roundOptions" :key="o" :value="o">{{ o }}</option>
+          </select>
+        </div>
+        <div class="filter__field">
+          <label>업무범주</label>
+          <select v-model="filters.bizCategory" class="filter__select">
+            <option v-for="o in bizCategoryOptions" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
         <div class="filter__field">
@@ -137,6 +164,14 @@ function onExcelDownload() {
           <select v-model="filters.deployStatus" class="filter__select">
             <option v-for="o in deployStatusOptions" :key="o" :value="o">{{ o }}</option>
           </select>
+        </div>
+        <div class="filter__field">
+          <label>등록자</label>
+          <input v-model="filters.tester" class="filter__input" type="text" placeholder="등록자" />
+        </div>
+        <div class="filter__field">
+          <label>조치자</label>
+          <input v-model="filters.assignee" class="filter__input" type="text" placeholder="조치자" />
         </div>
       </div>
       <div class="filter__actions">
@@ -167,45 +202,59 @@ function onExcelDownload() {
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-no">No</th>
               <th>결함 ID</th>
+              <th>시스템/업무/화면경로</th>
               <th>케이스</th>
+              <th>케이스명</th>
               <th>화면명</th>
               <th>차수</th>
               <th>절차</th>
               <th>결함 제목</th>
               <th>등급</th>
+              <th>결과</th>
               <th v-if="config.showOccurrencePhase">발생시점</th>
               <th v-if="config.showDeployStatus">배포상태</th>
               <th>조치상태</th>
+              <th>조치예정일</th>
               <th>테스터</th>
               <th>담당자</th>
               <th>등록일</th>
+              <th>최종수정자</th>
+              <th>최종수정일</th>
               <th>상세</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in pagedList" :key="row.id">
+            <tr v-for="(row, idx) in pagedList" :key="row.id">
+              <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td>{{ row.defectId }}</td>
+              <td>{{ row.systemPath || '-' }}</td>
               <td>{{ row.caseId }}</td>
+              <td>{{ row.caseName }}</td>
               <td>{{ row.screenName }}</td>
               <td>{{ row.round }}</td>
               <td>{{ row.stepNo }}</td>
               <td>{{ row.title }}</td>
               <td><span class="grade" :class="`grade--${row.grade.toLowerCase()}`">{{ row.grade }}</span></td>
+              <td>{{ row.result }}</td>
               <td v-if="config.showOccurrencePhase">{{ row.occurrencePhase }}</td>
               <td v-if="config.showDeployStatus">{{ row.deployStatus }}</td>
               <td>
                 <span class="badge" :class="`badge--${defectStatusClass(row.status)}`">{{ row.status }}</span>
               </td>
+              <td>{{ row.dueDate || '-' }}</td>
               <td>{{ row.tester }}</td>
               <td>{{ row.assignee }}</td>
               <td>{{ row.registeredAt }}</td>
+              <td>{{ row.updatedBy || '-' }}</td>
+              <td>{{ row.updatedAt || '-' }}</td>
               <td>
                 <button type="button" class="link-btn" @click="openDetail(row)">보기</button>
               </td>
             </tr>
             <tr v-if="!pagedList.length">
-              <td :colspan="config.showDeployStatus ? 14 : 12" class="empty">조회 결과가 없습니다.</td>
+              <td :colspan="config.showDeployStatus ? 21 : 19" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -275,8 +324,7 @@ function onExcelDownload() {
   margin-bottom: 10px;
 }
 
-.filter__row--4 { grid-template-columns: repeat(4, 1fr); }
-.filter__row--5 { grid-template-columns: repeat(5, 1fr); }
+.filter__row--auto { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 
 .filter__field {
   display: flex;
@@ -371,6 +419,11 @@ function onExcelDownload() {
 .data-table th {
   background: var(--field);
   font-weight: 600;
+}
+
+.col-no {
+  width: 40px;
+  text-align: center !important;
 }
 
 .grade { font-weight: 600; font-size: 11px; }

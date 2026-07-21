@@ -8,6 +8,7 @@ import {
   planChangeReasons,
   holdChangeReasons,
   approverOptions,
+  assigneeOptions,
   calcRestartRange,
 } from '@/data/wbs'
 
@@ -29,6 +30,8 @@ const approver = ref('')
 const count = computed(() => rows.value.length)
 const isMulti = computed(() => count.value > 1)
 const isOther = computed(() => String(reason.value).includes('기타'))
+const plannerOptions = computed(() => assigneeOptions.기획 || [])
+const collaboratorEnabled = computed(() => !isMulti.value && plannerOptions.value.length >= 2)
 const reasonOptions = computed(() => {
   if (tab.value === 'hold') return holdChangeReasons
   return isMulti.value ? bulkPlanChangeReasons : planChangeReasons
@@ -75,10 +78,17 @@ function lockedStartValue(row) {
   return row.execStart || row.planStart || row.changeStart
 }
 
-function restartText(row) {
-  if (!row.holdStart || !row.holdEnd) return '-'
-  const r = calcRestartRange(row, row.holdStart, row.holdEnd)
-  return r.start ? `${r.start} ~ ${r.end}` : '-'
+function restartInfo(row) {
+  if (!row.holdStart || !row.holdEnd) return { start: '', end: '' }
+  return calcRestartRange(row, row.holdStart, row.holdEnd)
+}
+
+function restartStartText(row) {
+  return restartInfo(row).start || '-'
+}
+
+function restartEndText(row) {
+  return restartInfo(row).end || '-'
 }
 
 function onTabChange(next) {
@@ -223,22 +233,33 @@ function submit() {
               <th>업무유형</th>
               <th>담당자</th>
               <th>공정률</th>
-              <th colspan="2">현재일정</th>
+              <th colspan="2">현재일정(계획)</th>
+              <template v-if="tab === 'hold'">
+                <th colspan="2">현재일정(실행)</th>
+              </template>
               <template v-if="tab === 'plan'">
                 <th colspan="2">변경 일정</th>
               </template>
               <template v-else>
                 <th colspan="2">중단 일정</th>
-                <th>재착수 예상</th>
+                <th>재착수 예정일</th>
+                <th>보정 계획일</th>
               </template>
             </tr>
             <tr class="tbl__sub">
               <th colspan="7" />
               <th>시작일</th>
               <th>종료일</th>
+              <template v-if="tab === 'hold'">
+                <th>착수일</th>
+                <th>종료일</th>
+              </template>
               <th>시작일</th>
               <th>종료일</th>
-              <th v-if="tab === 'hold'" />
+              <template v-if="tab === 'hold'">
+                <th />
+                <th />
+              </template>
             </tr>
           </thead>
           <tbody>
@@ -252,6 +273,10 @@ function submit() {
               <td>{{ row.execProgress != null ? `${row.execProgress}%` : '-' }}</td>
               <td>{{ row.planStart || '-' }}</td>
               <td>{{ row.planEnd || '-' }}</td>
+              <template v-if="tab === 'hold'">
+                <td>{{ row.execStart || '-' }}</td>
+                <td>{{ row.execEnd || '-' }}</td>
+              </template>
 
               <template v-if="tab === 'plan'">
                 <td>
@@ -274,11 +299,12 @@ function submit() {
                 <td>
                   <input v-model="row.holdEnd" class="inp inp--date" type="date" />
                 </td>
-                <td class="restart">{{ restartText(row) }}</td>
+                <td class="restart">{{ restartStartText(row) }}</td>
+                <td class="restart">{{ restartEndText(row) }}</td>
               </template>
             </tr>
             <tr v-if="!rows.length">
-              <td :colspan="tab === 'hold' ? 12 : 11" class="empty">선택된 업무가 없습니다.</td>
+              <td :colspan="tab === 'hold' ? 15 : 11" class="empty">선택된 업무가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -310,13 +336,12 @@ function submit() {
     <div class="section row2">
       <div>
         <h4 class="section__title">공유 (기획/현업)</h4>
-        <input
-          v-model="collaborator"
-          class="inp"
-          type="text"
-          :disabled="isMulti"
-          :placeholder="isMulti ? '다건 변경 시 비활성화' : '선택'"
-        />
+        <select v-model="collaborator" class="inp" :disabled="!collaboratorEnabled">
+          <option value="">
+            {{ isMulti ? '다건 변경 시 비활성화' : collaboratorEnabled ? '선택' : '기획자 1인 이하로 비활성화' }}
+          </option>
+          <option v-for="p in plannerOptions" :key="p" :value="p">{{ p }}</option>
+        </select>
       </div>
       <div>
         <h4 class="section__title">승인 (팀장) <span class="req">*</span></h4>

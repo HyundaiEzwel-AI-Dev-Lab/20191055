@@ -7,7 +7,8 @@ export const userMgmtMeta = {
 export const deptOptions = ['전체', '테크기획팀', '플랫폼팀', '개발팀', '디자인팀', '개발(외주)', '웹기획팀']
 export const roleOptions = ['전체', '마스터', '관리자', '사용자', '미설정']
 export const positionOptions = ['책임', '선임', '사원', '연구원']
-export const statusOptions = ['전체', '재직', '휴직', '퇴직', '잠금']
+export const statusOptions = ['전체', '재직', '휴직', '정직', '퇴직', '잠금']
+export const employmentStatusOptions = ['재직', '휴직', '정직', '퇴직']
 export { pageSizeOptions } from './commonOptions'
 
 export const userList = [
@@ -22,6 +23,9 @@ export const userList = [
     phone: '01012345678',
     failCount: 0,
     type: '임직원',
+    memo: '',
+    registeredAt: '2020-03-15',
+    updatedAt: '2026-01-05',
   },
   {
     id: '20180922',
@@ -34,6 +38,9 @@ export const userList = [
     phone: '01023456789',
     failCount: 0,
     type: '임직원',
+    memo: '',
+    registeredAt: '2018-09-22',
+    updatedAt: '2025-11-20',
   },
   {
     id: 'EXT-0451',
@@ -46,6 +53,9 @@ export const userList = [
     phone: '01034567890',
     failCount: 0,
     type: '외주',
+    memo: '외주 개발 인력',
+    registeredAt: '2023-06-01',
+    updatedAt: '2026-02-10',
   },
   {
     id: '20150133',
@@ -58,6 +68,9 @@ export const userList = [
     phone: '01045678901',
     failCount: 0,
     type: '임직원',
+    memo: '',
+    registeredAt: '2015-01-13',
+    updatedAt: '2026-03-01',
   },
   {
     id: '2024001',
@@ -70,6 +83,9 @@ export const userList = [
     phone: '01012345678',
     failCount: 0,
     type: '임직원',
+    memo: '',
+    registeredAt: '2024-01-02',
+    updatedAt: '2026-01-10',
   },
   {
     id: '2024002',
@@ -82,6 +98,9 @@ export const userList = [
     phone: '01034567890',
     failCount: 5,
     type: '임직원',
+    memo: '',
+    registeredAt: '2024-01-03',
+    updatedAt: '2026-04-16',
   },
   {
     id: '2024003',
@@ -94,6 +113,9 @@ export const userList = [
     phone: '01045678901',
     failCount: 0,
     type: '임직원',
+    memo: '',
+    registeredAt: '2024-01-04',
+    updatedAt: '2026-02-20',
   },
   {
     id: '2024005',
@@ -106,13 +128,22 @@ export const userList = [
     phone: '01067890123',
     failCount: 5,
     type: '임직원',
+    memo: '5회 오류로 잠금 이력 있음',
+    registeredAt: '2024-01-05',
+    updatedAt: '2026-04-10',
   },
 ]
+
+export const searchTypeOptions = ['이름', '아이디']
 
 export function matchUserFilters(row, filters) {
   if (filters.keyword) {
     const q = filters.keyword.toLowerCase()
-    if (!row.name.toLowerCase().includes(q) && !row.id.toLowerCase().includes(q)) return false
+    if (filters.searchType === '아이디') {
+      if (!row.id.toLowerCase().includes(q)) return false
+    } else if (!row.name.toLowerCase().includes(q)) {
+      return false
+    }
   }
   if (filters.dept !== '전체' && row.dept !== filters.dept) return false
   if (filters.role !== '전체' && row.role !== filters.role) return false
@@ -123,6 +154,6 @@ export function matchUserFilters(row, filters) {
 export function userStatusClass(status) {
   if (status === '재직') return 'ok'
   if (status === '잠금') return 'err'
-  if (status === '휴직') return 'warn'
+  if (status === '휴직' || status === '정직') return 'warn'
   return 'muted'
 }

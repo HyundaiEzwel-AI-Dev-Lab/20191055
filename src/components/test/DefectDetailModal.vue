@@ -1,8 +1,10 @@
 <script setup>
 // POP-UAT 결함 상세
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { actionStatusValues } from '@/data/testConfig'
+
+const CURRENT_USER = '김현대'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -14,9 +16,19 @@ const emit = defineEmits(['close', 'save'])
 
 const form = ref({
   status: '접수',
-  assignee: '',
   comment: '',
+  dueDate: '',
+  deployStatus: '',
+  attachments: [],
 })
+
+const confirmStatus = ref('')
+const confirmDevChecked = ref(false)
+const confirmStgChecked = ref(false)
+const confirmOpsChecked = ref(false)
+const confirmComment = ref('')
+
+const retryHistory = computed(() => (props.row?.history || []).filter((h) => h.action === '재처리요청'))
 
 watch(
   () => props.row,
@@ -24,19 +36,36 @@ watch(
     if (!row) return
     form.value = {
       status: row.status,
-      assignee: row.assignee,
       comment: '',
+      dueDate: row.dueDate || '',
+      deployStatus: row.deployStatus || '',
+      attachments: [],
     }
+    confirmStatus.value = ''
+    confirmDevChecked.value = false
+    confirmStgChecked.value = false
+    confirmOpsChecked.value = false
+    confirmComment.value = ''
   },
   { immediate: true },
 )
+
+function onAttachmentChange(e) {
+  const files = Array.from(e.target.files || [])
+  files.forEach((f) => form.value.attachments.push(f.name))
+  e.target.value = ''
+}
+
+function removeAttachment(idx) {
+  form.value.attachments.splice(idx, 1)
+}
 
 function appendHistory(action, body) {
   if (!props.row) return
   if (!props.row.history) props.row.history = []
   props.row.history.unshift({
     id: `h-${Date.now()}`,
-    author: '김현대',
+    author: CURRENT_USER,
     role: '테스터',
     at: new Date().toISOString().slice(0, 16).replace('T', ' '),
     action,
@@ -46,14 +75,12 @@ function appendHistory(action, body) {
 
 function save() {
   if (!props.row) return
-  if (!form.value.assignee.trim()) {
-    window.alert('담당자를 입력해 주세요.')
-    return
-  }
   if (!window.confirm('결함 정보를 저장하시겠습니까?')) return
   const updates = {
     status: form.value.status,
-    assignee: form.value.assignee.trim(),
+    dueDate: form.value.dueDate,
+    deployStatus: form.value.deployStatus,
+    attachments: [...form.value.attachments],
   }
   if (form.value.comment) {
     appendHistory(form.value.status, form.value.comment)
@@ -63,14 +90,25 @@ function save() {
 }
 
 function setStatus(status) {
-  if (!form.value.assignee.trim()) {
-    window.alert('담당자를 입력해 주세요.')
-    return
-  }
   if (!window.confirm(`${status} 처리하시겠습니까?`)) return
   form.value.status = status
   appendHistory(status, form.value.comment || `${status} 처리`)
-  emit('save', { status, assignee: form.value.assignee.trim() })
+  emit('save', { status })
+  emit('close')
+}
+
+function saveConfirm() {
+  if (!confirmStatus.value) {
+    window.alert('확인상태를 선택해 주세요.')
+    return
+  }
+  if (!window.confirm(`${confirmStatus.value}(으)로 확인 처리하시겠습니까?`)) return
+  appendHistory(
+    confirmStatus.value,
+    confirmComment.value ||
+      `DEV확인:${confirmDevChecked.value ? 'Y' : 'N'} STG확인:${confirmStgChecked.value ? 'Y' : 'N'} 운영확인:${confirmOpsChecked.value ? 'Y' : 'N'}`,
+  )
+  emit('save', { result: confirmStatus.value })
   emit('close')
 }
 </script>
@@ -88,8 +126,7 @@ function setStatus(status) {
         <div><span class="lbl">차수/절차</span>{{ row.round }} · {{ row.stepNo }}번</div>
         <div><span class="lbl">등급</span><span class="grade">{{ row.grade }}</span></div>
         <div v-if="config.showOccurrencePhase"><span class="lbl">발생시점</span>{{ row.occurrencePhase }}</div>
-        <div v-if="config.showDeployStatus"><span class="lbl">배포상태</span>{{ row.deployStatus }}</div>
-        <div><span class="lbl">테스터</span>{{ row.tester }}</div>
+        <div><span class="lbl">등록자</span>{{ row.tester }}</div>
         <div><span class="lbl">등록일</span>{{ row.registeredAt }}</div>
       </div>
 
@@ -106,14 +143,86 @@ function setStatus(status) {
           </select>
         </div>
         <div class="field">
-          <label>담당자</label>
-          <input v-model="form.assignee" class="inp" type="text" />
+          <label>조치자 (수정불가)</label>
+          <div class="inp inp--ro">{{ row.assignee }}</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>조치 예정일</label>
+          <input v-model="form.dueDate" class="inp" type="date" />
+        </div>
+        <div class="field" v-if="config.showDeployStatus">
+          <label>배포상태</label>
+          <select v-model="form.deployStatus" class="inp" :disabled="form.status !== '처리완료'">
+            <option value="">선택</option>
+            <option value="DEV배포">DEV배포</option>
+            <option value="STG배포">STG배포</option>
+            <option value="운영배포">운영배포</option>
+          </select>
         </div>
       </div>
 
       <div class="field">
         <label>처리 메모</label>
         <textarea v-model="form.comment" class="inp textarea" rows="3" placeholder="조치 내용 입력" />
+      </div>
+
+      <div class="field">
+        <label>첨부파일</label>
+        <div class="attach">
+          <span v-for="(file, idx) in form.attachments" :key="`${file}-${idx}`" class="attach__chip">
+            {{ file }}
+            <button type="button" class="attach__x" @click="removeAttachment(idx)">✕</button>
+          </span>
+          <label class="attach__add">
+            ＋ 파일 추가
+            <input type="file" multiple class="attach__input" @change="onAttachmentChange" />
+          </label>
+        </div>
+      </div>
+
+      <div class="confirm-block">
+        <h4>조치 확인 (테스터 입력)</h4>
+        <div class="confirm-radios">
+          <label class="radio-item">
+            <input v-model="confirmStatus" type="radio" value="수정완료" />
+            수정완료
+          </label>
+          <label class="radio-item">
+            <input v-model="confirmStatus" type="radio" value="재처리요청" />
+            재처리요청
+          </label>
+        </div>
+        <div class="confirm-checks">
+          <label class="chk-item"><input v-model="confirmDevChecked" type="checkbox" />DEV확인</label>
+          <label class="chk-item"><input v-model="confirmStgChecked" type="checkbox" />STG확인</label>
+          <label class="chk-item"><input v-model="confirmOpsChecked" type="checkbox" />운영확인</label>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>최종확인자</label>
+            <div class="inp inp--ro">{{ CURRENT_USER }}</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>확인내용</label>
+          <textarea v-model="confirmComment" class="inp textarea" rows="2" placeholder="확인 내용 입력" />
+        </div>
+        <button type="button" class="btn btn--primary btn--sm" @click="saveConfirm">확인 저장</button>
+      </div>
+
+      <div v-if="retryHistory.length" class="history">
+        <h4>재처리요청 이력</h4>
+        <article v-for="h in retryHistory" :key="h.id" class="history-item" :title="h.body">
+          <header>
+            <span>{{ h.author }} ({{ h.role }})</span>
+            <span class="action">{{ h.action }}</span>
+            <span class="at">{{ h.at }}</span>
+          </header>
+          <p>{{ h.body }}</p>
+        </article>
       </div>
 
       <div v-if="row.history?.length" class="history">
@@ -242,5 +351,87 @@ function setStatus(status) {
 .history-item p {
   margin: 0;
   color: var(--ink-2);
+}
+
+.inp--ro {
+  background: var(--field);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
+.attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.attach__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  border-radius: 20px;
+  font-size: 11.5px;
+}
+
+.attach__x {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+.attach__add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.attach__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.confirm-block {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--teal-50, #e6f4f2);
+  border-radius: 8px;
+}
+
+.confirm-block h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.confirm-radios,
+.confirm-checks {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.radio-item,
+.chk-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
 }
 </style>

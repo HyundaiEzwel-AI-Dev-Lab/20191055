@@ -64,9 +64,11 @@ function pct(count, total) {
   return total ? Math.round((count / total) * 100) : 0
 }
 
+const STAGE_SORT_PRIORITY = { 테스트: 0, 처리중: 1, 협의중: 2, 접수: 3, 완료: 4, 반려: 5 }
+
 const filteredProjects = computed(() => {
   const f = appliedFilters.value
-  return dashboardProjects.filter((p) => {
+  const list = dashboardProjects.filter((p) => {
     if (f.keyword && !p.name.includes(f.keyword) && !p.id.includes(f.keyword)) return false
     if (f.requestDept && p.requestDept !== f.requestDept) return false
     if (f.devDept && p.devDept !== f.devDept) return false
@@ -75,6 +77,12 @@ const filteredProjects = computed(() => {
     if (f.devType && p.devType !== f.devType) return false
     if (f.summary && p.summary !== f.summary) return false
     return true
+  })
+  return [...list].sort((a, b) => {
+    if (a.scheduledOpenDate !== b.scheduledOpenDate) {
+      return a.scheduledOpenDate < b.scheduledOpenDate ? -1 : 1
+    }
+    return (STAGE_SORT_PRIORITY[a.stage] ?? 99) - (STAGE_SORT_PRIORITY[b.stage] ?? 99)
   })
 })
 

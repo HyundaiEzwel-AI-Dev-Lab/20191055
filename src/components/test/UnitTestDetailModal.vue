@@ -1,6 +1,7 @@
 <script setup>
 // POP-S-TST-02 단위테스트 상세
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import {
   actionStatusValues,
@@ -9,12 +10,17 @@ import {
 } from '@/data/testConfig'
 import { unitTestResultSegments } from '@/data/unitTest'
 
+const ATTACH_MAX_COUNT = 3
+const ATTACH_MAX_SIZE = 10 * 1024 * 1024
+
 const props = defineProps({
   visible: { type: Boolean, default: false },
   row: { type: Object, default: null },
 })
 
 const emit = defineEmits(['close', 'save'])
+
+const router = useRouter()
 
 const overallResult = ref('대기')
 const memo = ref('')
@@ -48,7 +54,12 @@ const segmentClass = (val) => testResultClass(val)
 
 function setOverallResult(val) {
   overallResult.value = val
-  if (val === '오류') showDefectForm.value = true
+  if (val === '오류' || val === '개선필요') showDefectForm.value = true
+}
+
+function goRequirement() {
+  if (!props.row?.requirementId) return
+  router.push('/project/requirement')
 }
 
 function setStepResult(step, val) {
@@ -66,13 +77,31 @@ function syncOverallFromSteps() {
   else if (results.some((r) => r !== '대기')) overallResult.value = '대기'
 }
 
-function addAttachment() {
-  attachments.value.push({
-    id: `a-${Date.now()}`,
-    name: `첨부_${attachments.value.length + 1}.png`,
-    size: '64KB',
-    uploadedAt: new Date().toISOString().slice(0, 10),
-  })
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+function onAttachmentChange(event) {
+  const files = Array.from(event.target.files || [])
+  for (const file of files) {
+    if (attachments.value.length >= ATTACH_MAX_COUNT) {
+      window.alert(`첨부파일은 최대 ${ATTACH_MAX_COUNT}개까지 등록할 수 있습니다.`)
+      break
+    }
+    if (file.size > ATTACH_MAX_SIZE) {
+      window.alert(`${file.name}: 파일 용량은 최대 10MB까지 첨부 가능합니다.`)
+      continue
+    }
+    attachments.value.push({
+      id: `a-${Date.now()}-${attachments.value.length}`,
+      name: file.name,
+      size: formatFileSize(file.size),
+      uploadedAt: new Date().toISOString().slice(0, 10),
+    })
+  }
+  event.target.value = ''
 }
 
 function removeAttachment(id) {
@@ -83,8 +112,12 @@ function updateDefectStatus(defect, status) {
   defect.status = status
 }
 
+const showDefectSection = computed(
+  () => overallResult.value === '오류' || overallResult.value === '개선필요' || defects.value.length > 0,
+)
+
 const newDefect = computed(() => {
-  if (overallResult.value !== '오류' || !defectTitle.value) return null
+  if (!showDefectSection.value || !defectTitle.value) return null
   return {
     title: defectTitle.value,
     grade: defectGrade.value,
@@ -98,8 +131,15 @@ function save() {
     window.alert('테스트 결과를 선택해 주세요.')
     return
   }
-  if (overallResult.value === '오류' && !defectTitle.value.trim()) {
-    window.alert('오류인 경우 결함 제목을 입력해 주세요.')
+  if (
+    (overallResult.value === '오류' || overallResult.value === '개선필요') &&
+    !defectTitle.value.trim()
+  ) {
+    window.alert('오류/개선필요인 경우 결함 제목을 입력해 주세요.')
+    return
+  }
+  if (steps.value.some((s) => !s.procedure.trim() || !s.expected.trim())) {
+    window.alert('절차와 예상결과를 모두 입력해 주세요.')
     return
   }
   if (!window.confirm('단위테스트 결과를 저장하시겠습니까?')) return
@@ -133,12 +173,32 @@ function save() {
           <span>{{ row.screenPath }}</span>
         </div>
         <div class="detail-item">
+          <span class="detail-label">메뉴명</span>
+          <span>{{ row.menuName || '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">요구사항명</span>
+          <button
+            v-if="row.requirementId"
+            type="button"
+            class="link-btn detail-link"
+            @click="goRequirement"
+          >
+            {{ row.requirementName }}
+          </button>
+          <span v-else>{{ row.requirementName || '-' }}</span>
+        </div>
+        <div class="detail-item">
           <span class="detail-label">시스템/업무</span>
           <span>{{ row.systemPath }}</span>
         </div>
         <div class="detail-item">
           <span class="detail-label">업무구분</span>
           <span>{{ row.bizCategory }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">업무유형</span>
+          <span>{{ row.taskType }}</span>
         </div>
         <div class="detail-item">
           <span class="detail-label">담당자</span>
@@ -169,7 +229,7 @@ function save() {
       </section>
 
       <section class="section">
-        <h4>절차 / 예상결과</h4>
+        <h4>절차 / 예상결과 <span class="req">*</span></h4>
         <table class="step-table">
           <thead>
             <tr>
@@ -182,8 +242,24 @@ function save() {
           <tbody>
             <tr v-for="step in steps" :key="step.no">
               <td class="center">{{ step.no }}</td>
-              <td>{{ step.procedure }}</td>
-              <td>{{ step.expected }}</td>
+              <td>
+                <textarea
+                  v-model="step.procedure"
+                  class="step-input"
+                  rows="2"
+                  maxlength="1000"
+                  placeholder="절차를 입력하세요"
+                />
+              </td>
+              <td>
+                <textarea
+                  v-model="step.expected"
+                  class="step-input"
+                  rows="2"
+                  maxlength="1000"
+                  placeholder="예상결과를 입력하세요"
+                />
+              </td>
               <td>
                 <div class="segments segments--sm">
                   <button
@@ -206,9 +282,12 @@ function save() {
       <section class="section">
         <div class="section__head">
           <h4>첨부파일</h4>
-          <button type="button" class="btn btn--ghost btn--sm" @click="addAttachment">+ 파일 추가</button>
+          <label v-if="attachments.length < ATTACH_MAX_COUNT" class="btn btn--ghost btn--sm attach-add">
+            + 파일 추가
+            <input type="file" multiple class="attach-add__input" @change="onAttachmentChange" />
+          </label>
         </div>
-        <p class="file-hint">등록 가능 확장자: jpg, png, word, excel, ppt, pptx</p>
+        <p class="file-hint">등록 가능 확장자: jpg, png, word, excel, ppt, pptx · 최대 {{ ATTACH_MAX_COUNT }}개, 개당 10MB 이하</p>
         <ul v-if="attachments.length" class="attach-list">
           <li v-for="file in attachments" :key="file.id">
             <span class="attach-name">{{ file.name }}</span>
@@ -219,10 +298,10 @@ function save() {
         <p v-else class="empty-hint">첨부된 파일이 없습니다.</p>
       </section>
 
-      <section v-if="overallResult === '오류' || defects.length" class="section defect-section">
+      <section v-if="showDefectSection" class="section defect-section">
         <h4>결함</h4>
 
-        <div v-if="overallResult === '오류'" class="defect-form">
+        <div v-if="overallResult === '오류' || overallResult === '개선필요'" class="defect-form">
           <input v-model="defectTitle" class="inp" type="text" placeholder="결함 제목" />
           <select v-model="defectGrade" class="inp">
             <option v-for="g in ['Critical', 'Major', 'Minor']" :key="g" :value="g">{{ g }}</option>
@@ -307,6 +386,14 @@ function save() {
   font-size: 13px;
 }
 
+.req {
+  color: var(--red);
+}
+
+.detail-link {
+  text-align: left;
+}
+
 .section__head {
   display: flex;
   align-items: center;
@@ -370,6 +457,31 @@ function save() {
 
 .center {
   text-align: center;
+}
+
+.step-input {
+  width: 100%;
+  min-width: 160px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.attach-add {
+  position: relative;
+  overflow: hidden;
+}
+
+.attach-add__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .attach-list {

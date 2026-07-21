@@ -7,11 +7,17 @@ const baseDefects = [
     caseId: 'TC-002',
     caseName: '바우처 특복 배정 검증',
     screenName: '복지혜택 신청',
+    systemPath: 'FO>법인숙박>여행레저>복지혜택',
+    bizCategory: '법인숙박',
     round: '3차',
     stepNo: 2,
     title: '배정 API 500 오류',
     grade: 'Critical',
     status: '처리예정',
+    result: '오류',
+    dueDate: '2026-04-20',
+    updatedBy: '이개발',
+    updatedAt: '2026-04-16 14:00',
     tester: '김현대',
     assignee: '이개발',
     registeredAt: '2026-04-16 11:25',
@@ -30,11 +36,17 @@ const baseDefects = [
     caseId: 'TC-004',
     caseName: '대사 결과 다운로드',
     screenName: '정산 대사',
+    systemPath: 'HIMS>정산>정산>대사',
+    bizCategory: '정산',
     round: '2차',
     stepNo: 3,
     title: '엑셀 컬럼 순서 불일치',
     grade: 'Minor',
     status: '처리완료',
+    result: '수정완료',
+    dueDate: '2026-04-12',
+    updatedBy: '정개발',
+    updatedAt: '2026-04-12 10:00',
     tester: '최테스트',
     assignee: '정개발',
     registeredAt: '2026-04-11 09:30',
@@ -53,11 +65,17 @@ const baseDefects = [
     caseId: 'TC-005',
     caseName: '카드결제 한도 초과',
     screenName: '카드결제',
+    systemPath: 'HPAS>결제>결제>카드',
+    bizCategory: '결제',
     round: '3차',
     stepNo: 2,
     title: '재처리 요청 후 상태 미갱신',
     grade: 'Major',
     status: '접수',
+    result: '재처리요청',
+    dueDate: '',
+    updatedBy: '박개발',
+    updatedAt: '2026-04-20 09:00',
     tester: '김현대',
     assignee: '박개발',
     registeredAt: '2026-04-19 15:45',
@@ -76,11 +94,17 @@ const baseDefects = [
     caseId: 'TC-001',
     caseName: '복지혜택 신청 정상 플로우',
     screenName: '복지혜택 신청',
+    systemPath: 'FO>법인숙박>여행레저>복지혜택',
+    bizCategory: '법인숙박',
     round: '3차',
     stepNo: 3,
     title: '완료 메시지 문구 오타',
     grade: 'Minor',
     status: '접수',
+    result: '오류',
+    dueDate: '',
+    updatedBy: null,
+    updatedAt: null,
     tester: '박테스트',
     assignee: '김현대',
     registeredAt: '2026-04-15 17:00',
@@ -108,6 +132,9 @@ export function matchDefectFilters(row, filters, config) {
   if (filters.status !== '전체' && row.status !== filters.status) return false
   if (filters.grade !== '전체' && row.grade !== filters.grade) return false
   if (config.showDeployStatus && filters.deployStatus !== '전체' && row.deployStatus !== filters.deployStatus) return false
+  if (filters.bizCategory && filters.bizCategory !== '전체' && row.bizCategory !== filters.bizCategory) return false
+  if (filters.tester && !row.tester.includes(filters.tester)) return false
+  if (filters.assignee && !row.assignee.includes(filters.assignee)) return false
   if (filters.keyword) {
     const q = filters.keyword.toLowerCase()
     if (!`${row.defectId}${row.title}${row.caseName}`.toLowerCase().includes(q)) return false
@@ -138,6 +165,10 @@ export function addDefect(payload, mode = 'dev') {
     id: `df-new-${Date.now()}`,
     defectId: `DF-2026-${String(defectSeq).padStart(3, '0')}`,
     status: '접수',
+    result: '오류',
+    dueDate: '',
+    updatedBy: null,
+    updatedAt: null,
     registeredAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     occurrencePhase: payload.occurrencePhase || '오픈 전',
     deployStatus: payload.deployStatus || 'DEV배포',
@@ -158,9 +189,16 @@ export function addDefect(payload, mode = 'dev') {
   return row
 }
 
-export function updateDefect(id, updates) {
+/** 조치확인 결과(재처리요청/수정완료)에 따라 조치상태를 자동 회귀시켜 반영 */
+export function updateDefect(id, updates, updatedBy = '김현대') {
   const row = baseDefects.find((d) => d.id === id)
   if (!row) return null
-  Object.assign(row, updates)
+  const next = { ...updates }
+  if (next.result === '재처리요청') next.status = '접수'
+  else if (next.result === '수정완료') next.status = '처리완료'
+  Object.assign(row, next, {
+    updatedBy,
+    updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+  })
   return row
 }

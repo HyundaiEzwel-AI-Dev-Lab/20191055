@@ -33,34 +33,33 @@ export const bizCategoriesBySystem = {
 }
 
 const himsCustomerScreens = [
-  { id: '12002', name: '영업원장 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '12001', name: '고객사 그룹관리 조회', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '12000', name: '복지몰 템플릿 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '19999', name: '고객사 담당자 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '19998', name: '대시보드', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '19997', name: '업무요청 관리', path: '고객사 > 고객사관리', useYn: 'N', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '19996', name: 'BPO 서비스문의 관리', path: '고객사 > 고객사관리', useYn: 'N', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '김현대(2121212)' },
-  { id: '19995', name: '복지서비스 도입문의 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-' },
-  { id: '19994', name: '실적금액 엑셀등록', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '김현대(2121212)' },
+  { id: '12002', name: '영업원장 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '12001', name: '고객사 그룹관리 조회', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '12000', name: '복지몰 템플릿 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '19999', name: '고객사 담당자 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '19998', name: '대시보드', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '19997', name: '업무요청 관리', path: '고객사 > 고객사관리', useYn: 'N', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '19996', name: 'BPO 서비스문의 관리', path: '고객사 > 고객사관리', useYn: 'N', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '김현대(2121212)', updatedAt: '2026-05-20 09:12:00' },
+  { id: '19995', name: '복지서비스 도입문의 관리', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '-', updatedAt: null },
+  { id: '19994', name: '실적금액 엑셀등록', path: '고객사 > 고객사관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-05-19 00:00:00', updatedBy: '김현대(2121212)', updatedAt: '2026-05-21 14:40:00' },
 ]
 
 export const screenCodesByKey = {
   'HIMS|고객사/제도': himsCustomerScreens,
   'HIMS|상품': [
-    { id: '11001', name: '상품 목록', path: '상품 > 상품관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-04-01 00:00:00', updatedBy: '-' },
-    { id: '11002', name: '상품 상세', path: '상품 > 상품관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-04-01 00:00:00', updatedBy: '-' },
+    { id: '11001', name: '상품 목록', path: '상품 > 상품관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-04-01 00:00:00', updatedBy: '-', updatedAt: null },
+    { id: '11002', name: '상품 상세', path: '상품 > 상품관리', useYn: 'Y', createdBy: 'system', createdAt: '2026-04-01 00:00:00', updatedBy: '-', updatedAt: null },
   ],
   'FO|법인숙박': [
-    { id: 'FO001', name: '복지혜택 신청', path: '법인숙박 > 여행레저 > 복지혜택', useYn: 'Y', createdBy: 'system', createdAt: '2026-03-10 00:00:00', updatedBy: '-' },
-    { id: 'FO002', name: '모바일 복지혜택 신청', path: '법인숙박 > 여행레저 > 복지혜택', useYn: 'Y', createdBy: 'system', createdAt: '2026-03-10 00:00:00', updatedBy: '-' },
+    { id: 'FO001', name: '복지혜택 신청', path: '법인숙박 > 여행레저 > 복지혜택', useYn: 'Y', createdBy: 'system', createdAt: '2026-03-10 00:00:00', updatedBy: '-', updatedAt: null },
+    { id: 'FO002', name: '모바일 복지혜택 신청', path: '법인숙박 > 여행레저 > 복지혜택', useYn: 'Y', createdBy: 'system', createdAt: '2026-03-10 00:00:00', updatedBy: '-', updatedAt: null },
   ],
 }
 
 export function getScreenCodes(system, biz) {
   const key = `${system}|${biz}`
   const rows = screenCodesByKey[key]
-  if (rows) return rows.map((r) => ({ ...r }))
-  return [
+  const base = rows || [
     {
       id: `${system.slice(0, 2)}${Math.floor(Math.random() * 9000 + 1000)}`,
       name: `${biz} 기본 화면`,
@@ -69,6 +68,8 @@ export function getScreenCodes(system, biz) {
       createdBy: 'system',
       createdAt: '2026-01-01 00:00:00',
       updatedBy: '-',
+      updatedAt: null,
     },
   ]
+  return base.map((r) => ({ ...r, bizCategory: biz }))
 }

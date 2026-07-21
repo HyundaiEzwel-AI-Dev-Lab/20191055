@@ -6,6 +6,10 @@ import { useTestContext } from '@/composables/useTestContext'
 import { getScenarioEditGroups, saveScenarioCase } from '@/data/scenario'
 import ScenarioLoadFromWbsModal from '@/components/test/ScenarioLoadFromWbsModal.vue'
 import ScenarioCopyFromLibraryModal from '@/components/test/ScenarioCopyFromLibraryModal.vue'
+import ScenarioScreenSearchModal from '@/components/test/ScenarioScreenSearchModal.vue'
+import ScenarioRequirementSearchModal from '@/components/test/ScenarioRequirementSearchModal.vue'
+
+const STEP_MAX = 20
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +20,11 @@ const selectedRound = ref('3차')
 const highlightCaseId = ref('')
 const showWbsLoad = ref(false)
 const showLibCopy = ref(false)
+const showScreenSearch = ref(false)
+const showReqSearch = ref(false)
+const reqSearchCase = ref(null)
+const collapsedCaseIds = ref(new Set())
+const allCollapsed = ref(false)
 let caseSeq = 100
 
 function loadGroups() {
@@ -28,6 +37,8 @@ function loadGroups() {
   }))
   selectedRound.value = mode.value === 'uat' ? '운영1차' : '3차'
   highlightCaseId.value = String(route.query.caseId || '')
+  collapsedCaseIds.value = new Set()
+  allCollapsed.value = false
 }
 
 onMounted(loadGroups)
@@ -62,6 +73,10 @@ function findOrCreateGroup({ reqId, screenName, systemPath, screenPath }) {
 }
 
 function addStep(caseRow) {
+  if (caseRow.steps.length >= STEP_MAX) {
+    window.alert(`절차는 최대 ${STEP_MAX}개까지 등록할 수 있습니다.`)
+    return
+  }
   const no = caseRow.steps.length + 1
   caseRow.steps.push({ no, procedure: '', expected: '' })
   caseRow.stepCount = caseRow.steps.length
@@ -83,6 +98,100 @@ function moveStep(caseRow, idx, dir) {
   steps.forEach((s, i) => {
     s.no = i + 1
   })
+}
+
+const dragState = ref({ caseId: null, fromIdx: null })
+
+function onStepDragStart(caseRow, idx) {
+  dragState.value = { caseId: caseRow.id, fromIdx: idx }
+}
+
+function onStepDrop(caseRow, idx) {
+  if (dragState.value.caseId !== caseRow.id || dragState.value.fromIdx === null) return
+  const from = dragState.value.fromIdx
+  if (from === idx) return
+  const steps = caseRow.steps
+  const [moved] = steps.splice(from, 1)
+  steps.splice(idx, 0, moved)
+  steps.forEach((s, i) => {
+    s.no = i + 1
+  })
+  dragState.value = { caseId: null, fromIdx: null }
+}
+
+function toggleCollapse(caseId) {
+  const next = new Set(collapsedCaseIds.value)
+  if (next.has(caseId)) next.delete(caseId)
+  else next.add(caseId)
+  collapsedCaseIds.value = next
+}
+
+function isCollapsed(caseId) {
+  return collapsedCaseIds.value.has(caseId)
+}
+
+function toggleAllCollapse() {
+  const allCaseIds = groups.value.flatMap((g) => g.cases.map((c) => c.id))
+  if (allCollapsed.value) {
+    collapsedCaseIds.value = new Set()
+    allCollapsed.value = false
+  } else {
+    collapsedCaseIds.value = new Set(allCaseIds)
+    allCollapsed.value = true
+  }
+}
+
+function addCaseToGroup(group) {
+  group.cases.push({
+    id: `sc-new-${Date.now()}`,
+    caseId: nextCaseId('TC-N'),
+    caseName: '',
+    executionType: config.value.editExecutionTypeOptions?.[0] || '오픈 전',
+    note: '',
+    steps: [{ no: 1, procedure: '', expected: '' }],
+    stepCount: 1,
+    round: selectedRound.value,
+  })
+}
+
+function removeCase(group, caseRow) {
+  if (!window.confirm('이 케이스를 삭제하시겠습니까?')) return
+  group.cases = group.cases.filter((c) => c.id !== caseRow.id)
+}
+
+function openScreenSearch() {
+  showScreenSearch.value = true
+}
+
+function onScreenSearchSelect(screen) {
+  const group = findOrCreateGroup({
+    reqId: screen.reqId || '',
+    screenName: screen.name,
+    systemPath: screen.system || '-',
+    screenPath: screen.path || '-',
+  })
+  group.cases.push({
+    id: `sc-scr-${Date.now()}`,
+    caseId: nextCaseId('TC'),
+    caseName: '',
+    executionType: config.value.editExecutionTypeOptions?.[0] || '오픈 전',
+    note: '',
+    steps: [{ no: 1, procedure: '', expected: '' }],
+    stepCount: 1,
+    round: selectedRound.value,
+  })
+  window.alert('테스트대상이 신규 등록되었습니다.')
+}
+
+function openReqSearch(caseRow) {
+  reqSearchCase.value = caseRow
+  showReqSearch.value = true
+}
+
+function onReqSearchSelect(req) {
+  const group = groups.value.find((g) => g.cases.some((c) => c.id === reqSearchCase.value?.id))
+  if (group) group.reqId = req.reqId
+  reqSearchCase.value = null
 }
 
 function saveAll() {
@@ -127,27 +236,14 @@ function copyFromLibrary() {
   showLibCopy.value = true
 }
 
-function onWbsConfirm(tasks) {
-  const execType = config.value.editExecutionTypeOptions?.[0] || '오픈 전'
-  for (const t of tasks) {
-    const group = findOrCreateGroup({
-      reqId: t.requirementId || `REQ-${t.wbsId}`,
-      screenName: t.screenName && t.screenName !== '-' ? t.screenName : t.requirementName,
-      systemPath: t.systemPath || '-',
-      screenPath: t.screenPath || '-',
-    })
-    group.cases.push({
-      id: `sc-wbs-${Date.now()}-${caseSeq}`,
-      caseId: nextCaseId('TC-W'),
-      caseName: `${t.requirementName} (${t.taskType})`,
-      executionType: execType,
-      note: `WBS ${t.wbsId}에서 불러옴`,
-      steps: [{ no: 1, procedure: '', expected: '' }],
-      stepCount: 1,
-      round: selectedRound.value,
-    })
+function onWbsConfirm(round) {
+  for (const group of groups.value) {
+    for (const c of group.cases) {
+      c.round = round
+    }
   }
-  window.alert(`${tasks.length}건을 추가했습니다.`)
+  selectedRound.value = round
+  window.alert(`${round} 시나리오 기준으로 덮어쓰기 되었습니다.`)
 }
 
 function onLibraryConfirm(cases) {
@@ -196,81 +292,108 @@ function onLibraryConfirm(cases) {
         </label>
       </div>
       <div class="toolbar__right">
+        <button type="button" class="btn btn--ghost" @click="toggleAllCollapse">
+          {{ allCollapsed ? '전체열기' : '전체접기' }}
+        </button>
         <button type="button" class="btn btn--ghost" @click="loadFromWbs">불러오기</button>
         <button type="button" class="btn btn--ghost" @click="copyFromLibrary">라이브러리 복사</button>
+        <button type="button" class="btn btn--ghost" @click="openScreenSearch">테스트대상 신규등록</button>
         <button type="button" class="btn btn--primary" @click="saveAll">저장</button>
       </div>
     </div>
 
+    <p class="notice">※ 화면당 케이스 1개 이상, 케이스당 절차 1개 이상 등록이 필요합니다. (절차는 최대 {{ STEP_MAX }}개)</p>
+
     <div v-for="group in groups" :key="`${group.reqId}-${group.screenName}`" class="target card">
       <div class="target__head">
-        <span class="target__req">{{ group.reqId }}</span>
+        <span class="target__req">{{ group.reqId || '-' }}</span>
         <span class="target__path">{{ group.systemPath }} › {{ group.screenPath }}</span>
         <b class="target__screen">{{ group.screenName }}</b>
+        <button type="button" class="icon-btn icon-btn--add" title="케이스 추가" @click="addCaseToGroup(group)">
+          ＋
+        </button>
       </div>
 
       <div
-        v-for="caseRow in group.cases"
+        v-for="(caseRow, caseIdx) in group.cases"
         :key="caseRow.id"
         class="case-block"
         :class="{ highlight: caseRow.caseId === highlightCaseId }"
       >
         <div class="case-block__meta">
+          <button type="button" class="collapse-btn" @click="toggleCollapse(caseRow.id)">
+            {{ isCollapsed(caseRow.id) ? '▶' : '▼' }}
+          </button>
+          <span class="case-no">{{ caseIdx + 1 }}</span>
           <span class="case-id">{{ caseRow.caseId }}</span>
           <input v-model="caseRow.caseName" class="inp case-name" type="text" placeholder="케이스명" />
           <select v-model="caseRow.executionType" class="inp">
             <option v-for="o in config.editExecutionTypeOptions" :key="o" :value="o">{{ o }}</option>
           </select>
+          <button type="button" class="icon-btn" title="요구사항 검색" @click="openReqSearch(caseRow)">🔍</button>
+          <button type="button" class="link-btn case-remove" @click="removeCase(group, caseRow)">✕ 케이스 삭제</button>
         </div>
 
-        <div class="form-block">
-          <label>테스트 참고사항</label>
-          <textarea v-model="caseRow.note" class="inp textarea" rows="2" placeholder="참고사항 입력" />
-        </div>
+        <template v-if="!isCollapsed(caseRow.id)">
+          <div class="form-block">
+            <label>테스트 참고사항</label>
+            <textarea v-model="caseRow.note" class="inp textarea" rows="2" placeholder="참고사항 입력" />
+          </div>
 
-        <div class="steps-head">
-          <h4>절차 / 예상결과</h4>
-          <button type="button" class="btn btn--ghost btn--sm" @click="addStep(caseRow)">+ 절차 추가</button>
-        </div>
+          <div class="steps-head">
+            <h4>절차 / 예상결과</h4>
+            <button type="button" class="btn btn--ghost btn--sm" @click="addStep(caseRow)">+ 절차 추가</button>
+          </div>
 
-        <table class="step-table">
-          <thead>
-            <tr>
-              <th style="width: 40px">No</th>
-              <th>절차</th>
-              <th>예상결과</th>
-              <th style="width: 88px">순서</th>
-              <th style="width: 48px"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(step, idx) in caseRow.steps" :key="step.no">
-              <td class="center">{{ step.no }}</td>
-              <td><input v-model="step.procedure" class="inp" type="text" /></td>
-              <td><input v-model="step.expected" class="inp" type="text" /></td>
-              <td class="center">
-                <button type="button" class="icon-btn" :disabled="idx === 0" @click="moveStep(caseRow, idx, -1)">▲</button>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  :disabled="idx === caseRow.steps.length - 1"
-                  @click="moveStep(caseRow, idx, 1)"
-                >
-                  ▼
-                </button>
-              </td>
-              <td class="center">
-                <button type="button" class="link-btn" @click="removeStep(caseRow, idx)">삭제</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <table class="step-table">
+            <thead>
+              <tr>
+                <th style="width: 40px">No</th>
+                <th>절차</th>
+                <th>예상결과</th>
+                <th style="width: 88px">순서</th>
+                <th style="width: 48px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(step, idx) in caseRow.steps"
+                :key="step.no"
+                draggable="true"
+                class="step-row"
+                @dragstart="onStepDragStart(caseRow, idx)"
+                @dragover.prevent
+                @drop="onStepDrop(caseRow, idx)"
+              >
+                <td class="center">{{ step.no }}</td>
+                <td><input v-model="step.procedure" class="inp" type="text" /></td>
+                <td><input v-model="step.expected" class="inp" type="text" /></td>
+                <td class="center">
+                  <button type="button" class="icon-btn" :disabled="idx === 0" @click="moveStep(caseRow, idx, -1)">▲</button>
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    :disabled="idx === caseRow.steps.length - 1"
+                    @click="moveStep(caseRow, idx, 1)"
+                  >
+                    ▼
+                  </button>
+                </td>
+                <td class="center">
+                  <button type="button" class="link-btn" @click="removeStep(caseRow, idx)">삭제</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
       </div>
     </div>
   </div>
 
   <ScenarioLoadFromWbsModal v-model="showWbsLoad" @confirm="onWbsConfirm" />
   <ScenarioCopyFromLibraryModal v-model="showLibCopy" @confirm="onLibraryConfirm" />
+  <ScenarioScreenSearchModal v-model="showScreenSearch" @select="onScreenSearchSelect" />
+  <ScenarioRequirementSearchModal v-model="showReqSearch" @select="onReqSearchSelect" />
 </template>
 
 <style scoped>
@@ -354,6 +477,16 @@ function onLibraryConfirm(cases) {
   font-size: 12px;
 }
 
+.notice {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: var(--teal-50);
+  border: 1px solid var(--teal-100);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--teal-600);
+}
+
 .target {
   padding: 14px 16px;
   margin-bottom: 12px;
@@ -411,6 +544,40 @@ function onLibraryConfirm(cases) {
   font-size: 11px;
   color: var(--muted);
   font-weight: 600;
+}
+
+.case-no {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-700);
+  min-width: 18px;
+}
+
+.collapse-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--muted);
+  padding: 0 2px;
+}
+
+.case-remove {
+  margin-left: auto;
+  color: var(--red);
+}
+
+.icon-btn--add {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  color: var(--teal-600);
+  font-weight: 700;
+}
+
+.step-row {
+  cursor: grab;
 }
 
 .case-name {

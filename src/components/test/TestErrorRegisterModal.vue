@@ -1,7 +1,10 @@
 <script setup>
 // POP-UAT 오류등록 (테스트 수행)
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import { getDefectList } from '@/data/testDefect'
+
+const CURRENT_USER = '김현대'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -19,6 +22,12 @@ const form = ref({
   assignee: '이개발',
   occurrencePhase: '오픈 전',
   deployStatus: 'DEV배포',
+  attachments: [],
+})
+
+const existingDefects = computed(() => {
+  if (!props.caseRow) return []
+  return getDefectList(props.mode).filter((d) => d.caseId === props.caseRow.caseId)
 })
 
 watch(
@@ -28,14 +37,25 @@ watch(
     form.value = {
       title: `[${props.step.no}번] ${props.step.procedure} 오류`,
       grade: 'Major',
-      description: `예상: ${props.step.expected}\n실제: `,
+      description: '',
       assignee: '이개발',
       occurrencePhase: '오픈 전',
       deployStatus: props.mode === 'uat' ? 'STG배포' : 'DEV배포',
+      attachments: [],
     }
   },
   { immediate: true },
 )
+
+function onAttachmentChange(e) {
+  const files = Array.from(e.target.files || [])
+  files.forEach((f) => form.value.attachments.push(f.name))
+  e.target.value = ''
+}
+
+function removeAttachment(idx) {
+  form.value.attachments.splice(idx, 1)
+}
 
 function register() {
   if (!props.caseRow || !props.step) return
@@ -64,7 +84,8 @@ function register() {
     assignee: form.value.assignee.trim(),
     occurrencePhase: form.value.occurrencePhase,
     deployStatus: form.value.deployStatus,
-    tester: '김현대',
+    attachments: [...form.value.attachments],
+    tester: CURRENT_USER,
   })
   emit('close')
 }
@@ -81,6 +102,39 @@ function register() {
         <span>{{ caseRow.caseId }}</span>
         <span>{{ caseRow.caseName }}</span>
         <span>절차 {{ step.no }}: {{ step.procedure }}</span>
+      </div>
+
+      <div v-if="existingDefects.length" class="existing-list">
+        <h4>이 케이스에 이미 등록된 오류 ({{ existingDefects.length }}건)</h4>
+        <ul>
+          <li v-for="d in existingDefects" :key="d.id">
+            <span class="existing-list__id">{{ d.defectId }}</span>
+            <span>{{ d.title }}</span>
+            <span class="existing-list__status">{{ d.status }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>오류ID</label>
+          <div class="inp inp--ro">자동채번</div>
+        </div>
+        <div class="field">
+          <label>등록자</label>
+          <div class="inp inp--ro">{{ CURRENT_USER }}</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>테스트절차</label>
+          <div class="inp inp--ro">{{ step.procedure }}</div>
+        </div>
+        <div class="field">
+          <label>예상결과</label>
+          <div class="inp inp--ro">{{ step.expected }}</div>
+        </div>
       </div>
 
       <div class="field">
@@ -120,8 +174,22 @@ function register() {
       </div>
 
       <div class="field">
-        <label>오류 내용</label>
-        <textarea v-model="form.description" class="inp textarea" rows="5" />
+        <label>오류 내용 (실제 결과)</label>
+        <textarea v-model="form.description" class="inp textarea" rows="5" placeholder="실제 발생한 오류 내용을 입력하세요" />
+      </div>
+
+      <div class="field">
+        <label>첨부파일</label>
+        <div class="attach">
+          <span v-for="(file, idx) in form.attachments" :key="`${file}-${idx}`" class="attach__chip">
+            {{ file }}
+            <button type="button" class="attach__x" @click="removeAttachment(idx)">✕</button>
+          </span>
+          <label class="attach__add">
+            ＋ 파일 추가
+            <input type="file" multiple class="attach__input" @change="onAttachmentChange" />
+          </label>
+        </div>
       </div>
     </template>
 
@@ -174,5 +242,98 @@ function register() {
   height: auto;
   padding: 8px 10px;
   resize: vertical;
+}
+
+.inp--ro {
+  background: var(--field);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
+.existing-list {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--orange-bg, #fcf0e1);
+  border-radius: 8px;
+}
+
+.existing-list h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--orange, #e08a2b);
+}
+
+.existing-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.existing-list li {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.existing-list__id {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.existing-list__status {
+  margin-left: auto;
+  color: var(--teal-600, #0e8275);
+}
+
+.attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.attach__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  border-radius: 20px;
+  font-size: 11.5px;
+}
+
+.attach__x {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+.attach__add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.attach__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 </style>

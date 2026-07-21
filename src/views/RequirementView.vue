@@ -10,6 +10,7 @@ import {
   periodOptions,
   pageSizeOptions,
   systemOptions,
+  bizCategoryMap,
   getRequirementList,
   statusClass,
   priorityClass,
@@ -19,6 +20,7 @@ import {
 import RequirementIssueModal from '@/components/requirement/RequirementIssueModal.vue'
 import RequirementFormModal from '@/components/requirement/RequirementFormModal.vue'
 import RequirementBulkRegisterModal from '@/components/requirement/RequirementBulkRegisterModal.vue'
+import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
@@ -55,6 +57,10 @@ const showBulkModal = ref(false)
 const showSaveAlert = ref(null)
 const saveAlertCount = ref(0)
 const confirmTipOpen = ref(false)
+const showScreenSearchModal = ref(false)
+const screenSettingSystem = ref('')
+
+const bizCategoryFilterOptions = computed(() => bizCategoryMap[filters.value.system] || [])
 
 const confirmSelectOptions = ['미확정', '확정']
 const confirmTooltip =
@@ -111,6 +117,10 @@ function search() {
   currentPage.value = 1
   expandedIds.value = new Set()
   expandAll.value = false
+}
+
+function onSystemFilterChange() {
+  filters.value.bizCategory = ''
 }
 
 function toggleExpand(id) {
@@ -238,12 +248,45 @@ function findDuplicateRequirement(form) {
   )
 }
 
-function onFormSave(form) {
+function buildRequirementRow(form, seqOffset) {
+  const nextNo = requirements.value.length + 1 + seqOffset
+  return {
+    id: `req-new-${Date.now()}-${seqOffset}`,
+    reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
+    systemPath: `${form.system}>${form.bizCategory}`,
+    screenPath: form.screenPath || form.screenMenu || '-',
+    screenName: form.screenName || form.screenMenu || '-',
+    reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
+    name: form.name,
+    taskTypes: [...form.taskTypes],
+    status: form.status,
+    priority: form.priority,
+    confirmRequester: form.confirmRequester ? '확정' : '미확정',
+    confirmTech: form.confirmTech ? '확정' : '미확정',
+    issueCount: 0,
+    registeredBy: '김현대',
+    registeredAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    updatedBy: null,
+    updatedAt: null,
+    requester: '김현대',
+    original: form.original,
+    analysis: form.analysis,
+    system: form.system,
+    bizCategory: form.bizCategory,
+    screenMenu: form.screenMenu || form.screenName || '',
+    memo: form.memo,
+    attachments: [...(form.attachments || [])],
+    issues: [],
+  }
+}
+
+function onFormSave(payload) {
   if (formMode.value === 'register' || formMode.value === 'copy') {
+    const forms = Array.isArray(payload) ? payload : [payload]
     if (formMode.value === 'copy') {
-      const dup = findDuplicateRequirement(form)
+      const dup = findDuplicateRequirement(forms[0])
       if (dup) {
-        const newTaskTypes = form.taskTypes.filter((t) => !dup.taskTypes.includes(t))
+        const newTaskTypes = forms[0].taskTypes.filter((t) => !dup.taskTypes.includes(t))
         if (!newTaskTypes.length) {
           window.alert(`동일한 시스템, 업무유형, 화면명으로 이미 등록된 요구사항입니다(ID : ${dup.reqId})`)
           return
@@ -254,35 +297,11 @@ function onFormSave(form) {
         return
       }
     }
-    const nextNo = requirements.value.length + 1
-    requirements.value.unshift({
-      id: `req-new-${Date.now()}`,
-      reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
-      systemPath: `${form.system}>${form.bizCategory}`,
-      screenPath: form.screenPath || form.screenMenu || '-',
-      screenName: form.screenName || form.screenMenu || '-',
-      reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
-      name: form.name,
-      taskTypes: [...form.taskTypes],
-      status: form.status,
-      priority: form.priority,
-      confirmRequester: form.confirmRequester ? '확정' : '미확정',
-      confirmTech: form.confirmTech ? '확정' : '미확정',
-      issueCount: 0,
-      registeredBy: '김현대',
-      registeredAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      updatedBy: null,
-      updatedAt: null,
-      requester: '김현대',
-      original: form.original,
-      analysis: form.analysis,
-      system: form.system,
-      bizCategory: form.bizCategory,
-      screenMenu: form.screenMenu || form.screenName || '',
-      memo: form.memo,
-      issues: [],
+    forms.forEach((form, idx) => {
+      requirements.value.unshift(buildRequirementRow(form, idx))
     })
   } else if (formTarget.value) {
+    const form = payload
     if (form.screenOnly) {
       Object.assign(formTarget.value, {
         screenPath: form.screenPath || form.screenMenu || formTarget.value.screenPath,
@@ -293,6 +312,31 @@ function onFormSave(form) {
       })
     } else {
       const bothOn = !!form.confirmRequester && !!form.confirmTech
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      if (!formTarget.value.changeHistory) formTarget.value.changeHistory = []
+      formTarget.value.changeHistory.push({
+        id: `ch-${Date.now()}`,
+        round: formTarget.value.changeHistory.length + 1,
+        reason: form.changeReason || '',
+        changedBy: '김현대',
+        changedAt: now,
+        before: {
+          name: formTarget.value.name,
+          analysis: formTarget.value.analysis,
+          status: formTarget.value.status,
+          priority: formTarget.value.priority,
+          taskTypes: [...formTarget.value.taskTypes],
+          memo: formTarget.value.memo,
+        },
+        after: {
+          name: form.name,
+          analysis: form.analysis,
+          status: form.status,
+          priority: form.priority,
+          taskTypes: [...form.taskTypes],
+          memo: form.memo,
+        },
+      })
       Object.assign(formTarget.value, {
         name: form.name,
         analysis: form.analysis,
@@ -303,6 +347,7 @@ function onFormSave(form) {
         confirmTech: form.confirmTech ? '확정' : '미확정',
         confirmLocked: bothOn || formTarget.value.confirmLocked,
         memo: form.memo,
+        attachments: [...(form.attachments || [])],
         system: form.system,
         bizCategory: form.bizCategory,
         systemPath: `${form.system}>${form.bizCategory}`,
@@ -310,7 +355,7 @@ function onFormSave(form) {
         screenName: form.screenName || form.screenMenu || formTarget.value.screenName,
         screenMenu: form.screenMenu || form.screenName || '',
         updatedBy: '김현대',
-        updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        updatedAt: now,
       })
     }
   }
@@ -364,7 +409,21 @@ function onScreenSetting() {
     window.alert('서로 다른 시스템/업무구분이 선택되어 있습니다. 동일한 시스템/업무구분만 선택해 주세요.')
     return
   }
-  window.alert('화면(메뉴) 설정 팝업 (공통)\n선택한 요구사항의 화면명을 일괄 설정합니다.')
+  screenSettingSystem.value = selectedRows.value[0].system
+  showScreenSearchModal.value = true
+}
+
+function onScreenSelect(picked) {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  selectedRows.value.forEach((row) => {
+    row.screenPath = picked.path
+    row.screenName = picked.name
+    row.screenMenu = picked.name
+    row.updatedBy = '김현대'
+    row.updatedAt = now
+  })
+  window.alert(`선택한 ${selectedRows.value.length}건의 화면경로가 설정되었습니다.`)
+  selectedIds.value = new Set()
 }
 
 function onExcelDownload() {
@@ -400,7 +459,7 @@ function onPageSizeChange() {
 
     <!-- 검색조건 -->
     <section class="filter card">
-      <div class="filter__row filter__row--6">
+      <div class="filter__row filter__row--7">
         <div class="filter__field">
           <label>통합검색</label>
           <input
@@ -417,10 +476,17 @@ function onPageSizeChange() {
           </select>
         </div>
         <div class="filter__field">
-          <label>업무범주</label>
-          <select v-model="filters.system" class="filter__select">
+          <label>시스템</label>
+          <select v-model="filters.system" class="filter__select" @change="onSystemFilterChange">
             <option value="">시스템 선택</option>
             <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="filter__field">
+          <label>업무구분</label>
+          <select v-model="filters.bizCategory" class="filter__select" :disabled="!filters.system">
+            <option value="">업무구분 선택</option>
+            <option v-for="b in bizCategoryFilterOptions" :key="b" :value="b">{{ b }}</option>
           </select>
         </div>
         <div class="filter__field">
@@ -490,7 +556,6 @@ function onPageSizeChange() {
       >
         {{ allExpandedOnPage ? '전체접기' : '전체열기' }}
       </button>
-      <ExcelDownloadButton @click="onExcelDownload" />
       <div class="toolbar__spacer" />
       <button type="button" class="btn btn--ghost btn--sm" @click="onScreenSetting">
         화면설정
@@ -510,6 +575,7 @@ function onPageSizeChange() {
           <button type="button" @click="openRegister">개별등록</button>
         </div>
       </div>
+      <ExcelDownloadButton @click="onExcelDownload" />
     </div>
 
     <!-- 목록 -->
@@ -530,6 +596,7 @@ function onPageSizeChange() {
               <th rowspan="2">화면경로</th>
               <th rowspan="2">화면명</th>
               <th rowspan="2">요구사항명</th>
+              <th rowspan="2">구분</th>
               <th rowspan="2">업무유형</th>
               <th rowspan="2">상태</th>
               <th rowspan="2">우선순위</th>
@@ -584,6 +651,7 @@ function onPageSizeChange() {
                     {{ row.name }}
                   </button>
                 </td>
+                <td>{{ row.reqType }}</td>
                 <td>
                   <div class="task-types">
                     <span v-for="t in row.taskTypes" :key="t">{{ t }}</span>
@@ -635,7 +703,7 @@ function onPageSizeChange() {
               </tr>
 
               <tr v-if="expandedIds.has(row.id)" class="detail-row">
-                <td colspan="13">
+                <td colspan="14">
                   <div class="detail-panel">
                     <div class="detail-panel__blocks">
                       <div class="detail-panel__content">
@@ -665,7 +733,7 @@ function onPageSizeChange() {
             </template>
 
             <tr v-if="!pagedList.length">
-              <td colspan="13" class="empty-row">조회 결과가 없습니다.</td>
+              <td colspan="14" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -725,6 +793,11 @@ function onPageSizeChange() {
       @save="onFormSave"
     />
     <RequirementBulkRegisterModal v-model="showBulkModal" @register="onBulkRegister" />
+    <RequirementScreenSearchModal
+      v-model="showScreenSearchModal"
+      :system="screenSettingSystem"
+      @select="onScreenSelect"
+    />
 
     <!-- Alerts -->
     <Teleport to="body">
@@ -805,8 +878,8 @@ function onPageSizeChange() {
   margin-bottom: 10px;
 }
 
-.filter__row--6 {
-  grid-template-columns: repeat(6, 1fr);
+.filter__row--7 {
+  grid-template-columns: repeat(7, 1fr);
 }
 
 .filter__row--4 {

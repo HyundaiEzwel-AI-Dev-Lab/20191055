@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
+import { useProjectRegister } from '@/composables/useProjectRegister'
 import { myProjects } from '@/data/headerPopups'
 
 defineProps({
@@ -15,6 +16,7 @@ const emit = defineEmits(['update:modelValue'])
 const router = useRouter()
 const projectStore = useProjectStore()
 const tabsStore = useTabsStore()
+const { openRegisterModal } = useProjectRegister()
 const keyword = ref('')
 
 const filtered = computed(() => {
@@ -49,6 +51,16 @@ function selectProject(project) {
 function isSelected(project) {
   return projectStore.currentProject?.id === project.id
 }
+
+function goRegister() {
+  close()
+  openRegisterModal()
+}
+
+function goAllProjects() {
+  close()
+  router.push('/integrated/project/status')
+}
 </script>
 
 <template>
@@ -66,13 +78,23 @@ function isSelected(project) {
           type="text"
           placeholder="프로젝트명, 단계, 역할 검색"
         />
+        <button class="hdr-proj__add" type="button" title="프로젝트 등록" @click="goRegister">
+          <span class="hdr-proj__add-icon">＋</span>
+        </button>
       </div>
 
-      <div class="hdr-section-title">
-        배정 프로젝트 <span class="hdr-section-title__cnt">({{ filtered.length }}건)</span>
+      <div class="hdr-section-head">
+        <div class="hdr-section-title">
+          배정 프로젝트 <span class="hdr-section-title__cnt">({{ filtered.length }}건)</span>
+        </div>
+        <button class="hdr-section-clear" type="button" @click="goAllProjects">
+          모든 프로젝트 보기 &gt;
+        </button>
       </div>
 
-      <div v-if="!filtered.length" class="hdr-empty">검색 결과가 없습니다.</div>
+      <div v-if="!filtered.length" class="hdr-empty">
+        {{ keyword.trim() ? '검색 결과가 없습니다.' : '배정된 프로젝트가 없습니다.' }}
+      </div>
       <ul v-else class="hdr-scroll hdr-scroll--proj">
         <li v-for="project in filtered" :key="project.id">
           <button

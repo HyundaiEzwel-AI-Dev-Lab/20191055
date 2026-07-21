@@ -82,6 +82,7 @@ const defaultDetail = {
   },
   testUsage: ['단위테스트', 'DEV테스트'],
   testRoundDev: '3차',
+  testRoundStg: '1차',
   testRoundUat: '1차',
   testLibrary: '등록',
   testLibraryScenarios: ['tl1', 'tl3', 'tl5'],

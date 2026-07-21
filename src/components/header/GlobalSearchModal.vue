@@ -3,6 +3,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
+import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
 import {
   searchItems,
   searchTypeLabel,
@@ -16,6 +18,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
+const projectStore = useProjectStore()
+const tabsStore = useTabsStore()
 const keyword = ref('')
 const activeTab = ref('all')
 const searched = ref(false)
@@ -49,26 +53,54 @@ const results = computed(() => {
   })
 })
 
+let autoSearchTimer = null
+
 function runSearch() {
   searched.value = true
 }
 
 function resetSearch() {
+  clearTimeout(autoSearchTimer)
   keyword.value = ''
   searched.value = false
   activeTab.value = 'all'
 }
 
+watch(keyword, (val) => {
+  clearTimeout(autoSearchTimer)
+  if (!val.trim()) {
+    searched.value = false
+    return
+  }
+  autoSearchTimer = setTimeout(() => {
+    searched.value = true
+  }, 300)
+})
+
 function close() {
   emit('update:modelValue', false)
 }
 
+function openProjectFrom(id, name, stage) {
+  projectStore.setCurrentProject({ id, name, stage })
+  tabsStore.openProjectTab({
+    projectId: id,
+    title: name,
+    projectName: name,
+    route: '/project/info',
+  })
+}
+
 function selectItem(item) {
+  if (item.type === 'project') {
+    openProjectFrom(item.id, item.label, item.stage)
+  }
   close()
   router.push(item.route)
 }
 
 function selectRecent(project) {
+  openProjectFrom(project.id, project.name, project.stage)
   close()
   router.push(project.route)
 }
@@ -97,7 +129,10 @@ watch(
 )
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearTimeout(autoSearchTimer)
+})
 </script>
 
 <template>
@@ -118,7 +153,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         />
         <button class="hdr-search__btn" type="button" @click="runSearch">검색</button>
       </div>
-      <p class="hdr-search__hint">검색 버튼 또는 F2 키로 검색합니다.</p>
+      <p class="hdr-search__hint">입력하면 자동으로 검색되며, 검색 버튼 또는 F2 키로도 검색할 수 있습니다.</p>
 
       <template v-if="!searched">
         <div class="hdr-section-head">

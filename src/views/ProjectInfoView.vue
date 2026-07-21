@@ -12,14 +12,17 @@ import {
   testRoundOptions,
   testLibraryScenarios,
   searchStaff,
+  searchMentions,
 } from '@/data/projectInfo'
 import { systemOptions, bizCategoryMap } from '@/data/requirement'
+import { getWbsTasks } from '@/data/wbs'
 import ScheduleReasonInputModal from '@/components/project/ScheduleReasonInputModal.vue'
 import TesterChangeModal from '@/components/project/TesterChangeModal.vue'
-import { isJiraAlreadyRegistered } from '@/data/projectRegister'
+import { isJiraAlreadyRegistered, lookupJira } from '@/data/projectRegister'
 
 const projectStore = useProjectStore()
 const ASSIGNEE_MAX = 20
+const CURRENT_USER_NAME = '김현대'
 
 const form = reactive({
   jira: '',
@@ -37,6 +40,7 @@ const form = reactive({
   assignees: {},
   testUsage: [],
   testRoundDev: '1차',
+  testRoundStg: '1차',
   testRoundUat: '1차',
   testLibrary: '미등록',
   testLibraryScenarios: [],
@@ -64,13 +68,19 @@ const replyDraft = ref('')
 const assigneeSearch = reactive({})
 const assigneeSearchOpen = reactive({})
 
+const mentionTarget = ref(null) // 'issue' | 'reply'
+const mentionQuery = ref('')
+
 const isReadOnly = computed(() => savedStage.value === '완료' || savedStage.value === '반려')
 const showOpenDate = computed(() => form.stage === '완료')
 const memoCount = computed(() => form.memo.length)
 const issueDraftCount = computed(() => issueDraft.value.length)
 const isDevRoundEnabled = computed(() => form.testUsage.includes('DEV테스트'))
+const isStgRoundEnabled = computed(() => form.testUsage.includes('STG테스트'))
 const isUatRoundEnabled = computed(() => form.testUsage.includes('운영테스트'))
 const testUsageLocked = computed(() => isReadOnly.value || form.hasRegisteredTestCases)
+const canEditJira = computed(() => !isReadOnly.value && (isRegistering.value || form.stage === '접수'))
+const mentionResults = computed(() => (mentionTarget.value ? searchMentions(mentionQuery.value) : []))
 
 const categoryBizOptions = computed(() => {
   if (!categorySystem.value) return []
@@ -157,6 +167,26 @@ function totalAssigneeCount() {
 
 function findAssigneeRole(staffId) {
   return assigneeRoles.find((role) => (form.assignees[role] || []).some((p) => p.id === staffId))
+}
+
+function searchJira() {
+  const jira = String(form.jira || '').trim()
+  if (!jira) {
+    window.alert('JIRA 번호를 입력해 주세요.')
+    return
+  }
+  if (isJiraAlreadyRegistered(jira)) {
+    window.alert('이미 등록된 JIRA 번호입니다.')
+    return
+  }
+  const result = lookupJira(jira)
+  if (!result) {
+    window.alert('조회된 정보가 없습니다.')
+    return
+  }
+  form.itVoc = result.itVoc
+  form.scheduledOpenDate = result.scheduledOpenDate
+  window.alert('JIRA 정보를 조회하여 반영했습니다.')
 }
 
 /** 저장/등록 전 필수·예외 검증. 실패 시 메시지 반환 */
@@ -274,11 +304,22 @@ function closeAssigneeSearch(role) {
   assigneeSearchOpen[role] = false
 }
 
+function autoAddWbsCategories() {
+  const used = new Set()
+  getWbsTasks().forEach((task) => {
+    if (task.systemPath && task.systemPath !== '-' && task.systemPath.includes('>')) {
+      used.add(task.systemPath.replace('>', ' > '))
+    }
+  })
+  used.forEach((cat) => addCategory(cat))
+}
+
 function onStageClick(stage) {
   if (isReadOnly.value) return
   if (isRegistering.value && (stage === '완료' || stage === '반려')) return
   form.stage = stage
   if (stage !== '완료') form.actualOpenDate = ''
+  else autoAddWbsCategories()
 }
 
 function needsScheduleReason() {
@@ -364,7 +405,7 @@ function addIssue() {
   } else {
     form.issues.unshift({
       id: `iss-${Date.now()}`,
-      author: '김현대',
+      author: CURRENT_USER_NAME,
       dept: '웹기획팀',
       createdAt: now,
       updatedAt: null,
@@ -377,7 +418,7 @@ function addIssue() {
 }
 
 function startEditIssue(issue) {
-  if (isReadOnly.value) return
+  if (isReadOnly.value || issue.author !== CURRENT_USER_NAME) return
   editingIssueId.value = issue.id
   replyTargetId.value = null
   replyDraft.value = ''
@@ -399,12 +440,40 @@ function cancelReply() {
   replyDraft.value = ''
 }
 
+function extractMentionQuery(text, cursorPos) {
+  const upToCursor = text.slice(0, cursorPos)
+  const match = upToCursor.match(/@([^\s@]*)$/)
+  return match ? match[1] : null
+}
+
+function onIssueDraftInput(e) {
+  const query = extractMentionQuery(issueDraft.value, e.target.selectionStart)
+  mentionTarget.value = query !== null ? 'issue' : null
+  mentionQuery.value = query || ''
+}
+
+function onReplyDraftInput(e) {
+  const query = extractMentionQuery(replyDraft.value, e.target.selectionStart)
+  mentionTarget.value = query !== null ? 'reply' : null
+  mentionQuery.value = query || ''
+}
+
+function closeMentionList() {
+  mentionTarget.value = null
+}
+
+function selectMention(user) {
+  const draftRef = mentionTarget.value === 'reply' ? replyDraft : issueDraft
+  draftRef.value = draftRef.value.replace(/@([^\s@]*)$/, `@${user.name} `)
+  mentionTarget.value = null
+}
+
 function addReply(issue) {
   if (!replyDraft.value.trim()) return
   if (!issue.replies) issue.replies = []
   issue.replies.push({
     id: `rep-${Date.now()}`,
-    author: '김현대',
+    author: CURRENT_USER_NAME,
     dept: '웹기획팀',
     createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     body: replyDraft.value.trim(),
@@ -458,14 +527,16 @@ function openIssueForm() {
 
       <div class="frow frow--2">
         <div class="fld" :class="{ 'fld--req': isRegistering }">
-          <label>{{ isRegistering ? 'JIRA' : 'JIRA (수정불가)' }}</label>
-          <input
-            v-if="isRegistering && !isReadOnly"
-            v-model="form.jira"
-            class="inp inp--edit"
-            type="text"
-            placeholder="JIRA 번호 입력"
-          />
+          <label>{{ canEditJira ? 'JIRA' : 'JIRA (수정불가)' }}</label>
+          <div v-if="canEditJira" class="fld__row">
+            <input
+              v-model="form.jira"
+              class="inp inp--edit"
+              type="text"
+              placeholder="JIRA 번호 입력"
+            />
+            <button type="button" class="btn btn--ghost btn--sm" @click="searchJira">조회</button>
+          </div>
           <div v-else class="inp inp--ro">{{ form.jira }}</div>
         </div>
         <div class="fld" :class="{ 'fld--req': isRegistering }">
@@ -619,25 +690,13 @@ function openIssueForm() {
       </div>
 
       <div class="frow frow--2">
-        <div class="fld fld--req">
-          <label>요청부서</label>
-          <input
-            v-model="form.requestDept"
-            class="inp inp--edit"
-            type="text"
-            placeholder="요청부서 입력"
-            :disabled="isReadOnly"
-          />
+        <div class="fld">
+          <label>요청부서 (수정불가)</label>
+          <div class="inp inp--ro">{{ form.requestDept }}</div>
         </div>
-        <div class="fld fld--req">
-          <label>요청자</label>
-          <input
-            v-model="form.requester"
-            class="inp inp--edit"
-            type="text"
-            placeholder="요청자 입력"
-            :disabled="isReadOnly"
-          />
+        <div class="fld">
+          <label>요청자 (수정불가)</label>
+          <div class="inp inp--ro">{{ form.requester }}</div>
         </div>
       </div>
 
@@ -741,6 +800,18 @@ function openIssueForm() {
                 </option>
               </select>
             </div>
+            <div v-if="opt === 'STG테스트' && isStgRoundEnabled" class="test-round">
+              <span class="test-round__label">STG 차수</span>
+              <select
+                v-model="form.testRoundStg"
+                class="inp inp--edit test-round__select"
+                :disabled="testUsageLocked"
+              >
+                <option v-for="r in testRoundOptions" :key="`stg-${r}`" :value="r">
+                  {{ r }}
+                </option>
+              </select>
+            </div>
           </template>
         </div>
         <p v-if="form.hasRegisteredTestCases" class="field-hint">
@@ -829,17 +900,29 @@ function openIssueForm() {
       </div>
 
       <div v-if="showIssueForm" class="issue-form">
-        <textarea
-          v-model="issueDraft"
-          class="issue-form__input"
-          rows="4"
-          maxlength="2000"
-          :placeholder="
-            editingIssueId
-              ? '이슈 내용을 수정하세요'
-              : '이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대'
-          "
-        />
+        <div class="mention-wrap">
+          <textarea
+            v-model="issueDraft"
+            class="issue-form__input"
+            rows="4"
+            maxlength="2000"
+            :placeholder="
+              editingIssueId
+                ? '이슈 내용을 수정하세요'
+                : '이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대'
+            "
+            @input="onIssueDraftInput"
+            @blur="closeMentionList"
+          />
+          <ul v-if="mentionTarget === 'issue'" class="mention-list">
+            <li v-if="!mentionResults.length" class="mention-list__empty">검색 결과 없습니다.</li>
+            <li v-for="user in mentionResults" :key="user.name">
+              <button type="button" class="mention-list__item" @mousedown.prevent="selectMention(user)">
+                {{ user.name }} / {{ user.dept }}
+              </button>
+            </li>
+          </ul>
+        </div>
         <div class="issue-form__foot">
           <span class="issue-form__count">{{ issueDraftCount }} / 2000자</span>
           <div class="issue-form__actions">
@@ -872,19 +955,33 @@ function openIssueForm() {
         </header>
         <p class="issue-item__body">{{ issue.body }}</p>
         <div v-if="!isReadOnly" class="issue-item__actions">
-          <button type="button" class="link-btn" @click="startEditIssue(issue)">수정</button>
-          <span class="issue-item__sep">|</span>
+          <template v-if="issue.author === CURRENT_USER_NAME">
+            <button type="button" class="link-btn" @click="startEditIssue(issue)">수정</button>
+            <span class="issue-item__sep">|</span>
+          </template>
           <button type="button" class="link-btn" @click="startReplyIssue(issue)">답글</button>
         </div>
 
         <div v-if="replyTargetId === issue.id" class="issue-form issue-form--reply">
-          <textarea
-            v-model="replyDraft"
-            class="issue-form__input"
-            rows="3"
-            maxlength="2000"
-            placeholder="답글 내용을 입력하세요"
-          />
+          <div class="mention-wrap">
+            <textarea
+              v-model="replyDraft"
+              class="issue-form__input"
+              rows="3"
+              maxlength="2000"
+              placeholder="답글 내용을 입력하세요 (담당자 태그(@) 입력 가능)"
+              @input="onReplyDraftInput"
+              @blur="closeMentionList"
+            />
+            <ul v-if="mentionTarget === 'reply'" class="mention-list">
+              <li v-if="!mentionResults.length" class="mention-list__empty">검색 결과 없습니다.</li>
+              <li v-for="user in mentionResults" :key="user.name">
+                <button type="button" class="mention-list__item" @mousedown.prevent="selectMention(user)">
+                  {{ user.name }} / {{ user.dept }}
+                </button>
+              </li>
+            </ul>
+          </div>
           <div class="issue-form__foot">
             <div class="issue-form__actions">
               <button type="button" class="btn btn--ghost btn--sm" @click="cancelReply">
@@ -1120,6 +1217,16 @@ function openIssueForm() {
 
 .fld--wide {
   grid-column: span 1;
+}
+
+.fld__row {
+  display: flex;
+  gap: 6px;
+}
+
+.fld__row .inp {
+  flex: 1;
+  min-width: 0;
 }
 
 .fld--req > label::after {
@@ -1586,6 +1693,49 @@ select.inp--edit {
 
 .issue-form--reply {
   margin-top: 10px;
+}
+
+.mention-wrap {
+  position: relative;
+}
+
+.mention-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.mention-list__item {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mention-list__item:hover {
+  background: var(--teal-50);
+  color: var(--teal-600);
+}
+
+.mention-list__empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .issue-form {

@@ -89,6 +89,32 @@ const pagedRecords = computed(() => {
   return filteredRecords.value.slice(start, start + pageSize.value)
 })
 
+const deptChartData = computed(() => {
+  const map = new Map()
+  for (const person of filteredRecords.value) {
+    if (!map.has(person.dept)) {
+      map.set(person.dept, { dept: person.dept, count: 0, assignedCount: 0, projectCount: 0 })
+    }
+    const entry = map.get(person.dept)
+    entry.count += 1
+    if (person.projectCount > 0) entry.assignedCount += 1
+    entry.projectCount += person.projectCount
+  }
+  return [...map.values()].map((e) => ({
+    ...e,
+    rate: e.count ? Math.round((e.assignedCount / e.count) * 100) : 0,
+  }))
+})
+
+const maxDeptProjectCount = computed(() =>
+  Math.max(1, ...deptChartData.value.map((d) => d.projectCount)),
+)
+
+function donutStyle(rate) {
+  const p = Math.min(100, Math.max(0, rate))
+  return { background: `conic-gradient(var(--teal-600) 0 ${p}%, #eef1f3 ${p}% 100%)` }
+}
+
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredRecords.value.length / pageSize.value)),
 )
@@ -257,6 +283,33 @@ function formatExecProgress(progress) {
         <span class="kpi__dot"></span>
         <span class="kpi__lab">진행 프로젝트</span>
         <span class="kpi__num">{{ techResourceSummary.projectCount }}<small>건</small></span>
+      </div>
+    </section>
+
+    <!-- 부서별 통계 차트 -->
+    <section class="card pad chart-card">
+      <h3 class="sec-title">부서별 통계</h3>
+      <div class="chart-row">
+        <div class="chart-donuts">
+          <div v-for="d in deptChartData" :key="d.dept" class="chart-donut-item">
+            <div class="donut" :style="donutStyle(d.rate)">
+              <div class="donut__hole">
+                <span class="donut__v">{{ d.rate }}%</span>
+                <span class="donut__l">투입율</span>
+              </div>
+            </div>
+            <span class="chart-donut-item__lab">{{ d.dept }}</span>
+          </div>
+        </div>
+        <div class="chart-bars">
+          <div v-for="d in deptChartData" :key="d.dept" class="chart-bar-row">
+            <span class="chart-bar-row__lab">{{ d.dept }}</span>
+            <div class="chart-bar-row__track">
+              <i :style="{ width: `${(d.projectCount / maxDeptProjectCount) * 100}%` }" />
+            </div>
+            <span class="chart-bar-row__num">{{ d.projectCount }}건</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -598,6 +651,108 @@ function formatExecProgress(progress) {
   display: flex;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.chart-card {
+  margin-bottom: 16px;
+}
+
+.chart-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.chart-donuts {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.chart-donut-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-donut-item__lab {
+  font-size: 11px;
+  color: var(--lnb-muted);
+  font-weight: 600;
+}
+
+.donut {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.donut__hole {
+  position: absolute;
+  inset: 12px;
+  background: var(--lnb-side);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut__v {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--teal-600);
+}
+
+.donut__l {
+  font-size: 8px;
+  color: var(--lnb-muted);
+}
+
+.chart-bars {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
+
+.chart-bar-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+}
+
+.chart-bar-row__lab {
+  color: var(--lnb-txt);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-bar-row__track {
+  height: 8px;
+  background: #eef1f3;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.chart-bar-row__track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--teal-600));
+}
+
+.chart-bar-row__num {
+  color: var(--lnb-muted);
+  text-align: right;
 }
 
 .kpi {

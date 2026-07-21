@@ -4,7 +4,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTestContext } from '@/composables/useTestContext'
 import { bizCategoryOptions, pageSizeOptions } from '@/data/testConfig'
-import { scenarioMeta, getScenarioList, matchScenarioFilters } from '@/data/scenario'
+import {
+  scenarioMeta,
+  getScenarioList,
+  matchScenarioFilters,
+  saveScenarioCase,
+} from '@/data/scenario'
 import ScenarioBulkRegisterModal from '@/components/test/ScenarioBulkRegisterModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
@@ -31,6 +36,8 @@ const expandedIds = ref(new Set())
 const expandAll = ref(false)
 
 const showBulkModal = ref(false)
+const editingNoteId = ref(null)
+const noteDraft = ref('')
 
 const filteredList = computed(() =>
   rows.value.filter((row) => matchScenarioFilters(row, appliedFilters.value, config.value)),
@@ -106,6 +113,28 @@ function openEdit(row) {
     params: { mode: mode.value },
     query: row ? { caseId: row.caseId } : {},
   })
+}
+
+function goRequirement(row) {
+  if (!row.reqId) return
+  router.push('/project/requirement')
+}
+
+function startEditNote(row) {
+  editingNoteId.value = row.id
+  noteDraft.value = row.note || ''
+}
+
+function cancelEditNote() {
+  editingNoteId.value = null
+  noteDraft.value = ''
+}
+
+function saveNote(row) {
+  row.note = noteDraft.value.trim()
+  if (row.caseId) saveScenarioCase(row.caseId, { note: row.note })
+  editingNoteId.value = null
+  noteDraft.value = ''
 }
 
 function onBulkRegister() {
@@ -211,10 +240,10 @@ function onBulkConfirm(items) {
       <button type="button" class="toolbar__mini" @click="toggleExpandAll">
         {{ allExpandedOnPage ? '전체접기' : '전체열기' }}
       </button>
-      <ExcelDownloadButton @click="onExcelDownload" />
       <div class="toolbar__spacer" />
       <button type="button" class="btn btn--ghost btn--sm" @click="openEdit()">시나리오 편집</button>
       <button type="button" class="btn btn--primary btn--sm" @click="onBulkRegister">일괄등록</button>
+      <ExcelDownloadButton @click="onExcelDownload" />
     </div>
 
     <div class="listcard">
@@ -222,6 +251,7 @@ function onBulkConfirm(items) {
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-no">No</th>
               <th class="col-expand"></th>
               <th>요구사항 ID</th>
               <th>수행구분</th>
@@ -235,29 +265,57 @@ function onBulkConfirm(items) {
             </tr>
           </thead>
           <tbody>
-            <template v-for="row in pagedList" :key="row.id">
+            <template v-for="(row, idx) in pagedList" :key="row.id">
               <tr class="main-row" :class="{ 'main-row--open': expandedIds.has(row.id) }">
+                <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
                 <td>
                   <button type="button" class="expand-btn" @click="toggleExpand(row.id)">
                     {{ expandedIds.has(row.id) ? '▼' : '▶' }}
                   </button>
                 </td>
-                <td>{{ row.reqId }}</td>
+                <td>
+                  <button v-if="row.reqId" type="button" class="link-btn" @click="goRequirement(row)">
+                    {{ row.reqId }}
+                  </button>
+                  <span v-else>-</span>
+                </td>
                 <td>{{ row.executionType }}</td>
-                <td>{{ row.systemPath }}</td>
-                <td>{{ row.screenPath }}</td>
-                <td>{{ row.screenName }}</td>
-                <td>{{ row.caseId }}</td>
-                <td>{{ row.caseName }}</td>
-                <td>{{ row.stepCount }}</td>
+                <td>{{ row.systemPath || '-' }}</td>
+                <td>{{ row.screenPath || '-' }}</td>
+                <td>{{ row.screenName || '-' }}</td>
+                <td>{{ row.caseId || '미등록' }}</td>
+                <td>
+                  <button type="button" class="name-link" @click="toggleExpand(row.id)">
+                    {{ row.caseName || '미등록' }}
+                  </button>
+                </td>
+                <td>{{ row.stepCount || 0 }}</td>
                 <td>
                   <button type="button" class="link-btn" @click="openEdit(row)">편집</button>
                 </td>
               </tr>
               <tr v-if="expandedIds.has(row.id)" class="detail-row">
-                <td colspan="10">
+                <td colspan="11">
                   <div class="step-panel">
-                    <p v-if="row.note" class="step-note">참고: {{ row.note }}</p>
+                    <div class="step-note-row">
+                      <template v-if="editingNoteId === row.id">
+                        <input
+                          v-model="noteDraft"
+                          class="step-note__input"
+                          type="text"
+                          maxlength="200"
+                          placeholder="테스트 참고사항을 입력하세요"
+                        />
+                        <button type="button" class="link-btn" @click="saveNote(row)">저장</button>
+                        <button type="button" class="link-btn" @click="cancelEditNote">취소</button>
+                      </template>
+                      <template v-else>
+                        <p class="step-note">참고: {{ row.note || '-' }}</p>
+                        <button type="button" class="note-edit-btn" title="참고사항 편집" @click="startEditNote(row)">
+                          ✎
+                        </button>
+                      </template>
+                    </div>
                     <table class="inner-table">
                       <thead>
                         <tr>
@@ -279,7 +337,7 @@ function onBulkConfirm(items) {
               </tr>
             </template>
             <tr v-if="!pagedList.length">
-              <td colspan="10" class="empty">조회 결과가 없습니다.</td>
+              <td colspan="11" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -459,6 +517,24 @@ function onBulkConfirm(items) {
 }
 
 .col-expand { width: 36px; }
+.col-no { width: 40px; text-align: center !important; }
+
+.name-link {
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  padding: 0;
+}
+
+.name-link:hover {
+  color: var(--teal-600);
+  text-decoration: underline;
+}
 
 .expand-btn {
   border: none;
@@ -477,10 +553,37 @@ function onBulkConfirm(items) {
 
 .step-panel { padding: 12px 16px 16px 48px; }
 
+.step-note-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .step-note {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 11px;
   color: var(--teal-600);
+}
+
+.step-note__input {
+  flex: 1;
+  max-width: 360px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11.5px;
+}
+
+.note-edit-btn {
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
 }
 
 .inner-table {

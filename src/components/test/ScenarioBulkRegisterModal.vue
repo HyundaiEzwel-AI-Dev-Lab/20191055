@@ -1,10 +1,10 @@
 <script setup>
 // POP-UAT-03 시나리오 일괄등록
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
-import { getBulkRegisterPreview } from '@/data/scenario'
+import { getBulkRegisterPreview, validateScenarioBulkRow } from '@/data/scenario'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -16,22 +16,40 @@ const emit = defineEmits(['close', 'register'])
 const fileName = ref('')
 const previewRows = ref([])
 const uploading = ref(false)
+const isDragging = ref(false)
+
+const validRows = computed(() => previewRows.value.filter((r) => r.validation.ok))
+const failedRows = computed(() => previewRows.value.filter((r) => !r.validation.ok))
+const newCount = computed(() => validRows.value.filter((r) => !r.validation.isUpdate).length)
+const updateCount = computed(() => validRows.value.filter((r) => r.validation.isUpdate).length)
 
 function reset() {
   fileName.value = ''
   previewRows.value = []
   uploading.value = false
+  isDragging.value = false
 }
 
-function onFileChange(e) {
-  const file = e.target.files?.[0]
+function parseFile(file) {
   if (!file) return
   fileName.value = file.name
   uploading.value = true
   setTimeout(() => {
-    previewRows.value = getBulkRegisterPreview(props.mode)
+    previewRows.value = getBulkRegisterPreview(props.mode).map((row) => ({
+      ...row,
+      validation: validateScenarioBulkRow(row),
+    }))
     uploading.value = false
   }, 400)
+}
+
+function onFileChange(e) {
+  parseFile(e.target.files?.[0])
+}
+
+function onDrop(e) {
+  isDragging.value = false
+  parseFile(e.dataTransfer?.files?.[0])
 }
 
 function downloadTemplate() {
@@ -65,8 +83,9 @@ function downloadTemplate() {
 }
 
 function register() {
-  if (!previewRows.value.length) return
-  emit('register', previewRows.value)
+  if (!validRows.value.length) return
+  if (!window.confirm(`정상 ${validRows.value.length}건을 업로드하시겠습니까?`)) return
+  emit('register', validRows.value)
   reset()
   emit('close')
 }
@@ -92,6 +111,16 @@ function close() {
       </label>
     </div>
 
+    <div
+      class="dropzone"
+      :class="{ 'dropzone--active': isDragging }"
+      @dragover.prevent="isDragging = true"
+      @dragleave.prevent="isDragging = false"
+      @drop.prevent="onDrop"
+    >
+      파일을 이 영역으로 드래그하여 첨부할 수 있습니다.
+    </div>
+
     <p v-if="fileName" class="file-name">
       선택 파일: <b>{{ fileName }}</b>
       <span v-if="uploading"> · 파싱 중...</span>
@@ -99,6 +128,13 @@ function close() {
 
     <div v-if="previewRows.length" class="preview">
       <h4>미리보기 ({{ previewRows.length }}건)</h4>
+      <div class="summary-row">
+        <span>전체 <b>{{ previewRows.length }}</b>건</span>
+        <span class="ok">정상 <b>{{ validRows.length }}</b>건</span>
+        <span class="fail">실패 <b>{{ failedRows.length }}</b>건</span>
+        <span>신규 <b>{{ newCount }}</b>건</span>
+        <span>업데이트 <b>{{ updateCount }}</b>건</span>
+      </div>
       <table class="preview-table">
         <thead>
           <tr>
@@ -107,18 +143,40 @@ function close() {
             <th>화면명</th>
             <th>차수</th>
             <th>절차 수</th>
+            <th>구분</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in previewRows" :key="row.caseId">
+          <tr v-for="row in validRows" :key="row.caseId">
             <td>{{ row.caseId }}</td>
             <td>{{ row.caseName }}</td>
             <td>{{ row.screenName }}</td>
             <td>{{ row.round }}</td>
             <td>{{ row.steps.length }}</td>
+            <td>{{ row.validation.isUpdate ? '업데이트' : '신규' }}</td>
           </tr>
         </tbody>
       </table>
+
+      <template v-if="failedRows.length">
+        <h4 class="fail-title">실패내역 ({{ failedRows.length }}건)</h4>
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>케이스 ID</th>
+              <th>케이스명</th>
+              <th>실패 사유</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in failedRows" :key="row.caseId">
+              <td>{{ row.caseId }}</td>
+              <td>{{ row.caseName || '-' }}</td>
+              <td class="fail">{{ row.validation.errors.join(', ') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </div>
 
     <template #footer>
@@ -126,7 +184,7 @@ function close() {
       <button
         type="button"
         class="btn btn--primary"
-        :disabled="!previewRows.length || uploading"
+        :disabled="!validRows.length || uploading"
         @click="register"
       >
         등록
@@ -169,6 +227,23 @@ function close() {
   cursor: pointer;
 }
 
+.dropzone {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--field);
+}
+
+.dropzone--active {
+  border-color: var(--teal-600);
+  color: var(--teal-600);
+  background: var(--teal-50);
+}
+
 .file-name {
   font-size: 12px;
   color: var(--muted);
@@ -178,6 +253,35 @@ function close() {
 .preview h4 {
   margin: 0 0 8px;
   font-size: 13px;
+}
+
+.fail-title {
+  margin-top: 14px;
+}
+
+.summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.summary-row b {
+  color: var(--teal-600);
+}
+
+.summary-row .ok b {
+  color: #1a7f4b;
+}
+
+.summary-row .fail b {
+  color: #c0392b;
+}
+
+td.fail {
+  color: #c0392b;
 }
 
 .preview-table {

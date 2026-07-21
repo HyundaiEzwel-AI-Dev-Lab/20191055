@@ -38,6 +38,7 @@ const baseRuns = [
     fixDone: 0,
     fixPending: 0,
     lastExecutedAt: '2026-04-15 16:30',
+    note: '임직원/직원 구분 계정 필요',
     procedures: [
       { procedure: '숙박바우처 선택 시', expected: '바우처 특복 배정 확인' },
       { procedure: '페이지 하단 신청 정보 확인', expected: '복지혜택 : 숙박바우처 / 최종선택일 업데이트' },
@@ -79,6 +80,7 @@ const baseRuns = [
     fixDone: 0,
     fixPending: 1,
     lastExecutedAt: '2026-04-16 11:20',
+    note: '',
     procedures: [
       { procedure: '최근 신청내역 조회', expected: '목록 표시' },
       { procedure: '배정 API 호출', expected: '포인트 배정 성공' },
@@ -109,6 +111,7 @@ const baseRuns = [
     fixDone: 0,
     fixPending: 0,
     lastExecutedAt: null,
+    note: '운영 오픈 후 수행',
     procedures: [
       { procedure: '주문 상세 진입', expected: '취소 버튼 표시' },
       { procedure: '취소 실행', expected: '취소 완료 상태' },
@@ -139,6 +142,7 @@ const baseRuns = [
     fixDone: 1,
     fixPending: 0,
     lastExecutedAt: '2026-04-12 09:00',
+    note: '',
     procedures: [
       { procedure: '대사 목록 조회', expected: '목록 표시' },
       { procedure: '엑셀 다운로드', expected: '파일 생성' },
@@ -216,13 +220,21 @@ export function computeTestRunKpi(rows) {
 
 export function matchTestRunFilters(row, filters, myTestsOnly, currentUser = '김현대') {
   if (myTestsOnly && !row.testers.includes(currentUser)) return false
+  if (filters.system && filters.system !== '전체' && !row.systemPath.startsWith(filters.system)) return false
   if (filters.round !== '전체' && row.round !== filters.round) return false
   if (filters.bizCategory !== '전체' && row.bizCategory !== filters.bizCategory) return false
   if (filters.result !== '전체' && row.result !== filters.result) return false
+  if (filters.executionType && filters.executionType !== '전체' && row.executionType !== filters.executionType) {
+    return false
+  }
   if (filters.tester && !row.testers.some((t) => t.includes(filters.tester))) return false
   if (filters.keyword) {
     const q = filters.keyword.toLowerCase()
     if (!`${row.caseId}${row.caseName}${row.screenName}${row.reqId}`.toLowerCase().includes(q)) return false
+  }
+  if (filters.screenKeyword) {
+    const q = filters.screenKeyword.toLowerCase()
+    if (!`${row.reqId}${row.screenName}`.toLowerCase().includes(q)) return false
   }
   if (filters.dateFrom && row.planEnd < filters.dateFrom) return false
   if (filters.dateTo && row.planStart > filters.dateTo) return false

@@ -26,6 +26,10 @@ function scrollTabs(dir) {
   tabBarRef.value?.scrollBy(dir)
 }
 
+function scrollTabsByPage(dir) {
+  tabBarRef.value?.scrollByTabs(dir * 10)
+}
+
 function openPopup(target) {
   showSearch.value = target === 'search'
   showNoti.value = target === 'noti'
@@ -49,6 +53,11 @@ function onUnreadChange(count) {
 <template>
   <header class="app-header">
     <div class="app-header__tabs-wrap">
+      <button class="app-header__scroll" title="이전 탭 10개" @click="scrollTabsByPage(-1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 18l-6-6 6-6M11 18l-6-6 6-6" />
+        </svg>
+      </button>
       <button class="app-header__scroll" title="이전 탭" @click="scrollTabs(-160)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M15 18l-6-6 6-6" />
@@ -58,6 +67,11 @@ function onUnreadChange(count) {
       <button class="app-header__scroll" title="다음 탭" @click="scrollTabs(160)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 18l6-6-6-6" />
+        </svg>
+      </button>
+      <button class="app-header__scroll" title="다음 탭 10개" @click="scrollTabsByPage(1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 18l6-6-6-6M13 18l6-6-6-6" />
         </svg>
       </button>
     </div>

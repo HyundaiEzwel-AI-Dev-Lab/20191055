@@ -1,8 +1,8 @@
 <script setup>
-// 시나리오 편집 · 라이브러리에서 복사
+// POP-S-UAT-07 테스트 라이브러리 복사 — 개별 검색 + 케이스 담기(중복 안내) + 선택된 케이스 영역 + 케이스 저장
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import { libraryList } from '@/data/testLibrary'
+import { libraryList, systemOptions, bizOptions } from '@/data/testLibrary'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -10,8 +10,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'confirm'])
 
-const keyword = ref('')
-const selected = ref(new Set())
+const filters = ref({ system: '전체', bizCategory: '전체', screenName: '', sourceProject: '', caseName: '' })
+const searched = ref(false)
+const staged = ref([])
 
 const flatCases = computed(() =>
   libraryList.flatMap((lib) =>
@@ -19,8 +20,11 @@ const flatCases = computed(() =>
       key: `${lib.id}:${c.id}`,
       libId: lib.id,
       libTitle: lib.title,
+      system: lib.system,
+      bizCategory: lib.bizCategory,
       systemPath: lib.systemPath,
       screenName: lib.screenName,
+      sourceProject: lib.sourceProject,
       type: lib.type,
       caseId: c.id,
       caseName: c.title,
@@ -30,27 +34,56 @@ const flatCases = computed(() =>
 )
 
 const filtered = computed(() => {
-  const q = keyword.value.trim().toLowerCase()
-  if (!q) return flatCases.value
-  return flatCases.value.filter((r) =>
-    `${r.libTitle}${r.caseName}${r.screenName}${r.systemPath}`.toLowerCase().includes(q),
-  )
+  if (!searched.value) return []
+  return flatCases.value.filter((r) => {
+    if (filters.value.system !== '전체' && r.system !== filters.value.system) return false
+    if (filters.value.bizCategory !== '전체' && r.bizCategory !== filters.value.bizCategory) return false
+    if (
+      filters.value.screenName &&
+      !r.screenName.toLowerCase().includes(filters.value.screenName.trim().toLowerCase())
+    ) {
+      return false
+    }
+    if (
+      filters.value.sourceProject &&
+      !r.sourceProject.toLowerCase().includes(filters.value.sourceProject.trim().toLowerCase())
+    ) {
+      return false
+    }
+    if (
+      filters.value.caseName &&
+      !r.caseName.toLowerCase().includes(filters.value.caseName.trim().toLowerCase())
+    ) {
+      return false
+    }
+    return true
+  })
 })
 
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    keyword.value = ''
-    selected.value = new Set()
+    filters.value = { system: '전체', bizCategory: '전체', screenName: '', sourceProject: '', caseName: '' }
+    searched.value = false
+    staged.value = []
   },
 )
 
-function toggle(key) {
-  const next = new Set(selected.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  selected.value = next
+function search() {
+  searched.value = true
+}
+
+function addToStaged(row) {
+  if (staged.value.some((s) => s.key === row.key)) {
+    window.alert('이미 담긴 케이스입니다.')
+    return
+  }
+  staged.value.push(row)
+}
+
+function removeStaged(key) {
+  staged.value = staged.value.filter((s) => s.key !== key)
 }
 
 function close() {
@@ -58,13 +91,12 @@ function close() {
 }
 
 function confirm() {
-  const picked = flatCases.value.filter((r) => selected.value.has(r.key))
-  if (!picked.length) {
-    window.alert('복사할 라이브러리 케이스를 선택해 주세요.')
+  if (!staged.value.length) {
+    window.alert('담은 케이스가 없습니다. 케이스를 먼저 담아주세요.')
     return
   }
-  if (!window.confirm(`${picked.length}건을 복사해 추가하시겠습니까?`)) return
-  emit('confirm', picked)
+  if (!window.confirm(`선택된 ${staged.value.length}건을 케이스로 저장하시겠습니까?`)) return
+  emit('confirm', staged.value)
   close()
 }
 </script>
@@ -72,65 +104,110 @@ function confirm() {
 <template>
   <BaseModal title="라이브러리에서 복사" :visible="modelValue" wide @close="close">
     <div class="filter">
-      <input
-        v-model="keyword"
-        class="inp"
-        type="text"
-        placeholder="라이브러리 · 케이스 · 화면명 검색"
-      />
+      <div class="fld">
+        <label>시스템</label>
+        <select v-model="filters.system" class="inp">
+          <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>업무구분</label>
+        <select v-model="filters.bizCategory" class="inp">
+          <option v-for="b in bizOptions" :key="b" :value="b">{{ b }}</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>화면(메뉴)</label>
+        <input v-model="filters.screenName" class="inp" type="text" placeholder="화면명 검색" @keyup.enter="search" />
+      </div>
+      <div class="fld">
+        <label>프로젝트 출처</label>
+        <input v-model="filters.sourceProject" class="inp" type="text" placeholder="프로젝트명 검색" @keyup.enter="search" />
+      </div>
+      <div class="fld">
+        <label>케이스명</label>
+        <input v-model="filters.caseName" class="inp" type="text" placeholder="케이스명 검색" @keyup.enter="search" />
+      </div>
+      <button type="button" class="btn btn--primary btn--sm filter__btn" @click="search">조회</button>
     </div>
+
     <div class="table-wrap">
       <table class="tbl">
         <thead>
           <tr>
-            <th class="col-check" />
             <th>유형</th>
             <th>라이브러리</th>
             <th>화면명</th>
+            <th>프로젝트 출처</th>
             <th>케이스</th>
             <th>절차수</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="row in filtered"
-            :key="row.key"
-            :class="{ 'is-on': selected.has(row.key) }"
-            @click="toggle(row.key)"
-          >
-            <td class="col-check">
-              <input
-                type="checkbox"
-                :checked="selected.has(row.key)"
-                @click.stop="toggle(row.key)"
-              />
-            </td>
+          <tr v-for="row in filtered" :key="row.key">
             <td>{{ row.type }}</td>
             <td class="name">{{ row.libTitle }}</td>
             <td>{{ row.screenName }}</td>
+            <td class="name">{{ row.sourceProject }}</td>
             <td class="name">{{ row.caseName }}</td>
             <td>{{ row.steps.length }}</td>
+            <td>
+              <button type="button" class="btn btn--ghost btn--sm" @click="addToStaged(row)">담기</button>
+            </td>
           </tr>
-          <tr v-if="!filtered.length">
-            <td colspan="6" class="empty">검색 결과가 없습니다.</td>
+          <tr v-if="searched && !filtered.length">
+            <td colspan="7" class="empty">검색 결과가 없습니다.</td>
+          </tr>
+          <tr v-if="!searched">
+            <td colspan="7" class="empty">조회 버튼을 눌러 라이브러리 케이스를 검색하세요.</td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <div class="staged">
+      <h4 class="staged__title">선택된 케이스 ({{ staged.length }}건)</h4>
+      <div v-if="!staged.length" class="empty staged__empty">담은 케이스가 없습니다.</div>
+      <ul v-else class="staged__list">
+        <li v-for="row in staged" :key="row.key">
+          <span class="name">{{ row.caseName }}</span>
+          <span class="muted">{{ row.screenName }} · {{ row.libTitle }}</span>
+          <button type="button" class="link-btn" @click="removeStaged(row.key)">✕</button>
+        </li>
+      </ul>
+    </div>
+
     <template #footer>
       <button type="button" class="btn btn--ghost" @click="close">취소</button>
-      <button type="button" class="btn btn--primary" @click="confirm">복사</button>
+      <button type="button" class="btn btn--primary" @click="confirm">케이스 저장</button>
     </template>
   </BaseModal>
 </template>
 
 <style scoped>
 .filter {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.fld label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lnb-muted);
 }
 
 .inp {
-  width: 100%;
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--lnb-line);
@@ -141,11 +218,17 @@ function confirm() {
   background: var(--lnb-side);
 }
 
+.filter__btn {
+  height: 32px;
+  flex-shrink: 0;
+}
+
 .table-wrap {
-  max-height: 360px;
+  max-height: 260px;
   overflow: auto;
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
+  margin-bottom: 14px;
 }
 
 .tbl {
@@ -170,27 +253,70 @@ function confirm() {
   font-weight: 600;
 }
 
-.tbl tr {
-  cursor: pointer;
-}
-
-.tbl tr.is-on {
-  background: var(--teal-50);
-}
-
 .tbl .name {
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.col-check {
-  width: 36px;
-}
-
 .empty {
   text-align: center;
   color: var(--lnb-muted);
   padding: 24px !important;
+}
+
+.staged {
+  padding: 12px 14px;
+  border: 1px solid var(--teal-100);
+  background: var(--teal-50);
+  border-radius: 8px;
+}
+
+.staged__title {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--teal-600);
+}
+
+.staged__empty {
+  padding: 12px !important;
+}
+
+.staged__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.staged__list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.staged__list .name {
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--lnb-muted);
+  font-size: 11px;
+  flex: 1;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--red, #e0524a);
+  cursor: pointer;
+  font-size: 12px;
 }
 </style>

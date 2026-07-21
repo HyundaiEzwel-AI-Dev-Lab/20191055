@@ -4,15 +4,20 @@ export const holidayMeta = {
   hint: '법정공휴일 · 회사휴무일 관리 (WBS 일정 산정 반영)',
 }
 
-export const holidayTypeOptions = ['전체', '법정공휴일', '회사휴무']
+export const holidayTypeOptions = ['전체', '법정공휴일', '대체공휴일', '임시공휴일', '회사휴무']
+export const holidayFormTypeOptions = ['법정공휴일', '대체공휴일', '임시공휴일', '회사휴무']
 export const yearOptions = [2025, 2026, 2027]
 
-export const holidayList = [
+/** 목업 기준일 (과거 날짜 판정) */
+export const holidayMockToday = '2026-04-17'
+
+const baseHolidays = [
   { id: 'h1', date: '2026-01-01', name: '신정', type: '법정공휴일', note: '' },
   { id: 'h2', date: '2026-02-16', name: '설날 연휴', type: '법정공휴일', note: '연휴 시작' },
   { id: 'h3', date: '2026-02-17', name: '설날', type: '법정공휴일', note: '' },
   { id: 'h4', date: '2026-02-18', name: '설날 연휴', type: '법정공휴일', note: '연휴 종료' },
   { id: 'h5', date: '2026-03-01', name: '삼일절', type: '법정공휴일', note: '' },
+  { id: 'h5b', date: '2026-03-02', name: '삼일절 대체공휴일', type: '대체공휴일', note: '' },
   { id: 'h6', date: '2026-05-05', name: '어린이날', type: '법정공휴일', note: '' },
   { id: 'h7', date: '2026-05-24', name: '부처님오신날', type: '법정공휴일', note: '' },
   { id: 'h8', date: '2026-06-06', name: '현충일', type: '법정공휴일', note: '' },
@@ -25,7 +30,16 @@ export const holidayList = [
   { id: 'h15', date: '2026-12-25', name: '성탄절', type: '법정공휴일', note: '' },
   { id: 'h16', date: '2026-07-17', name: '창립기념일', type: '회사휴무', note: '전일 휴무' },
   { id: 'h17', date: '2026-12-31', name: '연말 특별휴무', type: '회사휴무', note: '' },
+  { id: 'h18', date: '2026-04-30', name: '임시공휴일 지정', type: '임시공휴일', note: '정부 지정' },
 ]
+
+export const holidayList = baseHolidays.map((h) => ({
+  registeredBy: 'system',
+  registeredAt: '2025-11-01 00:00:00',
+  updatedBy: '-',
+  updatedAt: null,
+  ...h,
+}))
 
 export function matchHolidayFilters(row, filters) {
   if (filters.year && !row.date.startsWith(String(filters.year))) return false
@@ -38,5 +52,8 @@ export function matchHolidayFilters(row, filters) {
 }
 
 export function holidayTypeClass(type) {
-  return type === '법정공휴일' ? 'ok' : 'prog'
+  if (type === '법정공휴일') return 'ok'
+  if (type === '대체공휴일') return 'prog'
+  if (type === '임시공휴일') return 'warn'
+  return 'muted'
 }

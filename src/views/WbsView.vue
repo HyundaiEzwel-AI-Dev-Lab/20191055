@@ -14,7 +14,9 @@ import {
   statusLabel,
   statusClass,
   matchWbsFilters,
+  wbsMockToday,
 } from '@/data/wbs'
+import { bizCategoryMap } from '@/data/requirement'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 import WbsScheduleReasonModal from '@/components/wbs/WbsScheduleReasonModal.vue'
 import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
@@ -39,6 +41,7 @@ const filters = ref({
   keyword: '',
   taskType: '전체',
   system: '',
+  bizCategory: '',
   progressStatus: ['전체'],
   scheduleCompliance: '전체',
   progressBaseDate: wbsMeta.progressBaseDate,
@@ -61,6 +64,8 @@ const showSaveAlert = ref(false)
 
 const calYear = ref(2026)
 const calMonth = ref(4)
+
+const bizCategoryFilterOptions = computed(() => bizCategoryMap[filters.value.system] || [])
 
 const statusFilterLabel = computed(() => {
   const sel = filters.value.progressStatus || []
@@ -103,6 +108,7 @@ function resetFilters() {
     keyword: '',
     taskType: '전체',
     system: '',
+    bizCategory: '',
     progressStatus: ['전체'],
     scheduleCompliance: '전체',
     progressBaseDate: wbsMeta.progressBaseDate,
@@ -112,6 +118,10 @@ function resetFilters() {
     ...filters.value,
     progressStatus: [...filters.value.progressStatus],
   }
+}
+
+function onSystemFilterChange() {
+  filters.value.bizCategory = ''
 }
 
 function search() {
@@ -209,7 +219,31 @@ function onScheduleChangeRequest(payload) {
       live.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
       live.changedBy = '김현대'
     })
+  } else if (payload.type === '실행 홀딩') {
+    targetTasks.forEach((t) => {
+      const live = tasks.value.find((x) => x.id === t.id)
+      if (!live) return
+      live.status = '홀딩'
+      live.holdStart = t.holdStart
+      live.holdEnd = t.holdEnd
+      live.restartDate = t.restart?.start || ''
+      live.correctedPlanEnd = t.restart?.end || ''
+      live.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      live.changedBy = '김현대'
+    })
   }
+}
+
+function canRestart(row) {
+  return row.status === '홀딩' && !!row.restartDate && wbsMockToday < row.restartDate
+}
+
+function onRestart(row) {
+  if (!window.confirm('재착수 처리하시겠습니까?')) return
+  row.status = '진행중'
+  if (row.correctedPlanEnd) row.planEnd = row.correctedPlanEnd
+  row.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  row.changedBy = '김현대'
 }
 
 function onOpenMultiChangeFromSchedule(task) {
@@ -254,11 +288,16 @@ function onExclude() {
     window.alert('작업제외할 업무를 선택하세요.')
     return
   }
+  const inProgress = selectedRows.value.filter((row) => row.planStart || row.assignee)
+  if (inProgress.length) {
+    const ok = window.confirm(
+      `선택한 업무 중 ${inProgress.length}건은 이미 진행 중입니다. 작업제외 처리하시겠습니까?`,
+    )
+    if (!ok) return
+  }
   selectedRows.value.forEach((row) => {
-    if (!row.planStart && !row.assignee) {
-      row.excluded = true
-      row.status = '취소'
-    }
+    row.excluded = true
+    row.status = '취소'
   })
   selectedIds.value = new Set()
 }
@@ -371,10 +410,17 @@ function onCalendarSelect(task) {
           </select>
         </div>
         <div class="filter__field">
-          <label>업무범주</label>
-          <select v-model="filters.system" class="filter__select">
+          <label>시스템</label>
+          <select v-model="filters.system" class="filter__select" @change="onSystemFilterChange">
             <option value="">시스템 선택</option>
             <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div class="filter__field">
+          <label>업무구분</label>
+          <select v-model="filters.bizCategory" class="filter__select" :disabled="!filters.system">
+            <option value="">업무구분 선택</option>
+            <option v-for="b in bizCategoryFilterOptions" :key="b" :value="b">{{ b }}</option>
           </select>
         </div>
         <div class="filter__field">
@@ -425,7 +471,6 @@ function onCalendarSelect(task) {
       <span class="toolbar__count">총 <b>{{ filteredTasks.length }}</b>건</span>
       <button type="button" class="btn btn--ghost btn--sm" @click="onExclude">작업제외</button>
       <div class="toolbar__spacer" />
-      <ExcelDownloadButton @click="onExcelDownload" />
       <button
         type="button"
         class="toolbar__toggle"
@@ -437,6 +482,7 @@ function onCalendarSelect(task) {
       <button type="button" class="btn btn--ghost btn--sm" @click="onScheduleChange">일정변경</button>
       <button type="button" class="btn btn--ghost btn--sm" @click="onCopy">복사</button>
       <button type="button" class="btn btn--primary btn--sm" @click="onSave">저장</button>
+      <ExcelDownloadButton @click="onExcelDownload" />
     </div>
 
     <!-- 목록형 -->
@@ -493,8 +539,14 @@ function onCalendarSelect(task) {
                   {{ row.requirementName }}
                 </button>
                 <span v-else>{{ row.requirementName }}</span>
-                <div v-if="hoverReqId === row.id && row.requirementPreview" class="req-tooltip">
-                  {{ row.requirementPreview }}
+                <div
+                  v-if="hoverReqId === row.id && (row.requirementPreview || row.requirementAnalysisPreview)"
+                  class="req-tooltip"
+                >
+                  <p class="req-tooltip__label">요구사항 원안</p>
+                  <p class="req-tooltip__text">{{ row.requirementPreview || '-' }}</p>
+                  <p class="req-tooltip__label">요구사항 분석</p>
+                  <p class="req-tooltip__text">{{ row.requirementAnalysisPreview || '-' }}</p>
                 </div>
               </td>
               <td>{{ row.taskType }}</td>
@@ -548,6 +600,14 @@ function onCalendarSelect(task) {
                 <span v-else class="st" :class="`st--${statusClass(row)}`">
                   {{ statusLabel(row) }}
                 </span>
+                <button
+                  v-if="canRestart(row)"
+                  type="button"
+                  class="btn btn--ghost btn--sm restart-btn"
+                  @click="onRestart(row)"
+                >
+                  재착수
+                </button>
               </td>
               <td>{{ row.confirmed }}</td>
             </tr>
@@ -622,6 +682,8 @@ function onCalendarSelect(task) {
   --orange-bg: #fcf0e1;
   --blue: #2f6fed;
   --blue-bg: #e8f0ff;
+  --purple: #7c5cf0;
+  --purple-bg: #ede8fd;
   --gray: #8a97a0;
   --gray-bg: #eef1f3;
 
@@ -710,7 +772,7 @@ function onCalendarSelect(task) {
 
 .filter__row {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px 14px;
   margin-bottom: 12px;
 }
@@ -929,8 +991,23 @@ function onCalendarSelect(task) {
   box-shadow: 0 4px 16px rgba(20, 40, 50, 0.12);
   font-size: 11.5px;
   line-height: 1.5;
-  white-space: pre-wrap;
   color: var(--ink-2);
+}
+
+.req-tooltip__label {
+  margin: 0 0 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--teal-600);
+}
+
+.req-tooltip__text {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.req-tooltip__text:last-child {
+  margin-bottom: 0;
 }
 
 .assignee-select {
@@ -1022,6 +1099,18 @@ function onCalendarSelect(task) {
 .st--cancel {
   color: var(--red);
   background: var(--red-bg);
+}
+
+.st--hold {
+  color: var(--purple);
+  background: var(--purple-bg);
+}
+
+.restart-btn {
+  margin-left: 6px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 10.5px;
 }
 
 .st__reason {

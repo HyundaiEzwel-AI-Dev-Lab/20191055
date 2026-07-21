@@ -8,6 +8,7 @@ import {
   getCalendarRange,
   getTaskTypeColor,
   calendarBlockLabel,
+  calcDday,
 } from '@/data/wbs'
 
 const props = defineProps({
@@ -92,7 +93,8 @@ function layoutWeekBars(weekCells) {
       const endCol = weekCells.findIndex((c) => c.iso === segEnd)
       if (startCol < 0 || endCol < 0) return null
       const typeIdx = typeIndexMap.value[t.id] || 1
-      const label = calendarBlockLabel(t, typeIdx > 1 ? typeIdx - 1 : 0)
+      const dday = calcDday(t.planEnd)
+      const label = calendarBlockLabel(t, typeIdx > 1 ? typeIdx - 1 : 0) + (dday ? ` (${dday})` : '')
       return {
         id: t.id,
         task: t,

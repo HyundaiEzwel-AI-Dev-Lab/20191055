@@ -1,12 +1,16 @@
 <script setup>
 // PAG-S-UAT-16 진척관리
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTestContext } from '@/composables/useTestContext'
 import { getProgressData, donutStyle, gaugeStyle } from '@/data/testProgress'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
 const { mode, pageTitle } = useTestContext()
+const router = useRouter()
+
+const SYSTEM_DONUT_LIMIT = 4
 
 const data = ref(null)
 const filters = ref({
@@ -14,6 +18,7 @@ const filters = ref({
   tester: '',
 })
 const applied = ref({ ...filters.value })
+const showAllSystems = ref(false)
 
 function loadData() {
   data.value = getProgressData(mode.value)
@@ -63,6 +68,70 @@ const filteredSystemProgress = computed(() => {
   )
 })
 
+const visibleSystemProgress = computed(() =>
+  showAllSystems.value
+    ? filteredSystemProgress.value
+    : filteredSystemProgress.value.slice(0, SYSTEM_DONUT_LIMIT),
+)
+
+const statusPct = computed(() => {
+  const total = ps.value?.total || 0
+  const pct = (n) => (total ? Math.round((n / total) * 100) : 0)
+  return {
+    wait: pct(ps.value?.wait || 0),
+    progress: pct(ps.value?.progress || 0),
+    delay: pct(ps.value?.delay || 0),
+    delayMinor: pct(ps.value?.delayMinor || 0),
+  }
+})
+
+const systemDetailTotals = computed(() => {
+  const rows = filteredSystemDetail.value
+  const sum = (key) => rows.reduce((acc, r) => acc + (r[key] || 0), 0)
+  const total = sum('total')
+  return {
+    total,
+    wait: sum('wait'),
+    progress: sum('progress'),
+    delay: sum('delay'),
+    progressRate: total ? Math.round(((total - sum('wait')) / total) * 100) : 0,
+    defects: sum('defects'),
+    pending: sum('pending'),
+    done: sum('done'),
+    fixRate: sum('defects') ? Math.round((sum('done') / sum('defects')) * 100) : 0,
+  }
+})
+
+const byTesterTotals = computed(() => {
+  const rows = filteredByTester.value
+  const sum = (key) => rows.reduce((acc, r) => acc + (r[key] || 0), 0)
+  const assigned = sum('assigned')
+  const done = sum('done')
+  return { assigned, wait: sum('wait'), delay: sum('delay'), done, rate: assigned ? Math.round((done / assigned) * 100) : 0 }
+})
+
+const defectConfirmTotals = computed(() => {
+  const rows = filteredDefectConfirm.value
+  const sum = (key) => rows.reduce((acc, r) => acc + (r[key] || 0), 0)
+  const registered = sum('registered')
+  const confirmed = sum('confirmed')
+  return { registered, confirmed, rate: registered ? Math.round((confirmed / registered) * 100) : 0 }
+})
+
+function goToTestRun(system, result) {
+  router.push({
+    path: `/project/test-run/${mode.value}`,
+    query: { system: system ? system.split(' ')[0] : undefined, result: result || undefined },
+  })
+}
+
+function goToDefect(system) {
+  router.push({
+    path: `/project/defect/${mode.value}`,
+    query: { bizCategory: system ? system.split(' ').slice(1).join(' ') : undefined },
+  })
+}
+
 function search() {
   applied.value = { ...filters.value }
 }
@@ -91,7 +160,10 @@ function onExcelDownload() {
 
 <template>
   <div v-if="data" class="progress">
-    <h1 class="progress__title">{{ pageTitle }}</h1>
+    <div class="progress__head">
+      <h1 class="progress__title">{{ pageTitle }}</h1>
+      <ExcelDownloadButton @click="onExcelDownload" />
+    </div>
     <p class="progress__hint">테스트 진척·결함 처리 현황 · 1시간마다 갱신 (목업 {{ data.updatedAt }})</p>
 
     <section class="filter card">
@@ -116,7 +188,6 @@ function onExcelDownload() {
       <div class="filter__actions">
         <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
         <button type="button" class="btn btn--primary" @click="search">조회</button>
-        <ExcelDownloadButton @click="onExcelDownload" />
       </div>
     </section>
 
@@ -161,37 +232,61 @@ function onExcelDownload() {
     <div class="grid-2">
       <section class="panel card">
         <h3>테스트 진행 현황</h3>
-        <div class="status-blocks">
-          <div class="status-block">
-            <span class="status-block__lab">전체</span>
-            <span class="status-block__num">{{ ps.total }}</span>
+        <div class="status-row">
+          <div class="donut" :style="donutStyle(kpi.progressRate)">
+            <div class="donut__hole">
+              <span class="donut__v">{{ kpi.progressRate }}%</span>
+              <span class="donut__l">진행률</span>
+            </div>
           </div>
-          <div class="status-block">
-            <span class="status-block__lab">대기</span>
-            <span class="status-block__num">{{ ps.wait }}</span>
-          </div>
-          <div class="status-block status-block--prog">
-            <span class="status-block__lab">진행</span>
-            <span class="status-block__num">{{ ps.progress }}</span>
-          </div>
-          <div class="status-block status-block--warn">
-            <span class="status-block__lab">지연</span>
-            <span class="status-block__num">{{ ps.delay }}</span>
-          </div>
-          <div class="status-block status-block--muted">
-            <span class="status-block__lab">경미지연</span>
-            <span class="status-block__num">{{ ps.delayMinor }}</span>
+          <div class="status-blocks">
+            <button type="button" class="status-block" @click="goToTestRun()">
+              <span class="status-block__lab">전체</span>
+              <span class="status-block__num">{{ ps.total }}</span>
+            </button>
+            <button type="button" class="status-block" @click="goToTestRun(null, '대기')">
+              <span class="status-block__lab">대기</span>
+              <span class="status-block__num">{{ ps.wait }}</span>
+              <span class="status-block__pct">{{ statusPct.wait }}%</span>
+            </button>
+            <button type="button" class="status-block status-block--prog" @click="goToTestRun(null, '진행')">
+              <span class="status-block__lab">진행</span>
+              <span class="status-block__num">{{ ps.progress }}</span>
+              <span class="status-block__pct">{{ statusPct.progress }}%</span>
+            </button>
+            <button type="button" class="status-block status-block--warn" @click="goToTestRun(null, '지연')">
+              <span class="status-block__lab">지연</span>
+              <span class="status-block__num">{{ ps.delay }}</span>
+              <span class="status-block__pct">{{ statusPct.delay }}%</span>
+            </button>
+            <button type="button" class="status-block status-block--muted" @click="goToTestRun(null, '경미지연')">
+              <span class="status-block__lab">경미지연</span>
+              <span class="status-block__num">{{ ps.delayMinor }}</span>
+              <span class="status-block__pct">{{ statusPct.delayMinor }}%</span>
+            </button>
           </div>
         </div>
       </section>
 
       <section class="panel card">
-        <h3>시스템별 진척·결함</h3>
+        <div class="panel__head">
+          <h3>시스템별 진척·결함</h3>
+          <button
+            v-if="filteredSystemProgress.length > SYSTEM_DONUT_LIMIT"
+            type="button"
+            class="more-btn"
+            @click="showAllSystems = true"
+          >
+            더보기(+{{ filteredSystemProgress.length - SYSTEM_DONUT_LIMIT }})
+          </button>
+        </div>
         <div class="donut-row">
-          <div
-            v-for="row in filteredSystemProgress"
+          <button
+            v-for="row in visibleSystemProgress"
             :key="row.system"
+            type="button"
             class="donut-item"
+            @click="goToDefect(row.system)"
           >
             <div class="donut" :style="donutStyle(row.testRate)">
               <div class="donut__hole">
@@ -203,10 +298,41 @@ function onExcelDownload() {
               <b>{{ row.system }}</b>
               <span>완료 {{ row.testDone }} · 결함 {{ row.defect }} ({{ row.defectRate }}%)</span>
             </div>
-          </div>
+          </button>
         </div>
       </section>
     </div>
+
+    <Teleport to="body">
+      <div v-if="showAllSystems" class="overlay-scrim" @mousedown.self="showAllSystems = false">
+        <div class="overlay-box">
+          <div class="overlay-box__head">
+            <h3>시스템별 진척·결함 (전체 {{ filteredSystemProgress.length }}건)</h3>
+            <button type="button" class="overlay-box__close" @click="showAllSystems = false">✕</button>
+          </div>
+          <div class="donut-row donut-row--wrap">
+            <button
+              v-for="row in filteredSystemProgress"
+              :key="row.system"
+              type="button"
+              class="donut-item"
+              @click="goToDefect(row.system)"
+            >
+              <div class="donut" :style="donutStyle(row.testRate)">
+                <div class="donut__hole">
+                  <span class="donut__v">{{ row.testRate }}%</span>
+                  <span class="donut__l">진척</span>
+                </div>
+              </div>
+              <div class="donut-meta">
+                <b>{{ row.system }}</b>
+                <span>완료 {{ row.testDone }} · 결함 {{ row.defect }} ({{ row.defectRate }}%)</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <section class="panel card">
       <h3>시스템별 상세</h3>
@@ -218,6 +344,7 @@ function onExcelDownload() {
             <th>대기</th>
             <th>진행</th>
             <th>지연</th>
+            <th>공정률</th>
             <th>결함처리율</th>
             <th>결함</th>
             <th>미처리</th>
@@ -227,10 +354,11 @@ function onExcelDownload() {
         <tbody>
           <tr v-for="row in filteredSystemDetail" :key="row.system">
             <td>{{ row.system }}</td>
-            <td>{{ row.total }}</td>
-            <td>{{ row.wait }}</td>
-            <td>{{ row.progress }}</td>
-            <td>{{ row.delay }}</td>
+            <td><button type="button" class="count-link" @click="goToTestRun(row.system)">{{ row.total }}</button></td>
+            <td><button type="button" class="count-link" @click="goToTestRun(row.system, '대기')">{{ row.wait }}</button></td>
+            <td><button type="button" class="count-link" @click="goToTestRun(row.system, '진행')">{{ row.progress }}</button></td>
+            <td><button type="button" class="count-link" @click="goToTestRun(row.system, '지연')">{{ row.delay }}</button></td>
+            <td>{{ row.progressRate }}%</td>
             <td>
               <div class="gauge-wrap">
                 <div class="gauge" :style="gaugeStyle(row.fixRate)">
@@ -239,12 +367,24 @@ function onExcelDownload() {
                 </div>
               </div>
             </td>
-            <td>{{ row.defects }}</td>
-            <td>{{ row.pending }}</td>
+            <td><button type="button" class="count-link" @click="goToDefect(row.system)">{{ row.defects }}</button></td>
+            <td><button type="button" class="count-link" @click="goToDefect(row.system)">{{ row.pending }}</button></td>
             <td>{{ row.done }}</td>
           </tr>
           <tr v-if="!filteredSystemDetail.length">
-            <td colspan="9" class="empty-row">조회 결과가 없습니다.</td>
+            <td colspan="10" class="empty-row">조회 결과가 없습니다.</td>
+          </tr>
+          <tr v-if="filteredSystemDetail.length" class="total-row">
+            <td>전체 합계</td>
+            <td>{{ systemDetailTotals.total }}</td>
+            <td>{{ systemDetailTotals.wait }}</td>
+            <td>{{ systemDetailTotals.progress }}</td>
+            <td>{{ systemDetailTotals.delay }}</td>
+            <td>{{ systemDetailTotals.progressRate }}%</td>
+            <td>{{ systemDetailTotals.fixRate }}%</td>
+            <td>{{ systemDetailTotals.defects }}</td>
+            <td>{{ systemDetailTotals.pending }}</td>
+            <td>{{ systemDetailTotals.done }}</td>
           </tr>
         </tbody>
       </table>
@@ -258,6 +398,8 @@ function onExcelDownload() {
             <tr>
               <th>테스터</th>
               <th>배정</th>
+              <th>대기</th>
+              <th>지연</th>
               <th>완료</th>
               <th>진척률</th>
             </tr>
@@ -266,6 +408,8 @@ function onExcelDownload() {
             <tr v-for="row in filteredByTester" :key="row.name">
               <td>{{ row.name }}</td>
               <td>{{ row.assigned }}</td>
+              <td>{{ row.wait }}</td>
+              <td>{{ row.delay }}</td>
               <td>{{ row.done }}</td>
               <td>
                 <div class="prog">
@@ -275,7 +419,15 @@ function onExcelDownload() {
               </td>
             </tr>
             <tr v-if="!filteredByTester.length">
-              <td colspan="4" class="empty-row">조회 결과가 없습니다.</td>
+              <td colspan="6" class="empty-row">조회 결과가 없습니다.</td>
+            </tr>
+            <tr v-if="filteredByTester.length" class="total-row">
+              <td>전체 합계</td>
+              <td>{{ byTesterTotals.assigned }}</td>
+              <td>{{ byTesterTotals.wait }}</td>
+              <td>{{ byTesterTotals.delay }}</td>
+              <td>{{ byTesterTotals.done }}</td>
+              <td>{{ byTesterTotals.rate }}%</td>
             </tr>
           </tbody>
         </table>
@@ -302,10 +454,46 @@ function onExcelDownload() {
             <tr v-if="!filteredDefectConfirm.length">
               <td colspan="4" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
+            <tr v-if="filteredDefectConfirm.length" class="total-row">
+              <td>전체 합계</td>
+              <td>{{ defectConfirmTotals.registered }}</td>
+              <td>{{ defectConfirmTotals.confirmed }}</td>
+              <td>{{ defectConfirmTotals.rate }}%</td>
+            </tr>
           </tbody>
         </table>
       </section>
     </div>
+
+    <section class="panel card">
+      <h3>요청자 수행 현황</h3>
+      <table class="inner-table">
+        <thead>
+          <tr>
+            <th>요청자</th>
+            <th>전체</th>
+            <th>완료</th>
+            <th>진척률</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in data.requesterProgress" :key="row.requester">
+            <td>{{ row.requester }}</td>
+            <td>{{ row.total }}</td>
+            <td>{{ row.done }}</td>
+            <td>
+              <div class="prog">
+                <i :style="{ width: `${row.rate}%` }" />
+                <span>{{ row.rate }}%</span>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!data.requesterProgress?.length">
+            <td colspan="4" class="empty-row">조회 결과가 없습니다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <div v-if="data.unitCompare" class="grid-2">
       <section class="panel card">
@@ -348,6 +536,32 @@ function onExcelDownload() {
         </table>
       </section>
     </div>
+
+    <section v-if="data.unitDevSystemCompare" class="panel card">
+      <h3>단위 vs DEV수행 vs DEV결함 (시스템별)</h3>
+      <table class="inner-table">
+        <thead>
+          <tr>
+            <th>시스템</th>
+            <th>단위 전체</th>
+            <th>단위 완료</th>
+            <th>DEV수행 전체</th>
+            <th>DEV수행 완료</th>
+            <th>DEV결함</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in data.unitDevSystemCompare" :key="row.system">
+            <td>{{ row.system }}</td>
+            <td>{{ row.unitTotal }}</td>
+            <td>{{ row.unitDone }}</td>
+            <td>{{ row.devTotal }}</td>
+            <td>{{ row.devDone }}</td>
+            <td>{{ row.devDefects }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <section v-if="data.systemCompare" class="panel card">
       <h3>DEV vs 운영 시스템 비교</h3>
@@ -420,10 +634,18 @@ function onExcelDownload() {
   font-size: 13px;
 }
 
+.progress__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
 .progress__title {
   font-size: 18px;
   font-weight: 700;
-  margin: 0 0 4px;
+  margin: 0;
 }
 
 .progress__hint {
@@ -573,8 +795,37 @@ function onExcelDownload() {
   font-weight: 700;
 }
 
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.panel__head h3 {
+  margin: 0;
+}
+
+.more-btn {
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .status-blocks {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -584,8 +835,11 @@ function onExcelDownload() {
   min-width: 72px;
   padding: 10px;
   background: var(--field);
+  border: none;
   border-radius: 8px;
   text-align: center;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .status-block__lab {
@@ -596,8 +850,15 @@ function onExcelDownload() {
 }
 
 .status-block__num {
+  display: block;
   font-size: 20px;
   font-weight: 700;
+}
+
+.status-block__pct {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
 }
 
 .status-block--prog .status-block__num {
@@ -612,6 +873,68 @@ function onExcelDownload() {
   color: var(--muted);
 }
 
+.count-link {
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.total-row {
+  background: var(--field);
+  font-weight: 700;
+}
+
+.overlay-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 30, 34, 0.34);
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.overlay-box {
+  width: min(720px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.16);
+}
+
+.overlay-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.overlay-box__head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.overlay-box__close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.donut-row--wrap {
+  flex-wrap: wrap;
+}
+
 .donut-row {
   display: flex;
   flex-wrap: wrap;
@@ -623,6 +946,12 @@ function onExcelDownload() {
   align-items: center;
   gap: 10px;
   min-width: 180px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
 }
 
 .donut {

@@ -118,7 +118,7 @@ export function matchScenarioFilters(row, filters, config) {
   return true
 }
 
-/** POP-UAT-03 일괄등록 미리보기 (엑셀 파싱 목업) */
+/** POP-UAT-03 일괄등록 미리보기 (엑셀 파싱 목업) — 신규/업데이트/실패 케이스 혼합 */
 export function getBulkRegisterPreview(mode = 'dev') {
   const round = mode === 'uat' ? '운영1차' : '3차'
   return [
@@ -148,17 +148,67 @@ export function getBulkRegisterPreview(mode = 'dev') {
         { no: 2, procedure: '결제 완료', expected: '주문 완료' },
       ],
     },
+    {
+      reqId: 'REQ-001',
+      caseId: 'TC-001',
+      caseName: '복지혜택 신청 정상 플로우 (수정)',
+      screenName: '복지혜택 신청',
+      executionType: '오픈 전',
+      round,
+      planDate: '2026-04-22',
+      steps: [
+        { no: 1, procedure: '복지혜택 메뉴 진입', expected: '목록 화면 표시' },
+        { no: 2, procedure: '신청 폼 저장', expected: '신청 완료 메시지' },
+      ],
+    },
+    {
+      reqId: 'REQ-012',
+      caseId: 'TC-012',
+      caseName: '',
+      screenName: '카드결제',
+      executionType: '오픈 전',
+      round,
+      planDate: '2026-04-23',
+      steps: [{ no: 1, procedure: '카드 등록', expected: '' }],
+    },
   ]
+}
+
+/** POP-UAT-03 업로드 행 유효성 검증 — 신규/업데이트 구분 및 필수값 체크 */
+export function validateScenarioBulkRow(row) {
+  const errors = []
+  if (!row.caseName?.trim()) errors.push('케이스명 필수')
+  if (!row.screenName?.trim()) errors.push('화면명 필수')
+  if (!row.steps?.length) {
+    errors.push('절차 1건 이상 필수')
+  } else {
+    row.steps.forEach((s, i) => {
+      if (!s.procedure?.trim() || !s.expected?.trim()) {
+        errors.push(`절차 ${i + 1}행 절차/예상결과 필수`)
+      }
+    })
+  }
+  const isUpdate = baseCases.some((c) => c.caseId === row.caseId)
+  return { ok: errors.length === 0, errors, isUpdate }
 }
 
 let caseSeq = baseCases.length
 
 export function addScenarioCases(items, mode = 'dev') {
-  const added = items.map((item) => {
+  const added = []
+  for (const item of items) {
+    const existing = item.caseId && baseCases.find((c) => c.caseId === item.caseId)
+    if (existing) {
+      saveScenarioCase(item.caseId, {
+        caseName: item.caseName,
+        executionType: item.executionType,
+        steps: item.steps || [],
+      })
+      continue
+    }
     caseSeq += 1
-    const round =
-      mode === 'uat' ? item.round : item.round?.replace('운영1차', '3차') || '3차'
-    return {
+    const round = mode === 'uat' ? item.round : item.round?.replace('운영1차', '3차') || '3차'
+    added.push({
       id: `sc-new-${Date.now()}-${caseSeq}`,
       systemPath: item.systemPath || 'FO>법인숙박',
       screenPath: item.screenPath || '여행레저>복지혜택',
@@ -172,8 +222,8 @@ export function addScenarioCases(items, mode = 'dev') {
       stepCount: item.steps?.length || 0,
       steps: item.steps || [],
       note: item.note || '',
-    }
-  })
+    })
+  }
   baseCases.unshift(...added)
   return added
 }

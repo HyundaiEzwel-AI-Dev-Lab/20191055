@@ -11,6 +11,11 @@ import {
   stageOptions,
   pageSizeOptions,
   matchKpiFilter,
+  systemOptions,
+  bizCategoryMap,
+  initiatorOptions,
+  devTypeOptions,
+  summaryOptions,
 } from '@/data/projectStatus'
 import { getScheduleChange } from '@/data/scheduleChange'
 import ScheduleChangeModal from '@/components/dashboard/ScheduleChangeModal.vue'
@@ -22,13 +27,29 @@ import { useProjectRegister } from '@/composables/useProjectRegister'
 const router = useRouter()
 const { openRegisterModal } = useProjectRegister()
 
+const bizCategoryOptions = [...new Set(Object.values(bizCategoryMap).flat())]
+
+function emptyFilters() {
+  return {
+    keyword: '',
+    requestDept: '',
+    devDept: '',
+    stage: '전체',
+    openDateFrom: '',
+    openDateTo: '',
+    manager: '',
+    systems: [],
+    bizCategories: [],
+    itVoc: '',
+    jira: '',
+    initiator: '',
+    devType: '',
+    summary: '',
+  }
+}
+
 const filterExpanded = ref(false)
-const filters = ref({
-  keyword: '',
-  requestDept: '',
-  devDept: '',
-  stage: '전체',
-})
+const filters = ref(emptyFilters())
 
 const appliedFilters = ref({ ...filters.value })
 const activeKpi = ref('total')
@@ -46,9 +67,19 @@ const filteredProjects = computed(() => {
   return projectStatusList.filter((row) => {
     if (!matchKpiFilter(row, activeKpi.value)) return false
     if (f.keyword && !row.name.includes(f.keyword) && !row.projectId.includes(f.keyword)) return false
-    if (f.requestDept && row.requestDept !== f.requestDept) return false
+    if (f.requestDept && !row.requestDept.includes(f.requestDept)) return false
     if (f.devDept && row.devDept !== f.devDept) return false
     if (f.stage !== '전체' && row.stage !== f.stage) return false
+    if (f.openDateFrom && row.scheduledOpenDate < f.openDateFrom) return false
+    if (f.openDateTo && row.scheduledOpenDate > f.openDateTo) return false
+    if (f.manager && !row.manager.includes(f.manager)) return false
+    if (f.systems.length && !f.systems.some((s) => row.system.includes(s))) return false
+    if (f.bizCategories.length && !f.bizCategories.some((b) => row.bizCategory.includes(b))) return false
+    if (f.itVoc && !row.itVoc.includes(f.itVoc)) return false
+    if (f.jira && !row.jira.toLowerCase().includes(f.jira.toLowerCase())) return false
+    if (f.initiator && row.initiator !== f.initiator) return false
+    if (f.devType && row.devType !== f.devType) return false
+    if (f.summary && row.summary !== f.summary) return false
     return true
   })
 })
@@ -61,7 +92,7 @@ const pagedProjects = computed(() => {
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredProjects.value.length / pageSize.value)))
 
 function resetFilters() {
-  filters.value = { keyword: '', requestDept: '', devDept: '', stage: '전체' }
+  filters.value = emptyFilters()
   appliedFilters.value = { ...filters.value }
   activeKpi.value = 'total'
   currentPage.value = 1
@@ -70,6 +101,20 @@ function resetFilters() {
 function search() {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+}
+
+function toggleSystem(system) {
+  const list = filters.value.systems
+  filters.value.systems = list.includes(system)
+    ? list.filter((s) => s !== system)
+    : [...list, system]
+}
+
+function toggleBizCategory(cat) {
+  const list = filters.value.bizCategories
+  filters.value.bizCategories = list.includes(cat)
+    ? list.filter((c) => c !== cat)
+    : [...list, cat]
 }
 
 function onKpiClick(key) {
@@ -149,10 +194,17 @@ function onPageSizeChange() {
         </div>
         <div class="filter__field">
           <label>요청부서</label>
-          <select v-model="filters.requestDept" class="filter__select">
-            <option value="">선택</option>
-            <option v-for="d in requestDepts" :key="d" :value="d">{{ d }}</option>
-          </select>
+          <input
+            v-model="filters.requestDept"
+            class="filter__input"
+            list="request-dept-options"
+            type="text"
+            placeholder="입력하여 검색"
+            @keyup.enter="search"
+          />
+          <datalist id="request-dept-options">
+            <option v-for="d in requestDepts" :key="d" :value="d" />
+          </datalist>
         </div>
         <div class="filter__field">
           <label>담당개발부서</label>
@@ -169,8 +221,97 @@ function onPageSizeChange() {
         </div>
       </div>
 
-      <div v-if="filterExpanded" class="filter__row filter__row--expand">
-        <p class="filter__expand-note">추가 검색조건은 기획서 확장 항목에 따라 연동 예정입니다.</p>
+      <div v-if="filterExpanded" class="filter__expand-area">
+        <div class="filter__row filter__row--expand">
+          <div class="filter__field">
+            <label>오픈일</label>
+            <div class="filter__range">
+              <input v-model="filters.openDateFrom" class="filter__input" type="date" />
+              <span>~</span>
+              <input v-model="filters.openDateTo" class="filter__input" type="date" />
+            </div>
+          </div>
+          <div class="filter__field">
+            <label>담당자</label>
+            <input
+              v-model="filters.manager"
+              class="filter__input"
+              type="text"
+              placeholder="담당자명"
+              @keyup.enter="search"
+            />
+          </div>
+          <div class="filter__field">
+            <label>IT-VOC</label>
+            <input
+              v-model="filters.itVoc"
+              class="filter__input"
+              type="text"
+              placeholder="IT-VOC 번호"
+              @keyup.enter="search"
+            />
+          </div>
+          <div class="filter__field">
+            <label>JIRA</label>
+            <input
+              v-model="filters.jira"
+              class="filter__input"
+              type="text"
+              placeholder="JIRA 번호"
+              @keyup.enter="search"
+            />
+          </div>
+          <div class="filter__field">
+            <label>발의주체</label>
+            <select v-model="filters.initiator" class="filter__select">
+              <option value="">선택</option>
+              <option v-for="o in initiatorOptions" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div class="filter__field">
+            <label>개발구분</label>
+            <select v-model="filters.devType" class="filter__select">
+              <option value="">선택</option>
+              <option v-for="o in devTypeOptions" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div class="filter__field">
+            <label>적요</label>
+            <select v-model="filters.summary" class="filter__select">
+              <option value="">선택</option>
+              <option v-for="o in summaryOptions" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter__row filter__row--expand">
+          <div class="filter__field filter__field--checks">
+            <label>시스템구분</label>
+            <div class="filter__checks">
+              <label v-for="s in systemOptions" :key="s" class="filter__check">
+                <input
+                  type="checkbox"
+                  :checked="filters.systems.includes(s)"
+                  @change="toggleSystem(s)"
+                />
+                {{ s }}
+              </label>
+            </div>
+          </div>
+          <div class="filter__field filter__field--checks">
+            <label>업무구분</label>
+            <div class="filter__checks">
+              <label v-for="c in bizCategoryOptions" :key="c" class="filter__check">
+                <input
+                  type="checkbox"
+                  :checked="filters.bizCategories.includes(c)"
+                  @change="toggleBizCategory(c)"
+                />
+                {{ c }}
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
 
       <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
@@ -246,8 +387,8 @@ function onPageSizeChange() {
           <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
             <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
           </select>
-          <ExcelDownloadButton @click="onExcelDownload" />
           <button type="button" class="btn btn--primary" @click="onRegisterClick">프로젝트 등록</button>
+          <ExcelDownloadButton @click="onExcelDownload" />
         </div>
       </div>
 
@@ -397,15 +538,49 @@ function onPageSizeChange() {
   gap: 10px 14px;
 }
 
-.filter__row--expand {
+.filter__expand-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-top: 10px;
 }
 
-.filter__expand-note {
-  margin: 0;
-  grid-column: 1 / -1;
-  font-size: 11.5px;
+.filter__row--expand {
+  margin-top: 0;
+}
+
+.filter__range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--lnb-muted);
+  font-size: 12px;
+}
+
+.filter__range .filter__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter__field--checks {
+  grid-column: span 2;
+}
+
+.filter__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 6px 0 2px;
+}
+
+.filter__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lnb-txt);
+  cursor: pointer;
 }
 
 .filter__field {

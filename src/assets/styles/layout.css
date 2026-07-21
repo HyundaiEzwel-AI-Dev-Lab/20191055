@@ -1433,11 +1433,15 @@
 
 /* 내 프로젝트 */
 .hdr-proj__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
 .hdr-proj__input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 36px;
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
@@ -1452,6 +1456,31 @@
 .hdr-proj__input:focus {
   outline: none;
   border-color: var(--lnb-logo);
+}
+
+.hdr-proj__add {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--teal);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.hdr-proj__add:hover {
+  background: var(--teal-600);
+}
+
+.hdr-proj__add-icon {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .hdr-proj__list {

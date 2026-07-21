@@ -8,7 +8,7 @@ export const wbsMeta = {
 }
 
 export const taskTypeOptions = ['전체', '기획', '디자인', '퍼블리싱', '개발', '테스트']
-export const progressStatusOptions = ['전체', '대기', '진행중', '완료', '취소']
+export const progressStatusOptions = ['전체', '대기', '진행중', '완료', '홀딩', '취소']
 export const scheduleComplianceOptions = ['전체', '정상', '경과', '단축']
 export const difficultyOptions = ['상', '중', '하']
 export const priorityOptions = ['낮음', '보통', '높음']
@@ -19,7 +19,7 @@ export const planChangeReasons = [
   '우선순위 변경',
   '외부 일정',
   '요건 변경',
-  '착수일 미체크',
+  '담당자 변경',
   '선행 업무 일정 변경',
   '기타(직접입력)',
 ]
@@ -146,6 +146,8 @@ const baseTasks = [
     requirementId: 'REQ-001',
     requirementPreview:
       '1.법숙 입실/패널티 없을 경우 : 법인숙박 박수 회수 & 바우처 특복 배정\n2. 법숙 입실/패널티 있을 경우 : 변경 불가',
+    requirementAnalysisPreview:
+      '1. 법숙 입실/패널티 없을 경우 - 법인숙박 박수 회수 & 바우처 특복 배정\n2. 법숙 입실/패널티 있을 경우 - 변경 불가',
     taskType: '퍼블리싱',
     assignee: '김현대',
     assigneeDisplay: '김현대',
@@ -173,6 +175,7 @@ const baseTasks = [
     requirementName: '바우처 특복 배정',
     requirementId: 'REQ-002',
     requirementPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정',
+    requirementAnalysisPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정 상세 로직 정의',
     taskType: '개발',
     assignee: '박현대',
     assigneeDisplay: '박현대',
@@ -200,6 +203,7 @@ const baseTasks = [
     requirementName: '바우처 특복 사용 제한',
     requirementId: 'REQ-003',
     requirementPreview: '바우처 특복 사용 시 제한 조건 적용',
+    requirementAnalysisPreview: '',
     taskType: '개발',
     assignee: '박현대',
     assigneeDisplay: '박현대',
@@ -227,6 +231,7 @@ const baseTasks = [
     requirementName: '바우처 특복 사용 제한',
     requirementId: 'REQ-003',
     requirementPreview: '바우처 특복 사용 시 제한 조건 적용',
+    requirementAnalysisPreview: '',
     taskType: '개발',
     assignee: '박현대',
     assigneeDisplay: '박현대',
@@ -254,6 +259,7 @@ const baseTasks = [
     requirementName: '바우처 특복 배정',
     requirementId: 'REQ-002',
     requirementPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정',
+    requirementAnalysisPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정 상세 로직 정의',
     taskType: '개발',
     assignee: '박현대',
     assigneeDisplay: '박현대',
@@ -422,6 +428,7 @@ export function statusLabel(row) {
 
 export function statusClass(row) {
   if (row.excluded || row.status === '취소') return 'cancel'
+  if (row.status === '홀딩') return 'hold'
   if (row.status === '완료') return 'done'
   if (row.status === '진행중') {
     if (row.scheduleStatus === 'delay') return 'delay'
@@ -442,6 +449,10 @@ export function matchWbsFilters(row, filters, myTasksOnly, currentUser = '권현
   }
   if (filters.taskType !== '전체' && row.taskType !== filters.taskType) return false
   if (filters.system && !row.systemPath.startsWith(filters.system)) return false
+  if (filters.bizCategory) {
+    const [, cat] = row.systemPath.split('>')
+    if (cat !== filters.bizCategory) return false
+  }
   if (Array.isArray(filters.progressStatus)) {
     const selected = filters.progressStatus
     if (selected.length && !selected.includes('전체') && !selected.includes(row.status)) {
@@ -489,6 +500,16 @@ export function calendarBlockLabel(task, index) {
   const type = task.taskType === '개발' ? `개발${suffix}` : task.taskType
   const name = task.requirementName || task.screenName
   return `[${type}] ${name} – ${task.assigneeDisplay}`
+}
+
+/** 계획종료일 기준 D-day (기준일: wbsMockToday) */
+export function calcDday(ymd) {
+  const target = parseYmd(ymd)
+  const base = parseYmd(wbsMockToday)
+  if (!target || !base) return ''
+  const diff = Math.round((target - base) / (1000 * 60 * 60 * 24))
+  if (diff === 0) return 'D-DAY'
+  return diff > 0 ? `D-${diff}` : `D+${Math.abs(diff)}`
 }
 
 function parseYmd(ymd) {

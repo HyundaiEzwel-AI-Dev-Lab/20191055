@@ -250,7 +250,7 @@ function statusLabel(task) {
 
           <div
             class="cal-week__lanes"
-            :style="{ gridTemplateRows: `repeat(${week.maxLanes}, 24px)` }"
+            :style="{ gridTemplateRows: `repeat(${week.maxLanes}, 34px)` }"
           >
             <div
               v-for="bar in week.bars"
@@ -271,7 +271,10 @@ function statusLabel(task) {
               @click="onTaskClick(bar)"
             >
               <span v-if="statusLabel(bar)" class="tblock__badge">{{ statusLabel(bar) }}</span>
-              <span class="tblock__name">{{ bar.name }} <span class="tblock__end">{{ bar.endLabel }}</span></span>
+              <span class="tblock__lines">
+                <span class="tblock__name">{{ bar.name }} <span class="tblock__end">{{ bar.endLabel }}</span></span>
+                <span class="tblock__project">{{ bar.project }}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -446,12 +449,30 @@ function statusLabel(task) {
   color: var(--color-text-2);
   cursor: pointer;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  min-height: 22px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.tblock__lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tblock__name,
+.tblock__project {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tblock__project {
+  font-weight: 400;
+  font-size: 9.5px;
+  color: var(--color-text-muted);
 }
 
 .tblock--span.continues-prev {
@@ -479,8 +500,6 @@ function statusLabel(task) {
 .tblock__name {
   font-weight: 600;
   color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .tblock__end {

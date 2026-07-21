@@ -67,6 +67,17 @@ function confirm() {
   })
   close()
 }
+
+function selectNoScreen() {
+  emit('select', {
+    system: filters.value.system,
+    category: '-',
+    path: '-',
+    name: '화면없음',
+    id: 'none',
+  })
+  close()
+}
 </script>
 
 <template>
@@ -138,6 +149,7 @@ function confirm() {
     </div>
 
     <template #footer>
+      <button type="button" class="btn btn--ghost" @click="selectNoScreen">화면없음</button>
       <button type="button" class="btn btn--primary" @click="confirm">확인</button>
     </template>
   </BaseModal>

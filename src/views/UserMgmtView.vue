@@ -2,10 +2,13 @@
 // PAG-M-SYS-01 사용자 관리
 import { computed, reactive, ref } from 'vue'
 import {
+  userMgmtMeta,
   deptOptions,
   roleOptions,
   positionOptions,
   statusOptions,
+  employmentStatusOptions,
+  searchTypeOptions,
   pageSizeOptions,
   userList,
   matchUserFilters,
@@ -14,7 +17,7 @@ import {
 import BaseModal from '@/components/ui/BaseModal.vue'
 
 const rows = ref(userList.map((r) => ({ ...r })))
-const filters = ref({ keyword: '', dept: '전체', role: '전체', status: '전체' })
+const filters = ref({ keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' })
 const applied = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
@@ -24,6 +27,7 @@ const showDetail = ref(false)
 const showRegister = ref(false)
 const detailTarget = ref(null)
 const detailRole = ref('사용자')
+const detailName = ref('')
 const registerForm = reactive({
   id: '',
   name: '',
@@ -31,7 +35,8 @@ const registerForm = reactive({
   role: '사용자',
   position: '사원',
   email: '',
-  active: true,
+  status: '재직',
+  memo: '',
 })
 const idChecked = ref(false)
 const registerTempPassword = ref('')
@@ -50,7 +55,7 @@ function search() {
 }
 
 function resetFilters() {
-  filters.value = { keyword: '', dept: '전체', role: '전체', status: '전체' }
+  filters.value = { keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' }
   search()
 }
 
@@ -67,6 +72,7 @@ function toggleSelectAll(e) {
 function openDetail(row) {
   detailTarget.value = row
   detailRole.value = row.role
+  detailName.value = row.name
   showDetail.value = true
 }
 
@@ -76,8 +82,13 @@ function saveDetail() {
     window.alert('권한을 선택해 주세요.')
     return
   }
+  if (!detailName.value.trim()) {
+    window.alert('이름을 입력해 주세요.')
+    return
+  }
   if (!window.confirm('사용자 정보를 저장하시겠습니까?')) return
   detailTarget.value.role = detailRole.value
+  detailTarget.value.name = detailName.value.trim()
   showDetail.value = false
   window.alert('저장되었습니다.')
 }
@@ -139,7 +150,8 @@ function openRegister() {
     role: '사용자',
     position: '사원',
     email: '',
-    active: true,
+    status: '재직',
+    memo: '',
   })
   idChecked.value = false
   registerTempPassword.value = tempPassword()
@@ -189,6 +201,7 @@ function saveRegister() {
     return
   }
   if (!window.confirm('사용자를 등록하시겠습니까?')) return
+  const now = new Date().toISOString().slice(0, 10)
   rows.value.unshift({
     id,
     name: registerForm.name.trim(),
@@ -198,8 +211,11 @@ function saveRegister() {
     email: registerForm.email.trim(),
     phone: '',
     type: '임직원',
-    status: registerForm.active ? '재직' : '휴직',
+    status: registerForm.status,
+    memo: registerForm.memo.trim(),
     failCount: 0,
+    registeredAt: now,
+    updatedAt: now,
   })
   showRegister.value = false
   search()
@@ -209,17 +225,24 @@ function saveRegister() {
 
 <template>
   <div class="admin-page">
+    <p class="notice">{{ userMgmtMeta.hint }}</p>
+
     <section class="filter card">
       <div class="filter__row filter__row--4">
         <div class="filter__field">
           <label>사용자</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="이름 또는 사번"
-            @keyup.enter="search"
-          />
+          <div class="filter__inline">
+            <select v-model="filters.searchType" class="filter__select filter__select--sm">
+              <option v-for="o in searchTypeOptions" :key="o" :value="o">{{ o }}</option>
+            </select>
+            <input
+              v-model="filters.keyword"
+              class="filter__input"
+              type="text"
+              :placeholder="filters.searchType === '아이디' ? '사번(ID) 입력' : '이름 입력'"
+              @keyup.enter="search"
+            />
+          </div>
         </div>
         <div class="filter__field">
           <label>소속팀</label>
@@ -264,16 +287,20 @@ function saveRegister() {
           <thead>
             <tr>
               <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
+              <th>No</th>
               <th>사번(ID)</th>
               <th>이름</th>
               <th>소속팀</th>
+              <th>직급</th>
               <th>권한</th>
               <th>상태</th>
+              <th>등록일</th>
+              <th>수정일</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in paged" :key="row.id" @click="openDetail(row)">
+            <tr v-for="(row, idx) in paged" :key="row.id" @click="openDetail(row)">
               <td @click.stop>
                 <input
                   type="checkbox"
@@ -281,21 +308,25 @@ function saveRegister() {
                   @change="toggleSelect(row.id)"
                 />
               </td>
+              <td>{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td>{{ row.id }}</td>
               <td><span class="tbl__name">{{ row.name }}</span></td>
               <td>{{ row.dept }}</td>
+              <td>{{ row.position }}</td>
               <td>
                 <span :class="{ 'tbl__muted': row.role === '미설정' }">{{ row.role }}</span>
               </td>
               <td>
                 <span class="badge" :class="`badge--${userStatusClass(row.status)}`">{{ row.status }}</span>
               </td>
+              <td>{{ row.registeredAt || '-' }}</td>
+              <td>{{ row.updatedAt || '-' }}</td>
               <td>
                 <button type="button" class="link-btn" @click.stop="openDetail(row)">정보</button>
               </td>
             </tr>
             <tr v-if="!paged.length">
-              <td colspan="7" class="empty">조회 결과가 없습니다.</td>
+              <td colspan="11" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -311,7 +342,10 @@ function saveRegister() {
     <BaseModal :visible="showDetail" title="사용자 정보" @close="showDetail = false">
       <div v-if="detailTarget" class="modal-grid">
         <div class="modal-field"><label>사번(ID)</label><span>{{ detailTarget.id }}</span></div>
-        <div class="modal-field"><label>이름</label><span>{{ detailTarget.name }}</span></div>
+        <div class="modal-field">
+          <label>이름</label>
+          <input v-model="detailName" class="filter__input" type="text" />
+        </div>
         <div class="modal-field"><label>소속팀</label><span>{{ detailTarget.dept }}</span></div>
         <div class="modal-field"><label>직급</label><span>{{ detailTarget.position }}</span></div>
         <div class="modal-field"><label>구분</label><span>{{ detailTarget.type }}</span></div>
@@ -368,24 +402,9 @@ function saveRegister() {
         </div>
         <div class="modal-field">
           <label>사용자상태</label>
-          <div class="segmented-control">
-            <button
-              type="button"
-              class="segmented-control__item"
-              :class="{ 'is-active': registerForm.active }"
-              @click="registerForm.active = true"
-            >
-              활성
-            </button>
-            <button
-              type="button"
-              class="segmented-control__item"
-              :class="{ 'is-active': !registerForm.active }"
-              @click="registerForm.active = false"
-            >
-              비활성
-            </button>
-          </div>
+          <select v-model="registerForm.status" class="filter__select">
+            <option v-for="o in employmentStatusOptions" :key="o" :value="o">{{ o }}</option>
+          </select>
         </div>
         <div class="modal-field modal-field--wide">
           <label>비밀번호</label>
@@ -414,6 +433,10 @@ function saveRegister() {
           <label>이메일</label>
           <input v-model="registerForm.email" class="filter__input" type="email" placeholder="example@ezwel.com" />
         </div>
+        <div class="modal-field modal-field--wide">
+          <label>비고</label>
+          <textarea v-model="registerForm.memo" class="filter__input modal-textarea" rows="2" placeholder="비고 입력" />
+        </div>
       </div>
       <template #footer>
         <button type="button" class="btn btn--ghost" @click="showRegister = false">취소</button>
@@ -424,6 +447,21 @@ function saveRegister() {
 </template>
 
 <style scoped>
+.filter__inline {
+  display: flex;
+  gap: 6px;
+}
+
+.filter__inline .filter__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter__select--sm {
+  width: 84px;
+  flex-shrink: 0;
+}
+
 .modal-field__inline {
   display: flex;
   gap: 8px;
@@ -443,5 +481,12 @@ function saveRegister() {
   margin: 4px 0 0;
   font-size: 11px;
   color: var(--lnb-muted);
+}
+
+.modal-textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+  font-family: inherit;
 }
 </style>

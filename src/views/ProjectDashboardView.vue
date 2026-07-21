@@ -27,6 +27,10 @@ watch(() => projectStore.currentProject?.id, loadData)
 
 const gaugePlan = computed(() => `${(data.value?.totalProgress.planRate / 2).toFixed(1)}%`)
 
+function complianceLabel(status) {
+  return projectDashboardMeta.legend.find((l) => l.key === status)?.label || status
+}
+
 function goWbs() {
   router.push({ name: 'wbs' })
 }
@@ -160,8 +164,8 @@ function onExcelDownload() {
       <div class="listcard__head">
         <h3 class="sec-title">업무별 상세 현황</h3>
         <div class="listcard__head-actions">
-          <ExcelDownloadButton @click="onExcelDownload" />
           <button type="button" class="link-btn" @click="goWbs">WBS 관리 →</button>
+          <ExcelDownloadButton @click="onExcelDownload" />
         </div>
       </div>
       <div class="listcard__scroll">
@@ -196,7 +200,7 @@ function onExcelDownload() {
                 {{ row.planDiff }}
               </td>
               <td>
-                <span class="compliance" :class="`compliance--${row.compliance}`">{{ row.compliance }}</span>
+                <span class="compliance" :class="`compliance--${row.compliance}`">{{ complianceLabel(row.status) }}</span>
               </td>
             </tr>
           </tbody>

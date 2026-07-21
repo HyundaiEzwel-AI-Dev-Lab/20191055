@@ -117,7 +117,17 @@ function onDetailSave(payload) {
     </h1>
 
     <section class="filter card">
-      <div class="filter__row filter__row--4">
+      <div class="filter__row filter__row--5">
+        <div class="filter__field">
+          <label>화면명 검색</label>
+          <input
+            v-model="filters.keyword"
+            class="filter__input"
+            type="text"
+            placeholder="화면명 검색"
+            @keyup.enter="search"
+          />
+        </div>
         <div class="filter__field">
           <label>시스템 선택</label>
           <select v-model="filters.system" class="filter__select">
@@ -169,6 +179,7 @@ function onDetailSave(payload) {
               <th>시스템/업무</th>
               <th>화면경로</th>
               <th>화면명</th>
+              <th>업무유형</th>
               <th>담당자</th>
               <th>난이도</th>
               <th>테스트수행</th>
@@ -186,6 +197,7 @@ function onDetailSave(payload) {
                   {{ row.screenName }}
                 </button>
               </td>
+              <td>{{ row.taskType }}</td>
               <td>{{ row.assignee }}</td>
               <td>{{ row.difficulty }}</td>
               <td>
@@ -206,7 +218,7 @@ function onDetailSave(payload) {
               <td>{{ row.lastExecutedAt || '-' }}</td>
             </tr>
             <tr v-if="!pagedList.length">
-              <td colspan="9" class="empty">조회 결과가 없습니다.</td>
+              <td colspan="10" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -298,8 +310,8 @@ function onDetailSave(payload) {
   margin-bottom: 10px;
 }
 
-.filter__row--4 {
-  grid-template-columns: repeat(4, 1fr);
+.filter__row--5 {
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .filter__field {
