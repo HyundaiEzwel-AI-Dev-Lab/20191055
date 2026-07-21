@@ -19,15 +19,15 @@ export const statusOptions = ['전체', '완료', '반려']
 export const monthPresets = ['당월', '전월', '직접입력']
 
 export const initiators = [
-  { label: '고객사', count: 48, color: '#119a8a' },
-  { label: '이지웰', count: 42, color: '#7c5cf0' },
-  { label: '테크', count: 22, color: '#f59e0b' },
-  { label: '그룹사', count: 8, color: '#ec4899' },
+  { label: '고객사', count: 48, color: 'var(--teal)' },
+  { label: '이지웰', count: 42, color: 'var(--purple)' },
+  { label: '테크', count: 22, color: 'var(--orange)' },
+  { label: '그룹사', count: 8, color: 'var(--red)' },
 ]
 
 export const devTypes = [
-  { label: '신규', count: 72, color: '#119a8a' },
-  { label: '개선', count: 48, color: '#7c5cf0' },
+  { label: '신규', count: 72, color: 'var(--teal)' },
+  { label: '개선', count: 48, color: 'var(--purple)' },
 ]
 
 export const summaries = [

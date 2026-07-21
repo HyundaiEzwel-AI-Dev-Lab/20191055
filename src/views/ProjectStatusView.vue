@@ -642,7 +642,7 @@ function onPageSizeChange() {
 
 .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .btn--primary:hover {
@@ -731,7 +731,7 @@ function onPageSizeChange() {
   right: 12px;
   top: calc(100% + 6px);
   background: var(--lnb-logo);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 10.5px;
   padding: 8px 10px;
   border-radius: 8px;
@@ -859,7 +859,7 @@ function onPageSizeChange() {
 .bar {
   flex: 1;
   height: 6px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 6px;
   overflow: hidden;
   min-width: 50px;
@@ -914,7 +914,7 @@ function onPageSizeChange() {
 .pager__pg--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

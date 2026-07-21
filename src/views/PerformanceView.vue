@@ -628,7 +628,7 @@ function onMonthPresetChange() {
 
 .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .btn--primary:hover {
@@ -697,7 +697,7 @@ function onMonthPresetChange() {
 
 .kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
 .kpi--orange { background: var(--orange-bg); color: var(--orange); }
-.kpi--violet { background: #f2effe; color: #7c5cf0; }
+.kpi--violet { background: var(--purple-bg); color: var(--purple); }
 .kpi--blue { background: var(--blue-bg); color: var(--blue); }
 
 .dash-grid {
@@ -995,7 +995,7 @@ function onMonthPresetChange() {
 .pager__pg--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

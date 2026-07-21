@@ -621,7 +621,7 @@ function onOverdueClick(row) {
 
 .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .btn--primary:hover {
@@ -730,7 +730,7 @@ function onOverdueClick(row) {
   background: conic-gradient(
     from 270deg,
     var(--teal) 0 var(--p),
-    #eef1f3 var(--p) 50%,
+    var(--line-2) var(--p) 50%,
     transparent 50%
   );
   filter: drop-shadow(0 6px 14px rgba(20, 30, 45, 0.12));
@@ -1018,7 +1018,7 @@ function onOverdueClick(row) {
 .bar {
   flex: 1;
   height: 6px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 6px;
   overflow: hidden;
   min-width: 60px;
@@ -1069,7 +1069,7 @@ function onOverdueClick(row) {
 .pager__pg--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

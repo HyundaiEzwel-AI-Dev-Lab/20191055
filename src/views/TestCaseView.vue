@@ -743,8 +743,8 @@ function onExcelDownload() {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--orange, #f59e0b);
-  color: #fff;
+  background: var(--orange);
+  color: var(--color-text-inverse);
   font-size: 11px;
   font-weight: 800;
   flex-shrink: 0;
@@ -942,7 +942,7 @@ function onExcelDownload() {
 .tlb-detail__hint {
   margin: 0 0 12px;
   font-size: 12px;
-  color: var(--teal-600, var(--teal));
+  color: var(--teal-600);
   font-weight: 600;
 }
 
@@ -980,7 +980,7 @@ function onExcelDownload() {
 }
 
 .tlb-field label i {
-  color: var(--red, #e11d48);
+  color: var(--red);
   font-style: normal;
   margin-left: 2px;
 }
@@ -1000,7 +1000,7 @@ function onExcelDownload() {
   border: none;
   border-radius: 50%;
   background: var(--lnb-muted);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 10px;
   font-weight: 800;
   font-family: inherit;
@@ -1025,7 +1025,7 @@ function onExcelDownload() {
   padding: 8px 10px;
   border-radius: var(--radius-sm, 8px);
   background: var(--lnb-logo);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 11px;
   font-weight: 500;
   line-height: 1.5;
@@ -1078,7 +1078,7 @@ function onExcelDownload() {
 }
 
 .tlb-steps__del:hover {
-  color: var(--red, #e11d48);
+  color: var(--red);
 }
 
 .tlb-empty {

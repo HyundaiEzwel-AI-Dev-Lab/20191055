@@ -389,11 +389,11 @@ const baseTasks = [
 ]
 
 const taskTypeColors = {
-  기획: '#119a8a',
-  디자인: '#2f6fed',
-  퍼블리싱: '#e08a2b',
-  개발: '#1f9d57',
-  테스트: '#8a97a0',
+  기획: 'var(--teal)',
+  디자인: 'var(--blue)',
+  퍼블리싱: 'var(--orange)',
+  개발: 'var(--green)',
+  테스트: 'var(--gray)',
 }
 
 export function getWbsTasks() {
@@ -401,7 +401,7 @@ export function getWbsTasks() {
 }
 
 export function getTaskTypeColor(taskType) {
-  return taskTypeColors[taskType] || '#119a8a'
+  return taskTypeColors[taskType] || 'var(--teal)'
 }
 
 export function formatDateRange(start, end) {

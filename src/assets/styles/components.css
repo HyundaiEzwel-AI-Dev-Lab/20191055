@@ -60,15 +60,11 @@
   border-radius: 999px;
 }
 
-.badge--success { background: #dcfce7; color: var(--color-success); }
-.badge--warning { background: #fef3c7; color: var(--color-warning); }
-.badge--danger  { background: #fee2e2; color: var(--color-danger); }
-.badge--info    { background: #cffafe; color: var(--color-info); }
+.badge--success { background: var(--green-bg); color: var(--green); }
+.badge--warning { background: var(--orange-bg); color: var(--orange); }
+.badge--danger  { background: var(--red-bg); color: var(--red); }
+.badge--info    { background: var(--blue-bg); color: var(--blue); }
 
-:root[data-concept='dark'] .badge--success { background: var(--green-bg); color: var(--green); }
-:root[data-concept='dark'] .badge--warning { background: var(--orange-bg); color: var(--orange); }
-:root[data-concept='dark'] .badge--danger  { background: var(--red-bg); color: var(--red); }
-:root[data-concept='dark'] .badge--info    { background: var(--blue-bg); color: var(--blue); }
 .badge--default { background: var(--color-bg); color: var(--color-text-muted); }
 
 /* 테이블 */
@@ -205,7 +201,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1300;
 }
 
 .modal {

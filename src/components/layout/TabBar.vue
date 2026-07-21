@@ -12,22 +12,10 @@ const projectStore = useProjectStore()
 
 const scrollEl = ref(null)
 
-function scrollByTabs(count) {
-  const el = scrollEl.value
-  if (!el) return
-  const children = Array.from(el.children)
-  if (!children.length) return
-  let currentIndex = children.findIndex((c) => c.offsetLeft + c.offsetWidth > el.scrollLeft + 1)
-  if (currentIndex === -1) currentIndex = children.length - 1
-  const targetIndex = Math.min(children.length - 1, Math.max(0, currentIndex + count))
-  el.scrollTo({ left: children[targetIndex].offsetLeft, behavior: 'smooth' })
-}
-
 defineExpose({
   scrollBy(delta) {
     scrollEl.value?.scrollBy({ left: delta, behavior: 'smooth' })
   },
-  scrollByTabs,
 })
 
 function selectTab(tab) {

@@ -5,15 +5,16 @@ alwaysApply: true
 
 # HPMS 디자인 시스템
 
-상세 기준: `DESIGN_GUIDE.md` · 변수 원본: `src/assets/styles/tokens.css`
+상세 기준: `DESIGN_GUIDE.md` · 변수 원본: `src/assets/styles/tokens.css` · 컨셉/프로필색: `src/stores/theme.js`
 
-## 색상
+## 색상 (기본 컨셉)
 - **포인트(CTA·2단탭 활성·선택)**: `--teal` `#119a8a`, hover `--teal-600`, 배경 `--teal-50`
 - **강조 텍스트·1단탭 활성**: `--lnb-logo` `#1c1d21`
 - **본문**: `--lnb-txt` `#2b2f36` · **보조**: `--lnb-muted` `#9aa0a8`
 - **배경**: 셸 `--lnb-bg`, 카드/패널 `--lnb-side`, hover `--lnb-hover`
 - **테두리**: `--lnb-line` · **상태 뱃지**: `--blue`+`--blue-bg` 등 쌍 사용
 - 로그인/모달만 `--ink`, `--muted`, `--field` 사용
+- 하드코딩 `#fff`/`#fafbfc` 금지 → `var(--lnb-side)` / `var(--lnb-hover)`
 
 ## 폰트 크기
 - 기본 본문 **13px** (`--font-size-md`) · 보조 11~12px · 섹션 14px · 페이지 타이틀 **20px**
@@ -21,14 +22,16 @@ alwaysApply: true
 
 ## 레이아웃
 - 헤더 52px · LNB 220px/60px · 카드 radius `var(--radius-lg)` · 본문 좌우 패딩 24px
-- 하드코딩 HEX 금지 — 토큰 변수만 사용
+- `BaseModal` z-index **1300** (헤더 레이어 1200보다 위 — 설정 팝업용)
 
-## 화면 컨셉 (내 정보 > 화면 컨셉)
+## 화면 컨셉 · 설정 (내 정보 > 설정)
 
-`src/stores/theme.js` + `tokens.css`의 `:root[data-concept="..."]` 블록으로 동작. 컨셉끼리는 마크업/구조를 공유하고 디자인 토큰(`--radius-*`, `--shadow-*`, `--transition-*`, `--teal-600`/`--teal-700` 등)만 다르다.
+`theme.js` + `tokens.css`의 `:root[data-concept="..."]`. 마크업은 공유하고 토큰만 다르다.
+- **기본** / **프리미엄**(radius·shadow·easing·깊은 teal) / **다크**(Claude Desktop: `#141413`/`#30302e`/`#faf9f5`, 포인트 terracotta `#cc785c`, CTA 크림 버튼)
+- **프로필 이미지 색상**: `avatarColorOptions` 20색, 헤더·내정보 아바타에 반영 (`hpms.avatarColor`)
 
-신규 UI 작성·기존 화면 수정 시:
-- radius/shadow/easing 값은 px·rgba를 직접 쓰지 말고 반드시 `var(--radius-lg)`, `var(--shadow-sm)`, `var(--transition-normal)` 등 토큰으로 작성한다. 하드코딩하면 그 요소만 컨셉 전환에서 빠진다.
-- `components.css`/`layout.css`의 전역 클래스(`.card` 등)를 컴포넌트 scoped style에서 같은 값으로 다시 정의하지 않는다 — Vue scoped 특이도 때문에 전역 규칙을 덮어써서 컨셉 전환이 깨진다. 전역 규칙을 그대로 쓰거나 확장한다.
-- 변경 후에는 내 정보 팝업에서 기본 ⇄ 프리미엄(및 이후 추가되는 컨셉)을 전환해 두 상태 모두 확인한다.
-- 새 색상 컨셉 추가 시: `tokens.css`에 `:root[data-concept="이름"] { ... }` 블록 추가 + `src/stores/theme.js`의 `conceptOptions`에 옵션 추가. 화면이 토큰만 쓰고 있다면 다른 파일은 건드릴 필요 없다.
+신규 UI·수정 시:
+- radius/shadow/easing은 `var(--radius-*)`, `var(--shadow-*)`, `var(--transition-*)`만 사용.
+- scoped에서 `.card` 등 전역 클래스를 같은 값으로 재정의하지 않는다.
+- 완료 전 **내 정보 → 설정**에서 기본 ⇄ 프리미엄 ⇄ 다크와 프로필 색을 확인한다.
+- 새 컨셉: `tokens.css` 블록 + `conceptOptions` 추가. 토큰만 쓰는 UI면 다른 파일 불필요.

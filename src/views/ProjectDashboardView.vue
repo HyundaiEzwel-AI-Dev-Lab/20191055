@@ -281,13 +281,13 @@ function onExcelDownload() {
 }
 
 .schedule-card--shorten {
-  background: #e8f5ee;
-  border-color: #b8dfc8;
+  background: var(--green-bg);
+  border-color: var(--green);
 }
 
 .schedule-card--delay {
-  background: #fef3f2;
-  border-color: #f5c6c2;
+  background: var(--red-bg);
+  border-color: var(--red);
 }
 
 .schedule-card__head {
@@ -307,7 +307,7 @@ function onExcelDownload() {
 }
 
 .schedule-card--delay .schedule-card__diff {
-  color: #c0392b;
+  color: var(--red);
 }
 
 .schedule-card__row {
@@ -394,7 +394,7 @@ function onExcelDownload() {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: conic-gradient(from 270deg, var(--teal-500) 0 var(--p, 30%), #eef1f3 var(--p, 30%) 50%, transparent 50%);
+  background: conic-gradient(from 270deg, var(--teal-500) 0 var(--p, 30%), var(--line-2) var(--p, 30%) 50%, transparent 50%);
 }
 
 .gauge__hole {
@@ -447,7 +447,7 @@ function onExcelDownload() {
 }
 
 .summary-chip--delay .summary-chip__num {
-  color: #c0392b;
+  color: var(--red);
 }
 
 .summary-chip--normal .summary-chip__num {
@@ -455,7 +455,7 @@ function onExcelDownload() {
 }
 
 .summary-chip--shorten .summary-chip__num {
-  color: #1a7f4b;
+  color: var(--green);
 }
 
 .note {
@@ -500,7 +500,7 @@ function onExcelDownload() {
 
 .type-card__bar {
   height: 6px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -518,13 +518,13 @@ function onExcelDownload() {
 }
 
 .type-card--delay {
-  border-color: #f5c6c2;
+  border-color: var(--red);
   background: var(--lnb-side);
 }
 
 .type-card--shorten {
-  border-color: #b8dfc8;
-  background: #f6fcf8;
+  border-color: var(--green);
+  background: var(--green-bg);
 }
 
 .listcard {
@@ -594,24 +594,24 @@ function onExcelDownload() {
 }
 
 .status-dot--delay {
-  background: #e74c3c;
+  background: var(--red);
 }
 
 .status-dot--shorten {
-  background: #27ae60;
+  background: var(--green);
 }
 
 .status-dot--wait {
-  background: #bdc3c7;
+  background: var(--gray);
 }
 
 .text-delay {
-  color: #c0392b;
+  color: var(--red);
   font-weight: 600;
 }
 
 .text-shorten {
-  color: #1a7f4b;
+  color: var(--green);
   font-weight: 600;
 }
 
@@ -623,18 +623,18 @@ function onExcelDownload() {
 }
 
 .compliance--정상 {
-  background: #eef2f6;
-  color: #5a6a7a;
+  background: var(--gray-bg);
+  color: var(--gray);
 }
 
 .compliance--경과 {
-  background: #fdecea;
-  color: #c0392b;
+  background: var(--red-bg);
+  color: var(--red);
 }
 
 .compliance--단축 {
-  background: #e8f5ee;
-  color: #1a7f4b;
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .link-btn {

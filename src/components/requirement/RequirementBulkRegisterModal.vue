@@ -268,7 +268,7 @@ function onConfirm() {
   border-radius: var(--radius-md, 8px);
   padding: 14px;
   margin-bottom: 16px;
-  background: var(--lnb-side, #fff);
+  background: var(--lnb-side);
 }
 
 .upload-panel__head {
@@ -301,7 +301,7 @@ function onConfirm() {
   min-height: 88px;
   border: 1px dashed var(--lnb-line);
   border-radius: var(--radius-md, 8px);
-  background: var(--field, #f1f4f5);
+  background: var(--field);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -374,11 +374,11 @@ function onConfirm() {
 }
 
 .summary--ok b {
-  color: var(--green, #1f9d57);
+  color: var(--green);
 }
 
 .summary--fail b {
-  color: var(--red, #e0524a);
+  color: var(--red);
 }
 
 .result-msg {
@@ -391,13 +391,13 @@ function onConfirm() {
 }
 
 .result-msg--ok {
-  background: var(--green-bg, #e6f6ec);
-  color: var(--green, #1f9d57);
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .result-msg--fail {
-  background: var(--red-bg, #fdecea);
-  color: var(--red, #e0524a);
+  background: var(--red-bg);
+  color: var(--red);
 }
 
 .table-wrap {
@@ -432,11 +432,11 @@ function onConfirm() {
 }
 
 .is-fail td {
-  background: var(--red-bg, #fdecea);
+  background: var(--red-bg);
 }
 
 .fail-reason {
-  color: var(--red, #e0524a);
+  color: var(--red);
   font-weight: 700;
   max-width: 180px;
 }

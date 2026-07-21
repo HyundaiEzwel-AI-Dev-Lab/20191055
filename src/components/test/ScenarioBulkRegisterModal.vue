@@ -273,15 +273,15 @@ function close() {
 }
 
 .summary-row .ok b {
-  color: #1a7f4b;
+  color: var(--green);
 }
 
 .summary-row .fail b {
-  color: #c0392b;
+  color: var(--red);
 }
 
 td.fail {
-  color: #c0392b;
+  color: var(--red);
 }
 
 .preview-table {

@@ -551,8 +551,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--lnb-logo);
-  color: var(--color-text-inverse);
+  background: var(--teal);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -689,7 +689,7 @@
   padding: 0 16px;
   height: 44px;
   border: 1px solid var(--lnb-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--lnb-side);
   flex-shrink: 0;
 }
@@ -1574,8 +1574,8 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--lnb-logo);
-  color: var(--color-text-inverse);
+  background: var(--teal);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1778,7 +1778,7 @@
 
 .hdr-info__btn--danger {
   color: var(--red);
-  border-color: #f5c6c4;
+  border-color: var(--red);
 }
 
 .hdr-info__btn--danger:hover {

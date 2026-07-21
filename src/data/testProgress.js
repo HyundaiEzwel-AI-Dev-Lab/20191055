@@ -98,7 +98,7 @@ export function getProgressData(mode = 'dev') {
 export function donutStyle(rate, color = 'var(--teal-500)') {
   const p = Math.min(100, Math.max(0, rate))
   return {
-    background: `conic-gradient(${color} 0 ${p}%, #eef1f3 ${p}% 100%)`,
+    background: `conic-gradient(${color} 0 ${p}%, var(--line-2) ${p}% 100%)`,
   }
 }
 

@@ -381,7 +381,7 @@ function submit() {
 .tabs__btn--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

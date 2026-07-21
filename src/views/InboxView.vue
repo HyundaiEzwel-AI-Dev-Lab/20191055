@@ -595,7 +595,7 @@ function nextWaiting() {
 .bar {
   flex: 1;
   height: 8px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -671,7 +671,7 @@ function nextWaiting() {
   justify-content: center;
   font-size: 9.5px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text-inverse);
   margin-left: -6px;
 }
 .avatar-stack__item:first-child {

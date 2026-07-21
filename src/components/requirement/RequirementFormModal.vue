@@ -877,7 +877,7 @@ label.fld--req::after {
 
 .seg__btn--on {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 
@@ -1123,7 +1123,7 @@ label.fld--req::after {
   padding: 10px 12px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
-  background: var(--lnb-hover, #f7f8f9);
+  background: var(--lnb-hover);
 }
 
 .history-item__head {

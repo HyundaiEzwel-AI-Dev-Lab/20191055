@@ -315,7 +315,7 @@ function confirm() {
 .link-btn {
   border: none;
   background: none;
-  color: var(--red, #e0524a);
+  color: var(--red);
   cursor: pointer;
   font-size: 12px;
 }

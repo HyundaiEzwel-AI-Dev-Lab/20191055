@@ -112,7 +112,7 @@ const maxDeptProjectCount = computed(() =>
 
 function donutStyle(rate) {
   const p = Math.min(100, Math.max(0, rate))
-  return { background: `conic-gradient(var(--teal-600) 0 ${p}%, #eef1f3 ${p}% 100%)` }
+  return { background: `conic-gradient(var(--teal-600) 0 ${p}%, var(--line-2) ${p}% 100%)` }
 }
 
 const totalPages = computed(() =>
@@ -630,7 +630,7 @@ function formatExecProgress(progress) {
 
 .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .btn--primary:hover {
@@ -748,7 +748,7 @@ function formatExecProgress(progress) {
 
 .chart-bar-row__track {
   height: 8px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -950,7 +950,7 @@ function formatExecProgress(progress) {
   bottom: calc(100% + 6px);
   transform: translateX(-50%);
   background: var(--lnb-logo);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 10.5px;
   padding: 4px 8px;
   border-radius: 6px;
@@ -969,7 +969,7 @@ function formatExecProgress(progress) {
 .bar {
   flex: 1;
   height: 6px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 6px;
   overflow: hidden;
   min-width: 50px;
@@ -1030,7 +1030,7 @@ function formatExecProgress(progress) {
 .pager__pg--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

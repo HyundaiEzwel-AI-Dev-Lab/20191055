@@ -361,29 +361,6 @@ function onBulkConfirm(items) {
 
 <style scoped>
 .scenario {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-700: #0a6b5f;
-  --teal-400: #4fb8ab;
-  --teal-50: #e6f4f2;
-  --teal-100: #cfe9e5;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --blue: #2f6fed;
-  --blue-bg: #e8f0ff;
-  --green: #1f9d57;
-  --green-bg: #e6f6ec;
-  --red: #e0524a;
-  --red-bg: #fdecea;
-  --orange: #e08a2b;
-  --orange-bg: #fcf0e1;
-  --gray: #8a97a0;
-  --gray-bg: #eef1f3;
-
   padding: 14px 18px 28px;
   color: var(--ink);
   font-size: 13px;

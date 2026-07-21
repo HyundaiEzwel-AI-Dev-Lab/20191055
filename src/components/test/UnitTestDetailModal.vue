@@ -429,10 +429,10 @@ function save() {
   border-width: 2px;
 }
 
-.seg--ok.active { border-color: #1a7f4b; color: #1a7f4b; background: #e8f5ee; }
-.seg--err.active { border-color: #c0392b; color: #c0392b; background: #fdecea; }
-.seg--wait.active { border-color: #5a6a7a; color: #5a6a7a; background: #eef2f6; }
-.seg--warn.active { border-color: #b8860b; color: #b8860b; background: #fff8e6; }
+.seg--ok.active { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.seg--err.active { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.seg--wait.active { border-color: var(--gray); color: var(--gray); background: var(--gray-bg); }
+.seg--warn.active { border-color: var(--orange); color: var(--orange); background: var(--orange-bg); }
 
 .step-table,
 .defect-table {
@@ -550,8 +550,8 @@ function save() {
   font-family: inherit;
 }
 
-.status-sel--ok { border-color: #1a7f4b; color: #1a7f4b; }
-.status-sel--wait { color: #5a6a7a; }
+.status-sel--ok { border-color: var(--green); color: var(--green); }
+.status-sel--wait { color: var(--gray); }
 .status-sel--prog { border-color: var(--teal-400); color: var(--teal-700); }
 
 .form-block {

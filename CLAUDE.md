@@ -70,10 +70,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ### Theme concepts (색상/화면 컨셉)
 
-This app has a live concept switcher (내 정보 팝업 > 화면 컨셉) backed by `src/stores/theme.js` and `:root[data-concept="..."]` blocks in `src/assets/styles/tokens.css`. Concepts share layout/markup and only override design tokens (`--radius-*`, `--shadow-*`, `--transition-*`, `--teal-600`/`--teal-700`, etc.) — never component structure.
+This app has a live concept switcher (**내 정보 → 설정 → 색상 모드**) backed by `src/stores/theme.js` and `:root[data-concept="..."]` blocks in `src/assets/styles/tokens.css`. Concepts: `default` / `premium` / `dark` (Claude Desktop warm near-black). They share layout/markup and only override design tokens (`--radius-*`, `--shadow-*`, `--transition-*`, `--teal*` etc.) — never component structure. Profile avatar color (20 swatches) is also in Settings via `avatarColor` in the same store.
 
 When creating new UI or modifying existing screens:
-- **Use tokens, not literals.** Reach for `var(--radius-lg)`, `var(--shadow-sm)`, `var(--transition-normal)` etc. instead of hardcoding px/shadow/easing values in a view's own `<style>`. A hardcoded value silently opts that element out of every concept except the one it happens to match.
+- **Use tokens, not literals.** Reach for `var(--radius-lg)`, `var(--shadow-sm)`, `var(--transition-normal)`, `var(--lnb-side)` etc. instead of hardcoding px/shadow/`#fff` in a view's own `<style>`. A hardcoded value silently opts that element out of every concept except the one it happens to match.
 - **Don't shadow shared tokens locally.** Redefining a class like `.card` inside a component's scoped style (even with "the same" values) wins over the global rule via Vue's scoped-attribute specificity and breaks concept switching for that element. Extend or reuse the global rule (`components.css`, `layout.css`) instead.
-- **Verify under every concept before calling a UI change done.** Toggle 기본 ⇄ 프리미엄 (and any concept added later) and check the new/changed UI in both — don't just eyeball the default.
+- **Verify under every concept before calling a UI change done.** Open 내 정보 → 설정 and toggle 기본 ⇄ 프리미엄 ⇄ 다크 (and profile color) — don't just eyeball the default.
 - **Adding a new color concept:** add a `:root[data-concept="name"] { ... }` block to `tokens.css` overriding the same token set, then add `{ value: 'name', label, desc }` to `conceptOptions` in `src/stores/theme.js`. No other file should need touching if the screen already consumes tokens correctly.

@@ -267,7 +267,7 @@ function saveConfirm() {
 
 .grade {
   font-weight: 700;
-  color: #c0392b;
+  color: var(--red);
 }
 
 .block {
@@ -410,7 +410,7 @@ function saveConfirm() {
 .confirm-block {
   margin-bottom: 14px;
   padding: 12px 14px;
-  background: var(--teal-50, #e6f4f2);
+  background: var(--teal-50);
   border-radius: 8px;
 }
 

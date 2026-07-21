@@ -275,7 +275,7 @@ function saveReply(issue) {
   padding: 10px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
-  background: var(--lnb-hover, #f7f8f9);
+  background: var(--lnb-hover);
 }
 
 .issue-form--reply {
@@ -330,7 +330,7 @@ function saveReply(issue) {
   overflow: auto;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
-  background: var(--lnb-side, #fff);
+  background: var(--lnb-side);
 }
 
 .issue {
@@ -348,7 +348,7 @@ function saveReply(issue) {
   padding: 10px 12px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
-  background: var(--lnb-hover, #f7f8f9);
+  background: var(--lnb-hover);
   border-bottom: 1px solid var(--lnb-line);
 }
 
@@ -363,7 +363,7 @@ function saveReply(issue) {
 .issue__author {
   font-size: 12px;
   font-weight: 700;
-  color: var(--lnb-logo, #1c1d21);
+  color: var(--lnb-logo);
 }
 
 .issue__time {
@@ -389,7 +389,7 @@ function saveReply(issue) {
   margin-top: 8px;
   padding: 8px 10px;
   border-radius: var(--radius-sm, 6px);
-  background: var(--teal-50, #e6f4f2);
+  background: var(--teal-50);
 }
 
 .issue__collab {

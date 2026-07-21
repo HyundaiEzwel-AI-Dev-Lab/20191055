@@ -510,7 +510,7 @@ function statusLabel(task) {
 .tblock.done {
   background: var(--color-field) !important;
   color: var(--color-text-muted);
-  border-left-color: #d4d4d8;
+  border-left-color: var(--lnb-line);
   cursor: default;
   opacity: 0.75;
 }
@@ -522,7 +522,7 @@ function statusLabel(task) {
 
 .tblock.paused {
   background: var(--color-field) !important;
-  border-left-color: #d4d4d8;
+  border-left-color: var(--lnb-line);
   opacity: 0.85;
 }
 

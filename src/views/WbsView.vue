@@ -664,29 +664,6 @@ function onCalendarSelect(task) {
 
 <style scoped>
 .wbs {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-50: #e6f4f2;
-  --teal-100: #cfe9e5;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --green: #1f9d57;
-  --green-bg: #e6f6ec;
-  --red: #e0524a;
-  --red-bg: #fdecea;
-  --orange: #e08a2b;
-  --orange-bg: #fcf0e1;
-  --blue: #2f6fed;
-  --blue-bg: #e8f0ff;
-  --purple: #7c5cf0;
-  --purple-bg: #ede8fd;
-  --gray: #8a97a0;
-  --gray-bg: #eef1f3;
-
   padding: 14px 18px 28px;
   font-size: 13px;
   color: var(--ink);
@@ -1052,7 +1029,7 @@ function onCalendarSelect(task) {
 .prog-bar {
   flex: 1;
   height: 6px;
-  background: #eef1f3;
+  background: var(--line-2);
   border-radius: 6px;
   overflow: hidden;
   min-width: 40px;
@@ -1222,7 +1199,7 @@ function onCalendarSelect(task) {
 
 .cal-block {
   font-size: 9px;
-  color: #fff;
+  color: var(--color-text-inverse);
   padding: 2px 4px;
   border-radius: 3px;
   overflow: hidden;
@@ -1258,7 +1235,7 @@ function onCalendarSelect(task) {
 
 .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .btn--primary:hover {

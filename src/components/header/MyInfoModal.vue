@@ -1,12 +1,13 @@
 <script setup>
 // POP-M-COM-07 내 정보
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
+import MySettingsModal from './MySettingsModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { useThemeStore, conceptOptions } from '@/stores/theme'
+import { useThemeStore } from '@/stores/theme'
 import { defaultUserProfile } from '@/data/headerPopups'
 import { getSurname } from '@/utils/text'
 
@@ -20,7 +21,9 @@ const authStore = useAuthStore()
 const projectStore = useProjectStore()
 const themeStore = useThemeStore()
 const { user } = storeToRefs(authStore)
-const { concept } = storeToRefs(themeStore)
+const { avatarColor, avatarFg } = storeToRefs(themeStore)
+
+const showSettings = ref(false)
 
 const profile = computed(() => user.value || defaultUserProfile)
 
@@ -42,6 +45,10 @@ function openPasswordReset() {
   emit('password-reset')
 }
 
+function openSettings() {
+  showSettings.value = true
+}
+
 function logout() {
   if (!window.confirm('로그아웃 하시겠습니까?')) return
   authStore.logout()
@@ -60,7 +67,12 @@ function logout() {
   >
     <div class="hdr-info">
       <div class="hdr-info__profile">
-        <div class="hdr-info__avatar">{{ initials }}</div>
+        <div
+          class="hdr-info__avatar"
+          :style="{ background: avatarColor, color: avatarFg }"
+        >
+          {{ initials }}
+        </div>
         <div class="hdr-info__who">
           <div class="hdr-info__name">
             {{ profile.name }}
@@ -71,34 +83,19 @@ function logout() {
         </div>
       </div>
 
-      <!-- 1b. 비밀번호 변경 → POP-M-COM-03 -->
       <button type="button" class="hdr-info__pw" @click="openPasswordReset">
         <span>비밀번호 변경</span>
+        <span class="hdr-info__pw-chev" aria-hidden="true">›</span>
+      </button>
+
+      <button type="button" class="hdr-info__pw" @click="openSettings">
+        <span>설정</span>
         <span class="hdr-info__pw-chev" aria-hidden="true">›</span>
       </button>
 
       <div v-if="profile.lastLogin" class="hdr-info__login">
         <span class="hdr-info__login-lab">최근 로그인</span>
         <span class="hdr-info__login-val">{{ profile.lastLogin }}</span>
-      </div>
-
-      <div class="hdr-info__concept">
-        <div class="hdr-info__concept-lab">화면 컨셉</div>
-        <div class="concept-seg">
-          <button
-            v-for="c in conceptOptions"
-            :key="c.value"
-            type="button"
-            class="concept-seg__item"
-            :class="{ on: concept === c.value }"
-            @click="themeStore.setConcept(c.value)"
-          >
-            {{ c.label }}
-          </button>
-        </div>
-        <p class="hdr-info__concept-desc">
-          {{ conceptOptions.find((c) => c.value === concept)?.desc }}
-        </p>
       </div>
 
       <div class="hdr-info__actions">
@@ -108,4 +105,6 @@ function logout() {
       </div>
     </div>
   </HeaderLayerModal>
+
+  <MySettingsModal v-model="showSettings" />
 </template>

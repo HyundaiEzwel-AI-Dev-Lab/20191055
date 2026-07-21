@@ -256,29 +256,6 @@ function onDetailSave(payload) {
 
 <style scoped>
 .unit-test {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-700: #0a6b5f;
-  --teal-400: #4fb8ab;
-  --teal-50: #e6f4f2;
-  --teal-100: #cfe9e5;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --blue: #2f6fed;
-  --blue-bg: #e8f0ff;
-  --green: #1f9d57;
-  --green-bg: #e6f6ec;
-  --red: #e0524a;
-  --red-bg: #fdecea;
-  --orange: #e08a2b;
-  --orange-bg: #fcf0e1;
-  --gray: #8a97a0;
-  --gray-bg: #eef1f3;
-
   padding: 14px 18px 28px;
   color: var(--ink);
   font-size: 13px;
@@ -443,12 +420,12 @@ function onDetailSave(payload) {
   font-weight: 600;
 }
 
-.badge--ok { background: #e8f5ee; color: #1a7f4b; }
-.badge--err { background: #fdecea; color: #c0392b; }
-.badge--wait { background: #eef2f6; color: #5a6a7a; }
-.badge--warn { background: #fff8e6; color: #b8860b; }
-.badge--prog { background: #e0f2f1; color: var(--teal-700); }
-.badge--muted { background: var(--gray-bg); color: #888; }
+.badge--ok { background: var(--green-bg); color: var(--green); }
+.badge--err { background: var(--red-bg); color: var(--red); }
+.badge--wait { background: var(--gray-bg); color: var(--gray); }
+.badge--warn { background: var(--orange-bg); color: var(--orange); }
+.badge--prog { background: var(--teal-50); color: var(--teal-700); }
+.badge--muted { background: var(--gray-bg); color: var(--gray); }
 
 .sub-date {
   display: block;

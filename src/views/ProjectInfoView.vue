@@ -1082,20 +1082,6 @@ function openIssueForm() {
 
 <style scoped>
 .project-info {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-50: #e6f4f2;
-  --teal-100: #cfe9e5;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --orange: #e08a2b;
-  --orange-bg: #fcf0e1;
-  --red: #e0524a;
-
   padding: 8px 24px 28px;
   color: var(--ink);
   font-size: 13px;
@@ -1177,7 +1163,7 @@ function openIssueForm() {
   height: 18px;
   border-radius: 5px;
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 11px;
   display: flex;
   align-items: center;
@@ -1307,15 +1293,15 @@ select.inp--edit {
   gap: 6px;
   margin-right: 6px;
   padding: 4px 8px 4px 10px;
-  border: 1px solid var(--teal-100, #cfe9e5);
+  border: 1px solid var(--teal-100);
   border-radius: 8px;
-  background: var(--teal-50, #e6f4f2);
+  background: var(--teal-50);
 }
 
 .test-round__label {
   font-size: 11px;
   font-weight: 700;
-  color: var(--teal-600, #0e8275);
+  color: var(--teal-600);
   white-space: nowrap;
 }
 
@@ -1358,7 +1344,7 @@ select.inp--edit {
 .pill--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
   box-shadow: 0 2px 6px rgba(17, 154, 138, 0.28);
 }
 
@@ -1382,7 +1368,7 @@ select.inp--edit {
 }
 
 .pill--on .pill__mark {
-  border-color: #fff;
+  border-color: var(--color-text-inverse);
   background: var(--lnb-side);
   color: var(--teal);
 }
@@ -1878,7 +1864,7 @@ select.inp--edit {
 
 .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .btn--primary:hover:not(:disabled) {

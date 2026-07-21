@@ -235,7 +235,7 @@ function blockStyle(bar) {
 <style scoped>
 .wbs-cal {
   overflow: hidden;
-  background: var(--lnb-side, #fff);
+  background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-lg, 10px);
 }
@@ -252,7 +252,7 @@ function blockStyle(bar) {
   font-size: 14px;
   font-weight: 600;
   min-width: 110px;
-  color: var(--lnb-logo, #1c1d21);
+  color: var(--lnb-logo);
 }
 
 .cal__nav {
@@ -286,7 +286,7 @@ function blockStyle(bar) {
 
 .cal__head {
   border-bottom: 1px solid var(--lnb-line);
-  background: var(--field, #f1f4f5);
+  background: var(--field);
 }
 
 .cal__wd {
@@ -298,11 +298,11 @@ function blockStyle(bar) {
 }
 
 .cal__wd.sun {
-  color: var(--red, #e0524a);
+  color: var(--red);
 }
 
 .cal__wd.sat {
-  color: var(--blue, #2f6fed);
+  color: var(--blue);
 }
 
 .cal-week {
@@ -322,7 +322,7 @@ function blockStyle(bar) {
 }
 
 .cal__cell.out {
-  background: var(--field, #f1f4f5);
+  background: var(--field);
 }
 
 .cal__cell.out .cal__day {
@@ -330,7 +330,7 @@ function blockStyle(bar) {
 }
 
 .cal__cell.today {
-  background: var(--lnb-hover, #f5f6f7);
+  background: var(--lnb-hover);
 }
 
 .cal__day {
@@ -369,14 +369,14 @@ function blockStyle(bar) {
 }
 
 .tblock.done {
-  background: var(--field, #eef1f3);
+  background: var(--field, var(--line-2));
   color: var(--lnb-muted);
   border-left-color: var(--lnb-muted);
   cursor: default;
 }
 
 .tblock.delayed {
-  box-shadow: inset 0 0 0 1px var(--red, #e0524a);
+  box-shadow: inset 0 0 0 1px var(--red);
 }
 
 .tblock.continues-prev {

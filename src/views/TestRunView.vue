@@ -528,29 +528,6 @@ function onExcelDownload() {
 
 <style scoped>
 .test-run {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --teal-700: #0a6b5f;
-  --teal-400: #4fb8ab;
-  --teal-50: #e6f4f2;
-  --teal-100: #cfe9e5;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --line-2: #eef1f3;
-  --field: #f1f4f5;
-  --blue: #2f6fed;
-  --blue-bg: #e8f0ff;
-  --green: #1f9d57;
-  --green-bg: #e6f6ec;
-  --red: #e0524a;
-  --red-bg: #fdecea;
-  --orange: #e08a2b;
-  --orange-bg: #fcf0e1;
-  --gray: #8a97a0;
-  --gray-bg: #eef1f3;
-
   padding: 14px 18px 28px;
   color: var(--ink);
   font-size: 13px;
@@ -698,8 +675,8 @@ function onExcelDownload() {
 }
 
 .kpi-chip--ok .kpi-chip__num { color: var(--teal-600); }
-.kpi-chip--err .kpi-chip__num { color: #c0392b; }
-.kpi-chip--warn .kpi-chip__num { color: #b8860b; }
+.kpi-chip--err .kpi-chip__num { color: var(--red); }
+.kpi-chip--warn .kpi-chip__num { color: var(--orange); }
 
 .toolbar {
   display: flex;
@@ -772,9 +749,9 @@ function onExcelDownload() {
 }
 
 .case-head__result.ok { color: var(--teal-600); font-weight: 600; }
-.case-head__result.err { color: #c0392b; font-weight: 600; }
+.case-head__result.err { color: var(--red); font-weight: 600; }
 .case-head__result.wait { color: var(--muted); }
-.case-head__result.retry { color: #b8860b; }
+.case-head__result.retry { color: var(--orange); }
 .case-head__result.fixed { color: var(--teal-600); }
 
 .case-body {
@@ -853,7 +830,7 @@ function onExcelDownload() {
 }
 
 .result-sel.ok { border-color: var(--teal-400); color: var(--teal-700); }
-.result-sel.err { border-color: #e74c3c; color: #c0392b; }
+.result-sel.err { border-color: var(--red); color: var(--red); }
 .result-sel.wait { color: var(--muted); }
 
 .link-btn {
@@ -878,8 +855,8 @@ function onExcelDownload() {
 }
 
 .fix-tag.pending {
-  background: #fef3cd;
-  color: #856404;
+  background: var(--orange-bg);
+  color: var(--orange);
 }
 
 .empty {

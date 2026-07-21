@@ -254,14 +254,14 @@ function register() {
 .existing-list {
   margin-bottom: 14px;
   padding: 10px 12px;
-  background: var(--orange-bg, #fcf0e1);
+  background: var(--orange-bg);
   border-radius: 8px;
 }
 
 .existing-list h4 {
   margin: 0 0 6px;
   font-size: 12px;
-  color: var(--orange, #e08a2b);
+  color: var(--orange);
 }
 
 .existing-list ul {
@@ -287,7 +287,7 @@ function register() {
 
 .existing-list__status {
   margin-left: auto;
-  color: var(--teal-600, #0e8275);
+  color: var(--teal-600);
 }
 
 .attach {
