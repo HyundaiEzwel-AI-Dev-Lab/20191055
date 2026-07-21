@@ -260,7 +260,7 @@ function blockStyle(bar) {
   height: 28px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
-  background: #fff;
+  background: var(--lnb-side);
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
@@ -273,7 +273,7 @@ function blockStyle(bar) {
   padding: 0 12px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;

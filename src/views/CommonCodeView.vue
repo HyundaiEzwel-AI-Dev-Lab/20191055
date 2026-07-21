@@ -161,6 +161,9 @@ function saveAll() {
                     <button type="button" class="link-btn link-btn--danger" @click="deleteRow(row)">삭제</button>
                   </td>
                 </tr>
+                <tr v-if="!rows.length">
+                  <td colspan="9" class="empty">등록된 코드가 없습니다.</td>
+                </tr>
               </tbody>
             </table>
           </div>

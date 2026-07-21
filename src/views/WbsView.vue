@@ -715,7 +715,7 @@ function onCalendarSelect(task) {
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   padding: 2px 8px;
   border-radius: 20px;
@@ -732,7 +732,7 @@ function onCalendarSelect(task) {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
@@ -760,7 +760,7 @@ function onCalendarSelect(task) {
 }
 
 .card {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
@@ -819,7 +819,7 @@ function onCalendarSelect(task) {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
@@ -872,7 +872,7 @@ function onCalendarSelect(task) {
   padding: 6px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--lnb-side);
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
 }
 
@@ -904,7 +904,7 @@ function onCalendarSelect(task) {
 }
 
 .listcard {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -922,7 +922,7 @@ function onCalendarSelect(task) {
 }
 
 .wbs-table thead th {
-  background: #fafbfc;
+  background: var(--lnb-hover);
   color: var(--muted);
   font-weight: 600;
   text-align: left;
@@ -985,7 +985,7 @@ function onCalendarSelect(task) {
   z-index: 10;
   width: 280px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(20, 40, 50, 0.12);
@@ -1017,7 +1017,7 @@ function onCalendarSelect(task) {
   border-radius: 6px;
   font-size: 11.5px;
   font-family: inherit;
-  background: #fff;
+  background: var(--lnb-side);
   min-width: 72px;
 }
 
@@ -1166,7 +1166,7 @@ function onCalendarSelect(task) {
   padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
@@ -1199,7 +1199,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line-2);
   border-radius: 6px;
   padding: 4px;
-  background: #fafbfc;
+  background: var(--lnb-hover);
 }
 
 .calendar__cell--empty {
@@ -1266,7 +1266,7 @@ function onCalendarSelect(task) {
 }
 
 .btn--ghost {
-  background: #fff;
+  background: var(--lnb-side);
   border-color: var(--line);
   color: var(--ink-2);
 }
@@ -1289,7 +1289,7 @@ function onCalendarSelect(task) {
 
 .alert-box {
   width: 340px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 14px;
   padding: 24px 22px 18px;
   text-align: center;

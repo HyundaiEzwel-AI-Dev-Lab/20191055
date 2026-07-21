@@ -297,7 +297,7 @@ function confirm() {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 6px;
   font-size: 12px;
 }

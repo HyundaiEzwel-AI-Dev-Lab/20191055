@@ -583,7 +583,7 @@ function onMonthPresetChange() {
 }
 
 .filter__input {
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .filter__range {
@@ -832,7 +832,7 @@ function onMonthPresetChange() {
 .hbar__track {
   flex: 1;
   height: 18px;
-  background: #f0f3f4;
+  background: var(--lnb-hover);
   border-radius: 9px;
   overflow: hidden;
 }
@@ -899,7 +899,7 @@ function onMonthPresetChange() {
 }
 
 .tbl thead th {
-  background: #fafbfc;
+  background: var(--lnb-hover);
   color: var(--lnb-muted);
   font-weight: 600;
   text-align: center;

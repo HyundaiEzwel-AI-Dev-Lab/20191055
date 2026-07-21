@@ -586,7 +586,8 @@ function wbsTaskPath(chg) {
   font-size: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm, 6px);
-  background: #fff;
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
 }
 
 .listcard {
@@ -613,7 +614,7 @@ function wbsTaskPath(chg) {
 }
 
 .data-table th {
-  background: #fafbfc;
+  background: var(--line-2);
   font-weight: 700;
   color: var(--ink-2);
   white-space: nowrap;
@@ -624,11 +625,11 @@ function wbsTaskPath(chg) {
 }
 
 .data-table__row:hover {
-  background: #f8fafb;
+  background: var(--lnb-hover);
 }
 
 .data-table__row.open {
-  background: #f3f8f7;
+  background: var(--teal-50);
 }
 
 .col-no {
@@ -662,7 +663,7 @@ function wbsTaskPath(chg) {
 
 .detail-row td {
   padding: 0;
-  background: #fafbfc;
+  background: var(--line-2);
 }
 
 .detail-panel {

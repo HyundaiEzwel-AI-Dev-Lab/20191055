@@ -371,7 +371,7 @@ function submit() {
   padding: 0 14px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--lnb-side);
   font-family: inherit;
   font-size: 12px;
   cursor: pointer;

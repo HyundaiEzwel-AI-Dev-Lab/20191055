@@ -855,14 +855,14 @@ function onPageSizeChange() {
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   padding: 2px 8px;
   border-radius: 20px;
 }
 
 .card {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
@@ -968,7 +968,7 @@ function onPageSizeChange() {
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 11.5px;
   color: var(--ink-2);
   font-family: inherit;
@@ -996,7 +996,7 @@ function onPageSizeChange() {
   position: absolute;
   right: 0;
   top: calc(100% + 4px);
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(20, 40, 50, 0.1);
@@ -1023,7 +1023,7 @@ function onPageSizeChange() {
 }
 
 .listcard {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -1041,7 +1041,7 @@ function onPageSizeChange() {
 }
 
 .req-table thead th {
-  background: #fafbfc;
+  background: var(--lnb-hover);
   color: var(--muted);
   font-weight: 600;
   text-align: left;
@@ -1173,7 +1173,7 @@ function onPageSizeChange() {
   height: 16px;
   border-radius: 50%;
   border: 1px solid var(--lnb-line);
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--teal-600);
   font-size: 10px;
   font-weight: 800;
@@ -1193,7 +1193,7 @@ function onPageSizeChange() {
   padding: 10px 12px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
-  background: #fff;
+  background: var(--lnb-side);
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: var(--lnb-txt);
   font-size: 11px;
@@ -1209,7 +1209,7 @@ function onPageSizeChange() {
   padding: 0 6px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 11px;
   font-weight: 600;
   font-family: inherit;
@@ -1253,7 +1253,7 @@ function onPageSizeChange() {
 
 .detail-row td {
   padding: 0;
-  background: #fafbfc;
+  background: var(--lnb-hover);
 }
 
 .detail-panel {
@@ -1315,7 +1315,7 @@ function onPageSizeChange() {
   height: 28px;
   border-radius: 7px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--ink-2);
   font-size: 12px;
   cursor: pointer;
@@ -1364,7 +1364,7 @@ function onPageSizeChange() {
 }
 
 .btn--ghost {
-  background: #fff;
+  background: var(--lnb-side);
   border-color: var(--line);
   color: var(--ink-2);
 }
@@ -1387,7 +1387,7 @@ function onPageSizeChange() {
 
 .alert-box {
   width: 340px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 14px;
   padding: 24px 22px 18px;
   text-align: center;

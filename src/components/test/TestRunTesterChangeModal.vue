@@ -245,7 +245,7 @@ function save() {
   border-radius: 6px;
   font-family: inherit;
   font-size: 12px;
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .inp--date {

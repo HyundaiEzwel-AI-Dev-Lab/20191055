@@ -1124,14 +1124,14 @@ function openIssueForm() {
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   padding: 2px 8px;
   border-radius: 20px;
 }
 
 .card {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 22px 24px;
@@ -1271,7 +1271,7 @@ function openIssueForm() {
 }
 
 .inp--edit {
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .inp--edit:disabled {
@@ -1324,7 +1324,7 @@ select.inp--edit {
   min-width: 72px;
   padding: 5px 8px;
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 /* 처리단계 / 테스트 사용여부 / 테스트 라이브러리 공용 필 버튼 */
@@ -1341,7 +1341,7 @@ select.inp--edit {
   padding: 7px 16px 7px 10px;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 600;
@@ -1383,7 +1383,7 @@ select.inp--edit {
 
 .pill--on .pill__mark {
   border-color: #fff;
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--teal);
 }
 
@@ -1457,7 +1457,7 @@ select.inp--edit {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
-  background: #fafbfc;
+  background: var(--lnb-hover);
 }
 
 .assignee-card__title {
@@ -1489,7 +1489,7 @@ select.inp--edit {
   font-size: 11px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .assignee-search__input:focus {
@@ -1506,7 +1506,7 @@ select.inp--edit {
   margin: 0;
   padding: 4px 0;
   list-style: none;
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -1566,7 +1566,7 @@ select.inp--edit {
   text-align: center;
   font-size: 12px;
   color: var(--muted);
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px dashed var(--line);
   border-radius: 8px;
 }
@@ -1604,7 +1604,7 @@ select.inp--edit {
   padding: 9px 12px;
   border: 1px solid transparent;
   border-radius: 8px;
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--ink-2);
   font-size: 12.5px;
   text-align: left;
@@ -1708,7 +1708,7 @@ select.inp--edit {
   margin: 0;
   padding: 4px 0;
   list-style: none;
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -1891,7 +1891,7 @@ select.inp--edit {
 }
 
 .btn--ghost {
-  background: #fff;
+  background: var(--lnb-side);
   border-color: var(--line);
   color: var(--ink-2);
 }
@@ -1919,7 +1919,7 @@ select.inp--edit {
 
 .alert-box {
   width: 330px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 14px;
   padding: 24px 22px 18px;
   text-align: center;

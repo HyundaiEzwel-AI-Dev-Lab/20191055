@@ -395,7 +395,7 @@ function saveConfirm() {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
 }

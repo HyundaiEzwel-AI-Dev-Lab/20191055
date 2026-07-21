@@ -464,13 +464,15 @@ function onExcelDownload() {
                       class="result-sel"
                       :class="resultClass(step.byTester[name]?.result)"
                       :value="step.byTester[name]?.result"
-                      :disabled="!isMyColumn(name)"
+                      :disabled="!isMyColumn(name) || ['수정완료', '재처리요청'].includes(step.byTester[name]?.result)"
                       @change="setStepResult(row, step, name, $event.target.value)"
                     >
                       <option value="대기">대기</option>
                       <option value="정상">정상</option>
                       <option value="오류">오류</option>
                       <option value="기타">기타</option>
+                      <option v-if="step.byTester[name]?.result === '수정완료'" value="수정완료">수정완료</option>
+                      <option v-if="step.byTester[name]?.result === '재처리요청'" value="재처리요청">재처리요청</option>
                     </select>
                   </td>
                   <td class="center" :title="`최종수정일: ${step.byTester[name]?.executedAt || '-'}`">
@@ -736,7 +738,7 @@ function onExcelDownload() {
   width: 100%;
   padding: 10px 12px;
   border: none;
-  background: #fff;
+  background: var(--lnb-side);
   font-family: inherit;
   font-size: 11px;
   text-align: left;

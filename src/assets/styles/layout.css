@@ -544,7 +544,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--teal);
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--lnb-side);
 }
 
 .app-header__avatar {
@@ -552,7 +552,7 @@
   height: 28px;
   border-radius: 50%;
   background: var(--lnb-logo);
-  color: #fff;
+  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1091,7 +1091,7 @@
   border: none;
   border-radius: 8px;
   background: var(--lnb-logo);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1099,7 +1099,7 @@
 }
 
 .hdr-search__btn:hover {
-  background: #2a3040;
+  background: var(--color-primary-hover);
 }
 
 .hdr-search__hint {
@@ -1575,7 +1575,7 @@
   height: 52px;
   border-radius: 50%;
   background: var(--lnb-logo);
-  color: #fff;
+  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -254,7 +254,7 @@ function login() {
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--ink-2);
   border-radius: 8px;
   padding: 8px 10px;
@@ -267,7 +267,7 @@ function login() {
 
 .right {
   flex: 1;
-  background: #fff;
+  background: var(--lnb-side);
   display: flex;
   align-items: center;
   justify-content: center;

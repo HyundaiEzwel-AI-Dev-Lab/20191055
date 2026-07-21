@@ -481,7 +481,7 @@ function onBulkConfirm(items) {
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 11.5px;
   font-family: inherit;
   cursor: pointer;
@@ -489,7 +489,7 @@ function onBulkConfirm(items) {
 .toolbar__spacer { flex: 1; }
 
 .listcard {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -548,7 +548,7 @@ function onBulkConfirm(items) {
 
 .detail-row td {
   padding: 0;
-  background: #fafbfc;
+  background: var(--lnb-hover);
 }
 
 .step-panel { padding: 12px 16px 16px 48px; }
@@ -598,7 +598,7 @@ function onBulkConfirm(items) {
   border: 1px solid var(--line);
 }
 
-.inner-table th { background: #fff; }
+.inner-table th { background: var(--lnb-side); }
 
 .link-btn {
   border: none;
@@ -626,7 +626,7 @@ function onBulkConfirm(items) {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;

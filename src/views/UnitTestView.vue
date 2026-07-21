@@ -382,13 +382,13 @@ function onDetailSave(payload) {
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 11.5px;
   font-family: inherit;
 }
 
 .listcard {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -448,7 +448,7 @@ function onDetailSave(payload) {
 .badge--wait { background: #eef2f6; color: #5a6a7a; }
 .badge--warn { background: #fff8e6; color: #b8860b; }
 .badge--prog { background: #e0f2f1; color: var(--teal-700); }
-.badge--muted { background: #f3f4f6; color: #888; }
+.badge--muted { background: var(--gray-bg); color: #888; }
 
 .sub-date {
   display: block;
@@ -473,7 +473,7 @@ function onDetailSave(payload) {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;

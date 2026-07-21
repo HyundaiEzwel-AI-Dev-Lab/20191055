@@ -280,7 +280,8 @@ function onExcelDownload() {
             더보기(+{{ filteredSystemProgress.length - SYSTEM_DONUT_LIMIT }})
           </button>
         </div>
-        <div class="donut-row">
+        <p v-if="!visibleSystemProgress.length" class="empty-row">조회 결과가 없습니다.</p>
+        <div v-else class="donut-row">
           <button
             v-for="row in visibleSystemProgress"
             :key="row.system"
@@ -905,7 +906,7 @@ function onExcelDownload() {
   width: min(720px, 100%);
   max-height: 80vh;
   overflow-y: auto;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 14px;
   padding: 20px 22px;
   box-shadow: 0 6px 24px rgba(20, 40, 50, 0.16);
@@ -970,7 +971,7 @@ function onExcelDownload() {
 .donut__hole {
   position: absolute;
   inset: 14px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -1062,7 +1063,7 @@ function onExcelDownload() {
   right: 8px;
   bottom: 0;
   top: 8px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 60px 60px 0 0;
   display: flex;
   align-items: flex-end;

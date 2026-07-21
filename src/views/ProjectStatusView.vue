@@ -608,7 +608,7 @@ function onPageSizeChange() {
 }
 
 .filter__input {
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .filter__expand {
@@ -774,7 +774,7 @@ function onPageSizeChange() {
   padding: 0 8px;
   font-size: 11.5px;
   font-family: inherit;
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--lnb-txt);
 }
 
@@ -789,7 +789,7 @@ function onPageSizeChange() {
 }
 
 .tbl thead th {
-  background: #fafbfc;
+  background: var(--lnb-hover);
   color: var(--lnb-muted);
   font-weight: 600;
   text-align: left;

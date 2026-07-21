@@ -328,7 +328,7 @@ function onConfirm() {
   padding: 6px 10px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
 }
 

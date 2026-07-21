@@ -364,7 +364,7 @@ function onExcelDownload() {
 
 .kpi-chip {
   padding: 6px 12px;
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 999px;
   font-size: 11px;
@@ -394,7 +394,7 @@ function onExcelDownload() {
 }
 
 .listcard {
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -469,7 +469,7 @@ function onExcelDownload() {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;

@@ -289,7 +289,8 @@ function formatExecProgress(progress) {
     <!-- 부서별 통계 차트 -->
     <section class="card pad chart-card">
       <h3 class="sec-title">부서별 통계</h3>
-      <div class="chart-row">
+      <p v-if="!deptChartData.length" class="chart-empty">조회된 데이터가 없습니다.</p>
+      <div v-else class="chart-row">
         <div class="chart-donuts">
           <div v-for="d in deptChartData" :key="d.dept" class="chart-donut-item">
             <div class="donut" :style="donutStyle(d.rate)">
@@ -595,7 +596,7 @@ function formatExecProgress(progress) {
 }
 
 .filter__input {
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .filter__expand {
@@ -655,6 +656,14 @@ function formatExecProgress(progress) {
 
 .chart-card {
   margin-bottom: 16px;
+}
+
+.chart-empty {
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  color: var(--lnb-muted);
+  font-size: 12px;
 }
 
 .chart-row {
@@ -849,7 +858,7 @@ function formatExecProgress(progress) {
 }
 
 .tbl thead th {
-  background: #fafbfc;
+  background: var(--lnb-hover);
   color: var(--lnb-muted);
   font-weight: 600;
   text-align: center;

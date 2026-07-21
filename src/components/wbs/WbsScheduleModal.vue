@@ -712,7 +712,7 @@ function openMultiChange() {
   left: 0;
   width: 320px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
@@ -733,7 +733,7 @@ function openMultiChange() {
   padding: 0 14px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--lnb-side);
   font-family: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -767,7 +767,7 @@ function openMultiChange() {
 .alert-box {
   width: 360px;
   padding: 20px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }

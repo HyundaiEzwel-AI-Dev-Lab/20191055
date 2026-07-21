@@ -12,12 +12,19 @@ body {
   font-family: var(--font-family);
   font-size: var(--font-size-md);
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-bg-subtle);
   -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+:root[data-concept='dark'] {
+  color-scheme: dark;
 }
 
 #app {
   height: 100%;
+  background: var(--lnb-bg);
+  color: var(--lnb-txt);
 }
 
 a {

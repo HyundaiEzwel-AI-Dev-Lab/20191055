@@ -109,7 +109,7 @@ function save() {
   font-family: inherit;
   font-size: 12px;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--lnb-side);
 }
 
 .inp--date {

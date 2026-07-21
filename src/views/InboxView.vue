@@ -471,7 +471,7 @@ function nextWaiting() {
   display: inline-flex;
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--lnb-side);
   overflow: hidden;
 }
 .viewtoggle span {
@@ -526,7 +526,7 @@ function nextWaiting() {
   height: 26px;
   border: 1px solid var(--lnb-line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--lnb-txt);
   font-size: 10px;
   cursor: pointer;
@@ -727,7 +727,7 @@ function nextWaiting() {
   font-size: 12.5px;
 }
 .tbl thead th {
-  background: #fafbfc;
+  background: var(--lnb-hover);
   color: var(--lnb-muted);
   font-weight: 600;
   text-align: left;

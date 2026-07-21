@@ -304,6 +304,10 @@ function onLibraryConfirm(cases) {
 
     <p class="notice">※ 화면당 케이스 1개 이상, 케이스당 절차 1개 이상 등록이 필요합니다. (절차는 최대 {{ STEP_MAX }}개)</p>
 
+    <div v-if="!groups.length" class="empty-groups card">
+      등록된 테스트대상이 없습니다. "불러오기", "라이브러리 복사" 또는 "테스트대상 신규등록"으로 추가하세요.
+    </div>
+
     <div v-for="group in groups" :key="`${group.reqId}-${group.screenName}`" class="target card">
       <div class="target__head">
         <span class="target__req">{{ group.reqId || '-' }}</span>
@@ -487,6 +491,13 @@ function onLibraryConfirm(cases) {
   color: var(--teal-600);
 }
 
+.empty-groups {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .target {
   padding: 14px 16px;
   margin-bottom: 12px;
@@ -648,7 +659,7 @@ function onLibraryConfirm(cases) {
 
 .icon-btn {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 4px;
   width: 24px;
   height: 22px;

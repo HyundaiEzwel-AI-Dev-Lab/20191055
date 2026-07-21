@@ -938,7 +938,7 @@ label.fld--req::after {
   height: 16px;
   border-radius: 50%;
   border: 1px solid var(--lnb-line);
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--teal-600);
   font-size: 10px;
   font-weight: 800;
@@ -957,7 +957,7 @@ label.fld--req::after {
   padding: 10px 12px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
-  background: #fff;
+  background: var(--lnb-side);
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: var(--lnb-txt);
   font-size: 11px;
@@ -1165,7 +1165,7 @@ label.fld--req::after {
 }
 
 .history-diff th {
-  background: #fff;
+  background: var(--lnb-side);
   color: var(--lnb-muted);
   font-weight: 600;
 }

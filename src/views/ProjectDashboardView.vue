@@ -277,7 +277,7 @@ function onExcelDownload() {
 }
 
 .schedule-card--normal {
-  background: #f8fafb;
+  background: var(--lnb-hover);
 }
 
 .schedule-card--shorten {
@@ -403,7 +403,7 @@ function onExcelDownload() {
   right: 10px;
   bottom: 0;
   top: 10px;
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 72px 72px 0 0;
   display: flex;
   align-items: flex-end;
@@ -519,7 +519,7 @@ function onExcelDownload() {
 
 .type-card--delay {
   border-color: #f5c6c2;
-  background: #fffafa;
+  background: var(--lnb-side);
 }
 
 .type-card--shorten {

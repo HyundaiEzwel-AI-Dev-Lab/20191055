@@ -143,56 +143,73 @@
   --transition-normal: 340ms cubic-bezier(0.22, 0.75, 0.15, 1);
 }
 
-/* ===== 화면 컨셉: 다크 (내 정보 > 컨셉 변경에서 선택) =====
-   배경·표면·텍스트 색을 전부 어둡게 뒤집는 컨셉. LNB 계열 토큰이
-   전역(사이드바/헤더/모달/카드)에 널리 쓰이고 있어서 이 블록 하나로
-   대부분의 화면 배경이 같이 바뀐다. */
+/* ===== 화면 컨셉: 다크 — Claude Desktop / Anthropic dark tokens =====
+   출처: Claude MCP Apps design guidelines (dark mode)
+   따뜻한 near-black(올리브 틴트) · 크림 텍스트 · terracotta 포인트.
+   순수 블랙/쿨 슬레이트 금지. */
 :root[data-concept="dark"] {
-  --lnb-bg: #14171c;
-  --lnb-side: #1b1f26;
-  --lnb-logo: #edf1f5;
-  --lnb-txt: #d7dce2;
-  --lnb-muted: #8790a0;
-  --lnb-icon: #8790a0;
-  --lnb-line: #2b3038;
-  --lnb-branch: #2b3038;
-  --lnb-active-border: #2f6f63;
-  --lnb-dark: #0e1116;
-  --lnb-hover: #232830;
+  /* Surfaces — tertiary shell / secondary hover / primary card */
+  --lnb-bg: #141413;
+  --lnb-side: #30302e;
+  --lnb-hover: #262624;
+  --lnb-dark: #0f0f0e;
+  --lnb-logo: #faf9f5;
+  --lnb-txt: #faf9f5;
+  --lnb-muted: #9c9a92;
+  --lnb-icon: #9c9a92;
+  /* border ≈ #DEDCD1 @ 40% on #30302e */
+  --lnb-line: #5c5b56;
+  --lnb-branch: #5c5b56;
+  --lnb-active-border: #cc785c;
 
-  /* --color-primary는 기본 컨셉에서 --lnb-logo(짙은 잉크색)를 그대로 쓰는데,
-     다크 컨셉은 --lnb-logo가 밝은색으로 뒤집히므로 버튼 배경용으로 별도 지정 */
-  --color-primary: #0b6459;
-  --color-primary-hover: #094f46;
+  /* Claude primary CTA: cream fill + near-black label */
+  --color-primary: #faf9f5;
+  --color-primary-hover: #e8e6dc;
+  --color-primary-light: #3a3936;
+  --color-text-inverse: #141413;
+  --color-border-2: #4a4945;
+  --color-text-2: #c2c0b6;
+  --color-success: #7ab948;
+  --color-warning: #d1a041;
+  --color-danger: #ee8884;
+  --color-info: #80aadd;
 
-  --color-border-2: #2b3038;
-  --color-text-2: #b6c0cb;
+  /* Accent (탭·링크·선택) — Claude terracotta */
+  --teal: #cc785c;
+  --teal-600: #d9896e;
+  --teal-700: #e09a82;
+  --teal-400: #b86a4f;
+  --teal-50: #3a2a24;
+  --teal-100: #4a352c;
 
-  --teal: #22c3ae;
-  --teal-600: #57d6c4;
-  --teal-700: #7fe4d5;
-  --teal-400: #3ad9c2;
-  --teal-50: #16302d;
-  --teal-100: #1c3d38;
+  --ink: #faf9f5;
+  --ink-2: #c2c0b6;
+  --muted: #9c9a92;
+  --line: #5c5b56;
+  --line-2: #3f3f3c;
+  --field: #262624;
 
-  --ink: #e8edf1;
-  --ink-2: #b6c0cb;
-  --muted: #7c8894;
-  --line: #2b3038;
-  --line-2: #262b33;
-  --field: #20242c;
+  /* Status (Claude dark semantic) */
+  --blue: #80aadd;
+  --blue-bg: #253e5f;
+  --green: #7ab948;
+  --green-bg: #1b4614;
+  --red: #ee8884;
+  --red-bg: #602a28;
+  --orange: #d1a041;
+  --orange-bg: #483a0f;
+  --gray: #9c9a92;
+  --gray-bg: #3a3936;
 
-  --blue: #5b9bff;
-  --blue-bg: #16233b;
-  --green: #3ddc84;
-  --green-bg: #123423;
-  --red: #ff6b6b;
-  --red-bg: #3a1a1a;
-  --orange: #f5a623;
-  --orange-bg: #3a2a12;
-  --gray-bg: #22262d;
-
-  --shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 20px -16px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 20px 40px -20px rgba(0, 0, 0, 0.6);
-  --shadow-sidebar: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-sm:
+    0 1px 0 rgba(250, 249, 245, 0.04) inset,
+    0 1px 3px rgba(0, 0, 0, 0.35),
+    0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 1px 0 rgba(250, 249, 245, 0.05) inset,
+    0 8px 20px -6px rgba(0, 0, 0, 0.55),
+    0 4px 8px -4px rgba(0, 0, 0, 0.4);
+  --shadow-sidebar:
+    0 1px 0 rgba(250, 249, 245, 0.04) inset,
+    0 8px 18px -10px rgba(0, 0, 0, 0.5);
 }

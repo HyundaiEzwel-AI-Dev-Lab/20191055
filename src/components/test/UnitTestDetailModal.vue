@@ -415,7 +415,7 @@ function save() {
 
 .seg {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--lnb-side);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 11px;
