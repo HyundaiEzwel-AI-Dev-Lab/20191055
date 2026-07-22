@@ -1,0 +1,30 @@
+---
+description: git push 시 docs(GitHub Pages) 폴더를 항상 build:pages로 최신화
+alwaysApply: true
+---
+
+# Git push → `/docs` (GitHub Pages) 동기화
+
+사용자가 **git push**를 요청하면, push 전에 반드시 아래를 수행한다.
+
+1. `npm run build:pages` 실행  
+   - Vite 빌드 결과가 `docs/`에 기록됨 (`package.json`의 `build:pages`)  
+   - GitHub Pages(source: `/docs` on `main`)용
+2. 변경된 `docs/`를 **같은 커밋(또는 push에 포함되는 커밋)**에 stage  
+3. 그다음 `git push`
+
+## 주의
+
+- `dist/`만 갱신하고 `docs/`를 빼먹지 말 것. Pages는 **`docs/`** 기준이다.
+- `node_modules/`, `.claude/settings.local.json`, `.agents/` 등은 넣지 않는다.
+- 커밋 메시지에 Pages 갱신이 포함되면 짧게 언급해도 된다 (예: refresh docs for Pages).
+- push만 요청되고 커밋할 내용이 없으면: `build:pages` 후 `docs/`에 diff가 있을 때만 커밋 후 push.
+
+## 명령
+
+```bash
+npm run build:pages
+git add docs/
+# (다른 작업 파일과 함께 commit 후)
+git push origin HEAD
+```
