@@ -1436,7 +1436,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .hdr-proj__input {
@@ -1459,22 +1459,27 @@
 }
 
 .hdr-proj__add {
-  flex-shrink: 0;
-  width: 36px;
+  width: 100%;
   height: 36px;
-  border: none;
+  margin-bottom: 12px;
+  border: 1px dashed var(--teal);
   border-radius: var(--radius-sm);
-  background: var(--teal);
-  color: #fff;
+  background: var(--teal-50);
+  color: var(--teal-600);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
   transition: background var(--transition-fast);
 }
 
 .hdr-proj__add:hover {
-  background: var(--teal-600);
+  background: var(--teal-100);
 }
 
 .hdr-proj__add-icon {

@@ -40,6 +40,25 @@ HPMS/
 | 팝업 컴포넌트 규모 | BaseModal 재사용. 팝업마다 View 파일 폭증 방지 |
 | 헤더 팝업(검색/알림/내프로젝트/내정보) | AppHeader 내부 (POP-M-COM-04~07) |
 | 시나리오/수행/결함/진척 | DEV·운영 공용 View + `route.params.mode` (`dev`/`uat`) |
+| **WBS 일정변경 UI 통일** | 기획은 단일 일정변경과 다중(일괄) 일정변경 UI를 분리. **구현은 다중 일정 변경 UI로 통일** — 단건·다건 모두 `WbsBulkScheduleModal` (POP-S-WBS-05). 상세는 아래 §2.1 |
+
+---
+
+## 2.1 WBS 일정변경 — 기획 대비 구현 (체크 결과)
+
+| 구분 | 기획서 | 현재 구현 |
+|---|---|---|
+| 단일 일정변경 | 별도 단일 변경 UI | **없음** — 다중 UI를 단건(1행)으로 재사용 |
+| 다중/일괄 일정변경 | POP-S-WBS-04/05 등 | `WbsBulkScheduleModal.vue` (`POP-S-WBS-05`, 제목「다중 일정 변경」) |
+| 일정 관리(착수·완료) | POP-S-WBS-02 | `WbsScheduleModal.vue` 유지. **「일정변경 요청」만** 다중 UI로 위임 |
+
+**진입 경로 (소스 확인)**
+
+1. WBS 목록 툴바 **「일정변경」** → 선택 행 N건 → `WbsBulkScheduleModal` (`WbsView.onScheduleChange`)
+2. `WbsScheduleModal` **「일정변경 요청」** → `open-multi-change` → 해당 태스크 1건을 `bulkTargets`에 넣어 동일 모달 (`onOpenMultiChangeFromSchedule`)
+3. 모달 내부는 행별 계획일/홀딩 수정 · 단건/다건 동일 레이아웃 (`WbsBulkScheduleModal` 주석: *단건/다건 공통 UI*)
+
+**관련 파일:** `src/views/WbsView.vue` · `src/components/wbs/WbsBulkScheduleModal.vue` · `src/components/wbs/WbsScheduleModal.vue`
 
 ---
 

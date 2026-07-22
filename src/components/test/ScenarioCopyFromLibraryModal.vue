@@ -216,6 +216,7 @@ function confirm() {
   font-size: 12px;
   box-sizing: border-box;
   background: var(--lnb-side);
+  color: var(--lnb-txt);
 }
 
 .filter__btn {

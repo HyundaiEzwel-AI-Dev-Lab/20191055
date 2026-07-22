@@ -78,10 +78,11 @@ function goAllProjects() {
           type="text"
           placeholder="프로젝트명, 단계, 역할 검색"
         />
-        <button class="hdr-proj__add" type="button" title="프로젝트 등록" @click="goRegister">
-          <span class="hdr-proj__add-icon">＋</span>
-        </button>
       </div>
+
+      <button class="hdr-proj__add" type="button" @click="goRegister">
+        <span class="hdr-proj__add-icon">＋</span> 프로젝트 등록
+      </button>
 
       <div class="hdr-section-head">
         <div class="hdr-section-title">

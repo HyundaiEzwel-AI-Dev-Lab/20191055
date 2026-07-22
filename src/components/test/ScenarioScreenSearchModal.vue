@@ -137,6 +137,7 @@ function confirm() {
   font-size: 12px;
   font-family: inherit;
   background: var(--lnb-side);
+  color: var(--lnb-txt);
 }
 
 .filter__btn {

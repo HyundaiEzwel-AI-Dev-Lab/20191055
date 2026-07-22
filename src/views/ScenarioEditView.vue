@@ -456,6 +456,8 @@ function onLibraryConfirm(cases) {
   border-radius: 7px;
   font-family: inherit;
   font-size: 12px;
+  background: var(--field);
+  color: var(--ink);
 }
 
 .notice {
@@ -605,6 +607,8 @@ function onLibraryConfirm(cases) {
   border-radius: 7px;
   font-family: inherit;
   font-size: 12px;
+  background: var(--field);
+  color: var(--ink);
 }
 
 .textarea {

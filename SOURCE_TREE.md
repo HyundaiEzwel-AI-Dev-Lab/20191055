@@ -57,6 +57,17 @@
 **이유:** SB상 상세 양식이 동일하고, 차이는 조회 범위·필터·컬럼뿐이라 한 View + 모드 분기가 맞음.  
 삭제: `ProjectHistoryDetailView.vue` (개별 전용 분리본)
 
+### 3) WBS 일정변경 UI 통일 (단일 → 다중 UI)
+
+| 구분 | 기획서 | 현재 구현 |
+|------|--------|-----------|
+| 단일 일정변경 | 별도 단일 변경 UI | **다중 UI 단건(1행) 재사용** |
+| 다중/일괄 | POP-S-WBS-04/05 등 | `WbsBulkScheduleModal.vue` (`POP-S-WBS-05`) |
+| 일정 관리 | POP-S-WBS-02 착수·완료 | `WbsScheduleModal` 유지. 「일정변경 요청」만 다중 UI로 위임 |
+
+**진입:** 목록 툴바「일정변경」(N건) · 일정관리 모달「일정변경 요청」(1건) → 모두 `WbsBulkScheduleModal`  
+원칙·체크 상세: `PROJECT_STRUCTURE.md` §2.1
+
 ### 그 외 (참고, 기획과 동일 취지)
 - DEV/운영 테스트 하위 메뉴: View 공용 + `route.params.mode` (`dev` \| `uat`)
 - 시스템관리·대시보드 등은 화면 1파일 원칙 유지
@@ -180,8 +191,10 @@ src/components/
 │   └── RequirementIssueModal.vue       # 요구사항 이슈
 │
 ├── wbs/
-│   ├── WbsScheduleModal.vue            # WBS 일정 관리
-│   └── WbsScheduleReasonModal.vue      # WBS 일정 변경 사유
+│   ├── WbsCalendar.vue                 # WBS 캘린더형
+│   ├── WbsScheduleModal.vue            # POP-S-WBS-02 일정 관리 (착수·완료)
+│   ├── WbsScheduleReasonModal.vue      # POP-S-WBS-03 변동 사유
+│   └── WbsBulkScheduleModal.vue        # POP-S-WBS-05 다중 일정 변경 (단건·다건 공통)
 │
 └── test/
     ├── UnitTestDetailModal.vue         # 단위테스트 상세

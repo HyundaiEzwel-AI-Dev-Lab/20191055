@@ -407,6 +407,7 @@ function onBulkConfirm(items) {
   font-family: inherit;
   font-size: 12px;
   background: var(--field);
+  color: var(--ink);
 }
 
 .filter__range {
@@ -459,6 +460,7 @@ function onBulkConfirm(items) {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--lnb-side);
+  color: var(--ink);
   font-size: 11.5px;
   font-family: inherit;
   cursor: pointer;
