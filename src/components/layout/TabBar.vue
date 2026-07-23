@@ -16,12 +16,6 @@ defineExpose({
   scrollBy(delta) {
     scrollEl.value?.scrollBy({ left: delta, behavior: 'smooth' })
   },
-  scrollByCount(count) {
-    const el = scrollEl.value
-    if (!el || !el.children.length) return
-    const avgWidth = el.scrollWidth / el.children.length
-    el.scrollBy({ left: avgWidth * count, behavior: 'smooth' })
-  },
 })
 
 function selectTab(tab) {

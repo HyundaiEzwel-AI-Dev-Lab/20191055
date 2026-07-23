@@ -67,10 +67,6 @@ const subbarTitle = computed(() => {
 function scrollSubTabs(dir) {
   subTabBarRef.value?.scrollBy(dir)
 }
-
-function scrollSubTabsByCount(count) {
-  subTabBarRef.value?.scrollByCount(count)
-}
 </script>
 
 <template>
@@ -92,11 +88,6 @@ function scrollSubTabsByCount(count) {
         </nav>
       </div>
       <div v-if="showSubTabs && activeProjectId" class="app-subtab-wrap">
-        <button class="app-subtab-wrap__scroll" title="10개 이전" @click="scrollSubTabsByCount(-10)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 18l-6-6 6-6M11 18l-6-6 6-6" />
-          </svg>
-        </button>
         <button class="app-subtab-wrap__scroll" title="이전 탭" @click="scrollSubTabs(-160)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 18l-6-6 6-6" />
@@ -106,11 +97,6 @@ function scrollSubTabsByCount(count) {
         <button class="app-subtab-wrap__scroll" title="다음 탭" @click="scrollSubTabs(160)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-        <button class="app-subtab-wrap__scroll" title="10개 다음" @click="scrollSubTabsByCount(10)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M6 18l6-6-6-6M13 18l6-6-6-6" />
           </svg>
         </button>
       </div>

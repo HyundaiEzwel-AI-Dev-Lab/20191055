@@ -16,6 +16,18 @@ export const mockUsers = [
     position: '책임',
   },
   {
+    id: 'ezwel',
+    password: 'Ezwel1234!',
+    name: '이지웰',
+    phone: '01011112222',
+    status: 'active',
+    failCount: 0,
+    dept: 'IT기획팀',
+    email: 'ezwel@ezwel.com',
+    role: '사용자',
+    position: '사원',
+  },
+  {
     id: 'partner.park@ezwel.com',
     password: 'Partner1!',
     name: '박외주',
