@@ -280,152 +280,151 @@ function wbsTaskPath(chg) {
                 <td :colspan="colSpan">
                   <div class="detail-panel">
                     <!-- Case 1-1) 프로젝트 설정값 -->
-                    <template v-if="templateKind(row) === HISTORY_TEMPLATE.projectSetting">
-                      <dl class="detail-dl">
-                        <div class="detail-dl__row">
-                          <dt>변경항목</dt>
-                          <dd>{{ row.setting?.field || row.item }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>원래값</dt>
-                          <dd class="before">{{ row.setting?.before ?? row.before ?? '-' }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>변경값</dt>
-                          <dd class="after">{{ row.setting?.after ?? row.after ?? '-' }}</dd>
-                        </div>
-                      </dl>
-                    </template>
+                    <table v-if="templateKind(row) === HISTORY_TEMPLATE.projectSetting" class="data-table detail-table">
+                      <tbody>
+                        <tr>
+                          <th>변경항목</th>
+                          <td>{{ row.setting?.field || row.item }}</td>
+                        </tr>
+                        <tr>
+                          <th>원래값</th>
+                          <td class="before">{{ row.setting?.before ?? row.before ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                          <th>변경값</th>
+                          <td class="after">{{ row.setting?.after ?? row.after ?? '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <!-- Case 1-2) 프로젝트 이슈등록 -->
-                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.projectIssue">
-                      <dl class="detail-dl">
-                        <div class="detail-dl__row">
-                          <dt>변경항목</dt>
-                          <dd>{{ row.item }}</dd>
-                        </div>
-                        <div class="detail-dl__row detail-dl__row--block">
-                          <dt>내용</dt>
-                          <dd class="detail-panel__body">{{ row.issueBody || row.detail?.body || '-' }}</dd>
-                        </div>
-                      </dl>
-                    </template>
+                    <table v-else-if="templateKind(row) === HISTORY_TEMPLATE.projectIssue" class="data-table detail-table">
+                      <tbody>
+                        <tr>
+                          <th>변경항목</th>
+                          <td>{{ row.item }}</td>
+                        </tr>
+                        <tr>
+                          <th>내용</th>
+                          <td class="detail-table__body">{{ row.issueBody || row.detail?.body || '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <!-- Case 2) WBS (복수 시 리스트) -->
-                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.wbs">
-                      <div
-                        v-for="(chg, cIdx) in (row.wbsChanges || [])"
-                        :key="cIdx"
-                        class="wbs-block"
-                      >
-                        <dl class="detail-dl">
-                          <div class="detail-dl__row">
-                            <dt>변경항목</dt>
-                            <dd>{{ chg.changeItem || row.item }}</dd>
-                          </div>
-                          <div class="detail-dl__row">
-                            <dt>변경업무</dt>
-                            <dd>{{ wbsTaskPath(chg) }}</dd>
-                          </div>
-                          <div class="detail-dl__row">
-                            <dt>요구사항 (명/ID)</dt>
-                            <dd>{{ formatReqLabel(chg) }}</dd>
-                          </div>
-                          <div class="detail-dl__row">
-                            <dt>원래값</dt>
-                            <dd class="before">{{ chg.before || '-' }}</dd>
-                          </div>
-                          <div class="detail-dl__row">
-                            <dt>변경값</dt>
-                            <dd class="after">{{ chg.after || '-' }}</dd>
-                          </div>
-                          <div class="detail-dl__row detail-dl__row--block">
-                            <dt>변경사유</dt>
-                            <dd>{{ chg.reason || '-' }}</dd>
-                          </div>
-                        </dl>
-                      </div>
-                    </template>
+                    <table
+                      v-else-if="templateKind(row) === HISTORY_TEMPLATE.wbs"
+                      class="data-table detail-table"
+                    >
+                      <template v-for="(chg, cIdx) in (row.wbsChanges || [])" :key="cIdx">
+                        <tbody class="wbs-block">
+                          <tr>
+                            <th>변경항목</th>
+                            <td>{{ chg.changeItem || row.item }}</td>
+                          </tr>
+                          <tr>
+                            <th>변경업무</th>
+                            <td>{{ wbsTaskPath(chg) }}</td>
+                          </tr>
+                          <tr>
+                            <th>요구사항 (명/ID)</th>
+                            <td>{{ formatReqLabel(chg) }}</td>
+                          </tr>
+                          <tr>
+                            <th>원래값</th>
+                            <td class="before">{{ chg.before || '-' }}</td>
+                          </tr>
+                          <tr>
+                            <th>변경값</th>
+                            <td class="after">{{ chg.after || '-' }}</td>
+                          </tr>
+                          <tr>
+                            <th>변경사유</th>
+                            <td>{{ chg.reason || '-' }}</td>
+                          </tr>
+                        </tbody>
+                      </template>
+                    </table>
 
                     <!-- Case 3-1) 요구사항 설정값 (우선순위·상태) -->
-                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqPriority">
-                      <dl class="detail-dl">
-                        <div class="detail-dl__row">
-                          <dt>변경항목</dt>
-                          <dd>{{ row.fieldLabel || row.item }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>요구사항 (명/ID)</dt>
-                          <dd>{{ formatReqLabel(row) }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>원래값</dt>
-                          <dd class="before">{{ row.priority?.before ?? row.before ?? '-' }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>변경값</dt>
-                          <dd class="after">{{ row.priority?.after ?? row.after ?? '-' }}</dd>
-                        </div>
-                      </dl>
-                    </template>
+                    <table v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqPriority" class="data-table detail-table">
+                      <tbody>
+                        <tr>
+                          <th>변경항목</th>
+                          <td>{{ row.fieldLabel || row.item }}</td>
+                        </tr>
+                        <tr>
+                          <th>요구사항 (명/ID)</th>
+                          <td>{{ formatReqLabel(row) }}</td>
+                        </tr>
+                        <tr>
+                          <th>원래값</th>
+                          <td class="before">{{ row.priority?.before ?? row.before ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                          <th>변경값</th>
+                          <td class="after">{{ row.priority?.after ?? row.after ?? '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <!-- Case 3-2) 요구사항 이슈등록 -->
-                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqIssue">
-                      <dl class="detail-dl">
-                        <div class="detail-dl__row">
-                          <dt>변경항목</dt>
-                          <dd>{{ row.item }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>요구사항 (명/ID)</dt>
-                          <dd>{{ formatReqLabel(row) }}</dd>
-                        </div>
-                        <div class="detail-dl__row detail-dl__row--block">
-                          <dt>내용</dt>
-                          <dd class="detail-panel__body">{{ row.issueBody || row.detail?.body || '-' }}</dd>
-                        </div>
-                      </dl>
-                    </template>
+                    <table v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqIssue" class="data-table detail-table">
+                      <tbody>
+                        <tr>
+                          <th>변경항목</th>
+                          <td>{{ row.item }}</td>
+                        </tr>
+                        <tr>
+                          <th>요구사항 (명/ID)</th>
+                          <td>{{ formatReqLabel(row) }}</td>
+                        </tr>
+                        <tr>
+                          <th>내용</th>
+                          <td class="detail-table__body">{{ row.issueBody || row.detail?.body || '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <!-- Case 3-3) 요구사항 상세변경 -->
-                    <template v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqDetail">
-                      <dl class="detail-dl">
-                        <div class="detail-dl__row">
-                          <dt>변경항목</dt>
-                          <dd>{{ row.item }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>요구사항 (명/ID)</dt>
-                          <dd>{{ formatReqLabel(row) }}</dd>
-                        </div>
-                        <div class="detail-dl__row">
-                          <dt>변경사유</dt>
-                          <dd>{{ row.reqDetail?.reason || row.reason || '-' }}</dd>
-                        </div>
-                        <div class="detail-dl__row detail-dl__row--block">
-                          <dt>변경 전 내용</dt>
-                          <dd class="detail-panel__body before">{{ row.reqDetail?.before || row.beforeBody || '-' }}</dd>
-                        </div>
-                        <div class="detail-dl__row detail-dl__row--block">
-                          <dt>변경 후 내용</dt>
-                          <dd class="detail-panel__body after">{{ row.reqDetail?.after || row.afterBody || '-' }}</dd>
-                        </div>
-                      </dl>
-                    </template>
+                    <table v-else-if="templateKind(row) === HISTORY_TEMPLATE.reqDetail" class="data-table detail-table">
+                      <tbody>
+                        <tr>
+                          <th>변경항목</th>
+                          <td>{{ row.item }}</td>
+                        </tr>
+                        <tr>
+                          <th>요구사항 (명/ID)</th>
+                          <td>{{ formatReqLabel(row) }}</td>
+                        </tr>
+                        <tr>
+                          <th>변경사유</th>
+                          <td>{{ row.reqDetail?.reason || row.reason || '-' }}</td>
+                        </tr>
+                        <tr>
+                          <th>변경 전 내용</th>
+                          <td class="detail-table__body before">{{ row.reqDetail?.before || row.beforeBody || '-' }}</td>
+                        </tr>
+                        <tr>
+                          <th>변경 후 내용</th>
+                          <td class="detail-table__body after">{{ row.reqDetail?.after || row.afterBody || '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <!-- fallback -->
-                    <template v-else>
-                      <p
-                        v-for="(line, lineIdx) in row.changeLines"
-                        :key="lineIdx"
-                        class="detail-panel__line"
-                      >
-                        {{ line.label }}
-                        <b class="before">{{ line.before }}</b>
-                        →
-                        <b class="after">{{ line.after }}</b>
-                      </p>
-                    </template>
+                    <table v-else class="data-table detail-table">
+                      <tbody>
+                        <tr v-for="(line, lineIdx) in row.changeLines" :key="lineIdx">
+                          <th>{{ line.label }}</th>
+                          <td>
+                            <b class="before">{{ line.before }}</b>
+                            →
+                            <b class="after">{{ line.after }}</b>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <button
                       type="button"
@@ -684,54 +683,37 @@ function wbsTaskPath(chg) {
   color: var(--ink-2);
 }
 
-.detail-panel__body {
+.detail-table {
   margin: 0 0 10px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--line);
+}
+
+.detail-table th,
+.detail-table td {
+  padding: 14px 16px;
+}
+
+.detail-table th {
+  width: 160px;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.detail-table td {
+  vertical-align: top;
+}
+
+.detail-table__body {
+  padding: 16px;
   font-size: 13px;
-  line-height: 1.55;
-  color: var(--ink);
+  line-height: 1.7;
   white-space: pre-wrap;
 }
 
-.detail-panel__line {
-  margin: 0 0 8px;
-  font-size: 13px;
-}
-
-.detail-dl {
-  margin: 0 0 10px;
-}
-
-.detail-dl__row {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 13px;
-}
-
-.detail-dl__row dt {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.detail-dl__row dd {
-  margin: 0;
-  color: var(--lnb-txt);
-}
-
-.detail-dl__row--block {
-  align-items: start;
-}
-
-.detail-dl__row--block .detail-panel__body {
-  margin: 0;
-}
-
-.wbs-block + .wbs-block {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--line);
+.wbs-block + .wbs-block tr:first-child th,
+.wbs-block + .wbs-block tr:first-child td {
+  border-top: 2px solid var(--teal-600);
 }
 
 .before {
