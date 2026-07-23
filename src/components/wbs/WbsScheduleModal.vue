@@ -809,7 +809,7 @@ function openMultiChange() {
 .alert-scrim {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: 1300;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;

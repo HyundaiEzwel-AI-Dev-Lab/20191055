@@ -11,6 +11,7 @@ const { mode, pageTitle } = useTestContext()
 const router = useRouter()
 
 const SYSTEM_DONUT_LIMIT = 4
+const SYSTEM_DETAIL_LIMIT = 5
 
 const data = ref(null)
 const filters = ref({
@@ -19,6 +20,7 @@ const filters = ref({
 })
 const applied = ref({ ...filters.value })
 const showAllSystems = ref(false)
+const showAllSystemDetail = ref(false)
 
 function loadData() {
   data.value = getProgressData(mode.value)
@@ -72,6 +74,12 @@ const visibleSystemProgress = computed(() =>
   showAllSystems.value
     ? filteredSystemProgress.value
     : filteredSystemProgress.value.slice(0, SYSTEM_DONUT_LIMIT),
+)
+
+const visibleSystemDetail = computed(() =>
+  showAllSystemDetail.value
+    ? filteredSystemDetail.value
+    : filteredSystemDetail.value.slice(0, SYSTEM_DETAIL_LIMIT),
 )
 
 const statusPct = computed(() => {
@@ -348,7 +356,17 @@ function onExcelDownload() {
     </Teleport>
 
     <section class="panel card">
-      <h3>시스템별 상세</h3>
+      <div class="panel__head">
+        <h3>시스템별 상세</h3>
+        <button
+          v-if="filteredSystemDetail.length > SYSTEM_DETAIL_LIMIT"
+          type="button"
+          class="more-btn"
+          @click="showAllSystemDetail = !showAllSystemDetail"
+        >
+          {{ showAllSystemDetail ? '접기' : `더보기(+${filteredSystemDetail.length - SYSTEM_DETAIL_LIMIT})` }}
+        </button>
+      </div>
       <table class="inner-table">
         <thead>
           <tr>
@@ -369,7 +387,7 @@ function onExcelDownload() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in filteredSystemDetail" :key="row.system">
+          <tr v-for="row in visibleSystemDetail" :key="row.system">
             <td>{{ row.system }}</td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system)">{{ row.total }}</button></td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '대기')">{{ row.wait }}</button></td>

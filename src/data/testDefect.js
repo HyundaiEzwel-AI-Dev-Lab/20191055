@@ -4,7 +4,7 @@ const baseDefects = [
   {
     id: 'df1',
     defectId: 'DF-2026-001',
-    caseId: 'TC-002',
+    caseId: 'CASE-002',
     caseName: '바우처 특복 배정 검증',
     screenName: '복지혜택 신청',
     systemPath: 'FO>법인숙박>여행레저>복지혜택',
@@ -33,7 +33,7 @@ const baseDefects = [
   {
     id: 'df2',
     defectId: 'DF-2026-002',
-    caseId: 'TC-004',
+    caseId: 'CASE-004',
     caseName: '대사 결과 다운로드',
     screenName: '정산 대사',
     systemPath: 'HIMS>정산>정산>대사',

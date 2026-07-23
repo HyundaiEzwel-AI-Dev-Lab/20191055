@@ -10,11 +10,13 @@ import {
   matchTestRunFilters,
   isCaseDimmed,
 } from '@/data/testRun'
-import { getDefectList } from '@/data/testDefect'
+import { getDefectList, updateDefect } from '@/data/testDefect'
 import TestErrorRegisterModal from '@/components/test/TestErrorRegisterModal.vue'
 import TestRunTesterChangeModal from '@/components/test/TestRunTesterChangeModal.vue'
 import TestRunInfoModal from '@/components/test/TestRunInfoModal.vue'
 import TestNoteModal from '@/components/test/TestNoteModal.vue'
+import DefectDetailModal from '@/components/test/DefectDetailModal.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
@@ -27,6 +29,8 @@ const rows = ref([])
 const expanded = ref(new Set())
 const myTestsOnly = ref(false)
 const errorTarget = ref(null)
+const showErrorDetail = ref(false)
+const errorDetailTarget = ref(null)
 const filterExpanded = ref(false)
 const showTesterChange = ref(false)
 const showRunInfo = ref(false)
@@ -157,13 +161,23 @@ function onNoteSave(text) {
   noteTarget.value.note = text
 }
 
-function viewErrors(row, step) {
-  const list = getDefectList(mode.value).filter((d) => d.caseId === row.caseId && d.stepNo === step.no)
+function viewErrors(row, step, name) {
+  const list = getDefectList(mode.value).filter(
+    (d) => d.caseId === row.caseId && d.stepNo === step.no && (!name || d.tester === name),
+  )
   if (!list.length) {
     window.alert('등록된 오류가 없습니다.')
     return
   }
-  window.alert(list.map((d) => `${d.defectId} · ${d.title} (${d.status})`).join('\n'))
+  errorDetailTarget.value = list[0]
+  showErrorDetail.value = true
+}
+
+function onErrorDetailSave(updates) {
+  if (!errorDetailTarget.value) return
+  updateDefect(errorDetailTarget.value.id, updates)
+  const refreshed = getDefectList(mode.value).find((d) => d.id === errorDetailTarget.value.id)
+  if (refreshed) errorDetailTarget.value = refreshed
 }
 
 function openErrorRegister(row, step, testerName) {
@@ -471,7 +485,7 @@ function onExcelDownload() {
                     >
                       등록
                     </button>
-                    <button type="button" class="link-btn" @click="viewErrors(row, step)">조회</button>
+                    <button type="button" class="link-btn" @click="viewErrors(row, step, name)">조회</button>
                   </td>
                   <td class="center">
                     <span
@@ -508,6 +522,9 @@ function onExcelDownload() {
     />
     <TestRunInfoModal v-model="showRunInfo" :case-row="runInfoTarget" @save="onRunInfoSave" />
     <TestNoteModal v-model="showNoteModal" :note="noteTarget?.note" @save="onNoteSave" />
+    <BaseModal :visible="showErrorDetail" title="오류 상세" wide @close="showErrorDetail = false">
+      <DefectDetailModal :row="errorDetailTarget" :config="config" @save="onErrorDetailSave" />
+    </BaseModal>
   </div>
 </template>
 
