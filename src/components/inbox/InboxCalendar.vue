@@ -10,6 +10,7 @@ import { INBOX_GUIDE } from '@/data/inbox'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
+import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const VISIBLE_LANES = 2
@@ -17,14 +18,19 @@ const VISIBLE_LANES = 2
 const auth = useAuthStore()
 const projectStore = useProjectStore()
 
+const localTasks = ref(JSON.parse(JSON.stringify(calendarTasks)))
+const localUnsched = ref(JSON.parse(JSON.stringify(unscheduledTasks)))
+
 const isEmptyUser = computed(() => auth.user?.id === '2024099')
-const tasks = computed(() => (isEmptyUser.value ? [] : calendarTasks))
-const unsched = computed(() => (isEmptyUser.value ? [] : unscheduledTasks))
+const tasks = computed(() => (isEmptyUser.value ? [] : localTasks.value))
+const unsched = computed(() => (isEmptyUser.value ? [] : localUnsched.value))
 
 const today = new Date(2026, 2, 20)
 const cursor = ref(new Date(2026, 2, 1))
 const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
+const showBulkScheduleModal = ref(false)
+const bulkTargets = ref([])
 
 const calendarLabel = computed(
   () => `${cursor.value.getFullYear()}년 ${cursor.value.getMonth() + 1}월`,
@@ -164,6 +170,7 @@ function openScheduleModal(task) {
   scheduleTarget.value = {
     wbsId: task.id || 'WBS-CAL',
     requirementName: task.name,
+    taskName: task.name,
     taskType: '개발',
     assigneeDisplay: auth.user?.name || '김현대',
     planStart: task.start || null,
@@ -187,6 +194,60 @@ function onScheduleRegister(task) {
     end: null,
     project: task.project,
   })
+}
+
+function endLabelOf(end) {
+  const [, m, d] = end.split('-').map(Number)
+  return `~ ${m}/${d}`
+}
+
+/** 계획일 저장 결과를 캘린더/미등록 목록에 즉시 반영 */
+function applyScheduleUpdate(wbsId, start, end) {
+  if (!wbsId || !start || !end) return
+  const existing = localTasks.value.find((t) => t.id === wbsId)
+  if (existing) {
+    existing.start = start
+    existing.end = end
+    existing.endLabel = endLabelOf(end)
+    return
+  }
+  const idx = localUnsched.value.findIndex((u) => u.id === wbsId)
+  if (idx === -1) return
+  const u = localUnsched.value[idx]
+  localUnsched.value.splice(idx, 1)
+  localTasks.value.push({
+    id: u.id,
+    name: u.name,
+    endLabel: endLabelOf(end),
+    project: u.project,
+    start,
+    end,
+    color: localTasks.value.length % projectColors.length,
+    status: 'active',
+  })
+}
+
+function onScheduleSave(payload) {
+  applyScheduleUpdate(scheduleTarget.value?.wbsId, payload.planStart, payload.planEnd)
+}
+
+function onOpenMultiChangeFromSchedule(task) {
+  if (!task) return
+  bulkTargets.value = [task]
+  showBulkScheduleModal.value = true
+}
+
+function onBulkScheduleRequest(payload) {
+  const targetTasks = payload.tasks || []
+  if (payload.type === '계획일 변경') {
+    targetTasks.forEach((t) => applyScheduleUpdate(t.wbsId, t.newPlanStart, t.newPlanEnd))
+  } else if (payload.type === '실행 홀딩') {
+    targetTasks.forEach((t) => {
+      const found = localTasks.value.find((x) => x.id === t.wbsId)
+      if (found) found.status = 'paused'
+    })
+  }
+  bulkTargets.value = []
 }
 
 function blockStyle(task) {
@@ -295,7 +356,17 @@ function statusLabel(task) {
       </aside>
     </div>
     <p class="cal-guide">{{ INBOX_GUIDE }}</p>
-    <WbsScheduleModal v-model="showScheduleModal" :task="scheduleTarget" />
+    <WbsScheduleModal
+      v-model="showScheduleModal"
+      :task="scheduleTarget"
+      @save="onScheduleSave"
+      @open-multi-change="onOpenMultiChangeFromSchedule"
+    />
+    <WbsBulkScheduleModal
+      v-model="showBulkScheduleModal"
+      :tasks="bulkTargets"
+      @request="onBulkScheduleRequest"
+    />
   </div>
 </template>
 

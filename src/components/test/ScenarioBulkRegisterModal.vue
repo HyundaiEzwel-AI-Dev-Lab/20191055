@@ -59,7 +59,10 @@ function downloadTemplate() {
       {
         caseId: 'TC-001',
         caseName: '샘플 케이스명',
+        reqId: 'REQ-001',
+        executionType: '오픈 전',
         screenName: '화면명',
+        screenId: 'FO-001',
         systemPath: 'FO>법인숙박',
         screenPath: '여행레저>복지혜택',
         round: '1차',
@@ -71,7 +74,10 @@ function downloadTemplate() {
     [
       { key: 'caseId', label: '케이스ID' },
       { key: 'caseName', label: '케이스명' },
+      { key: 'reqId', label: '요구사항ID' },
+      { key: 'executionType', label: '수행구분' },
       { key: 'screenName', label: '화면명' },
+      { key: 'screenId', label: '화면ID' },
       { key: 'systemPath', label: '시스템경로' },
       { key: 'screenPath', label: '화면경로' },
       { key: 'round', label: '차수' },
@@ -140,7 +146,10 @@ function close() {
           <tr>
             <th>케이스 ID</th>
             <th>케이스명</th>
+            <th>요구사항ID</th>
+            <th>수행구분</th>
             <th>화면명</th>
+            <th>화면ID</th>
             <th>차수</th>
             <th>절차 수</th>
             <th>구분</th>
@@ -150,7 +159,10 @@ function close() {
           <tr v-for="row in validRows" :key="row.caseId">
             <td>{{ row.caseId }}</td>
             <td>{{ row.caseName }}</td>
+            <td>{{ row.reqId || '-' }}</td>
+            <td>{{ row.executionType || '-' }}</td>
             <td>{{ row.screenName }}</td>
+            <td>{{ row.screenId || '-' }}</td>
             <td>{{ row.round }}</td>
             <td>{{ row.steps.length }}</td>
             <td>{{ row.validation.isUpdate ? '업데이트' : '신규' }}</td>

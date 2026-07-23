@@ -15,6 +15,9 @@ const planStart = ref('')
 const planEnd = ref('')
 const execStart = ref('')
 const execEnd = ref('')
+const taskName = ref('')
+const taskDetail = ref('')
+const showTaskInfo = ref(true)
 const useUnitTest = ref(true)
 const confirmed = ref(false)
 const priority = ref('보통')
@@ -60,6 +63,9 @@ watch(
     planEnd.value = t.planEnd || ''
     execStart.value = t.execStart || ''
     execEnd.value = t.execEnd || ''
+    taskName.value = t.taskName || ''
+    taskDetail.value = t.taskDetail || ''
+    showTaskInfo.value = true
     useUnitTest.value = t.useUnitTest !== false
     confirmed.value = t.confirmed === '확정' || t.confirmed === true
     priority.value = t.priority || '보통'
@@ -91,6 +97,8 @@ function buildPayload(extra = {}) {
     planEnd: planEnd.value || null,
     execStart: execStart.value || null,
     execEnd: execEnd.value || null,
+    taskName: taskName.value.trim(),
+    taskDetail: taskDetail.value,
     useUnitTest: useUnitTest.value,
     confirmed: confirmed.value ? '확정' : '-',
     priority: priority.value,
@@ -101,6 +109,10 @@ function buildPayload(extra = {}) {
 }
 
 function save() {
+  if (!taskName.value.trim()) {
+    window.alert('업무명을 입력하세요.')
+    return
+  }
   const miss = missingPlanField()
   if (miss) {
     window.alert(`${miss}을 입력하세요.`)
@@ -237,6 +249,31 @@ function openMultiChange() {
           <span class="info-grid__val">{{ progressLabel }}</span>
         </div>
       </div>
+
+      <!-- 업무 정보 (SB v1.0) -->
+      <section class="panel">
+        <div class="panel__head">
+          <h4 class="panel__title">업무 정보</h4>
+          <button
+            type="button"
+            class="fold-btn"
+            :class="{ 'fold-btn--closed': !showTaskInfo }"
+            @click="showTaskInfo = !showTaskInfo"
+          >
+            ▾
+          </button>
+        </div>
+        <template v-if="showTaskInfo">
+          <div class="field">
+            <label class="field__lab">업무명 <i>*</i></label>
+            <input v-model="taskName" class="inp" type="text" maxlength="100" />
+          </div>
+          <div class="field">
+            <label class="field__lab">업무 상세</label>
+            <textarea v-model="taskDetail" class="ta" rows="3" maxlength="1000" />
+          </div>
+        </template>
+      </section>
 
       <!-- 일정 관리 -->
       <section class="panel">
@@ -546,6 +583,21 @@ function openMultiChange() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+
+.fold-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  color: var(--lnb-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.fold-btn--closed {
+  transform: rotate(-90deg);
 }
 
 .panel__title {

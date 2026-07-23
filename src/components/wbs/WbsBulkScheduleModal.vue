@@ -69,9 +69,12 @@ function currentExecText(row) {
   return formatDateRange(row.execStart, row.execEnd)
 }
 
+/** '착수일 미체크' 사유 선택 시, 착수 후에도 시작일을 과거일로 직접 보정 입력 가능 */
+const bypassStartLock = computed(() => reason.value === '착수일 미체크')
+
 /** 착수 후에만 시작일 잠금 (SB: 착수 전은 시작·종료 모두 변경 가능) */
 function isStartLocked(row) {
-  return !!row.execStart
+  return !bypassStartLock.value && !!row.execStart
 }
 
 function lockedStartValue(row) {
@@ -226,9 +229,10 @@ function submit() {
         <table class="tbl">
           <thead>
             <tr>
-              <th>시스템/화면경로</th>
+              <th>시스템</th>
+              <th>업무</th>
               <th>화면명</th>
-              <th>요구사항명</th>
+              <th>업무명</th>
               <th>업무 ID</th>
               <th>업무유형</th>
               <th>담당자</th>
@@ -247,7 +251,7 @@ function submit() {
               </template>
             </tr>
             <tr class="tbl__sub">
-              <th colspan="7" />
+              <th colspan="8" />
               <th>시작일</th>
               <th>종료일</th>
               <template v-if="tab === 'hold'">
@@ -264,9 +268,10 @@ function submit() {
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.id">
-              <td>{{ row.systemPath }}</td>
+              <td>{{ (row.systemPath || '-').split('>')[0] }}</td>
+              <td>{{ (row.systemPath || '').split('>')[1] || '-' }}</td>
               <td>{{ row.screenName }}</td>
-              <td class="name">{{ row.requirementName }}</td>
+              <td class="name">{{ row.taskName || row.requirementName }}</td>
               <td>{{ row.wbsId }}</td>
               <td>{{ row.taskType }}</td>
               <td>{{ row.assigneeDisplay || '-' }}</td>
@@ -304,7 +309,7 @@ function submit() {
               </template>
             </tr>
             <tr v-if="!rows.length">
-              <td :colspan="tab === 'hold' ? 15 : 11" class="empty">선택된 업무가 없습니다.</td>
+              <td :colspan="tab === 'hold' ? 16 : 12" class="empty">선택된 업무가 없습니다.</td>
             </tr>
           </tbody>
         </table>

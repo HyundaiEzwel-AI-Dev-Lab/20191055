@@ -29,6 +29,7 @@ const isNew = ref(false)
 const form = reactive(emptyCaseForm())
 const showScreenModal = ref(false)
 const screenModalMode = ref('filter') // filter | form
+const screenSystem = ref('전체')
 const screenKeyword = ref('')
 const screenResults = ref([])
 const showSourceTip = ref(false)
@@ -220,6 +221,7 @@ function openScreenSearch(mode) {
     mode === 'filter' ? filters.value.screenName : form.screenName || form.screenPath || ''
   screenKeyword.value = seed
   const systemHint = mode === 'form' ? form.system : filters.value.system
+  screenSystem.value = systemHint || '전체'
   screenResults.value = mockScreens.filter(
     (s) => !systemHint || systemHint === '전체' || s.system === systemHint,
   )
@@ -228,8 +230,7 @@ function openScreenSearch(mode) {
 
 function searchScreens() {
   const q = screenKeyword.value.trim().toLowerCase()
-  const systemHint =
-    screenModalMode.value === 'form' ? form.system : filters.value.system
+  const systemHint = screenSystem.value
   screenResults.value = mockScreens.filter((s) => {
     if (systemHint && systemHint !== '전체' && s.system !== systemHint) return false
     if (!q) return true
@@ -684,6 +685,9 @@ function onExcelDownload() {
     <BaseModal :visible="showScreenModal" title="화면 (메뉴) 검색" @close="showScreenModal = false">
       <div class="tlb-screen-modal">
         <div class="tlb-screen-modal__row">
+          <select v-model="screenSystem" class="filter__select">
+            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
           <input
             v-model="screenKeyword"
             class="filter__input"

@@ -3,19 +3,35 @@
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 
+const changeReasonOptions = [
+  '요건 명확화',
+  '고객사 요청 변경',
+  '정책/법규 변경',
+  '유관부서 협의 결과 반영',
+  '오류/누락 수정',
+  '우선순위 변경',
+  '기타(직접입력)',
+]
+
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'save'])
 
-const reason = ref('')
-const charCount = computed(() => reason.value.length)
+const reasonOption = ref('')
+const reasonDetail = ref('')
+const isOther = computed(() => reasonOption.value === '기타(직접입력)')
+const charCount = computed(() => reasonDetail.value.length)
+const canSave = computed(() => !!reasonOption.value && (!isOther.value || !!reasonDetail.value.trim()))
 
 watch(
   () => props.modelValue,
   (open) => {
-    if (open) reason.value = ''
+    if (open) {
+      reasonOption.value = ''
+      reasonDetail.value = ''
+    }
   },
 )
 
@@ -24,19 +40,25 @@ function close() {
 }
 
 function save() {
-  if (!reason.value.trim()) return
-  emit('save', reason.value.trim())
+  if (!canSave.value) return
+  const reason = isOther.value ? reasonDetail.value.trim() : reasonOption.value
+  emit('save', reason)
   close()
 }
 </script>
 
 <template>
   <BaseModal title="변경 이력 생성" :visible="modelValue" @close="close">
-    <p class="notice">요구사항 수정 사유를 입력해 주세요. 저장 시 변경 이력에 기록됩니다.</p>
+    <p class="notice">요구사항 수정 사유를 선택해 주세요. 저장 시 변경 이력에 기록됩니다.</p>
 
-    <div class="reason-field">
+    <select v-model="reasonOption" class="reason-select">
+      <option value="">사유 선택</option>
+      <option v-for="r in changeReasonOptions" :key="r" :value="r">{{ r }}</option>
+    </select>
+
+    <div v-if="isOther" class="reason-field">
       <textarea
-        v-model="reason"
+        v-model="reasonDetail"
         class="reason-field__input"
         rows="4"
         maxlength="200"
@@ -47,7 +69,7 @@ function save() {
 
     <template #footer>
       <button type="button" class="btn btn--ghost" @click="close">취소</button>
-      <button type="button" class="btn btn--primary" :disabled="!reason.trim()" @click="save">
+      <button type="button" class="btn btn--primary" :disabled="!canSave" @click="save">
         저장
       </button>
     </template>
@@ -62,8 +84,22 @@ function save() {
   color: var(--lnb-txt);
 }
 
+.reason-select {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--lnb-line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
+  box-sizing: border-box;
+}
+
 .reason-field {
   position: relative;
+  margin-top: 12px;
 }
 
 .reason-field__input {

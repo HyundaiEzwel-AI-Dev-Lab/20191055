@@ -132,6 +132,18 @@ function goToDefect(system) {
   })
 }
 
+function goToTestRunByTester(name) {
+  router.push({ path: `/project/test-run/${mode.value}`, query: { tester: name } })
+}
+
+function goToDefectByTester(name) {
+  router.push({ path: `/project/defect/${mode.value}`, query: { tester: name } })
+}
+
+function defectConfirmRate(row) {
+  return row.defectRegistered ? Math.round((row.defectConfirmed / row.defectRegistered) * 100) : 0
+}
+
 function search() {
   applied.value = { ...filters.value }
 }
@@ -340,7 +352,11 @@ function onExcelDownload() {
       <table class="inner-table">
         <thead>
           <tr>
-            <th>시스템</th>
+            <th rowspan="2">시스템</th>
+            <th colspan="5" class="group-head">테스트진행</th>
+            <th colspan="4" class="group-head">결함처리</th>
+          </tr>
+          <tr>
             <th>전체</th>
             <th>대기</th>
             <th>진행</th>
@@ -407,7 +423,7 @@ function onExcelDownload() {
           </thead>
           <tbody>
             <tr v-for="row in filteredByTester" :key="row.name">
-              <td>{{ row.name }}</td>
+              <td><button type="button" class="count-link" @click="goToTestRunByTester(row.name)">{{ row.name }}</button></td>
               <td>{{ row.assigned }}</td>
               <td>{{ row.wait }}</td>
               <td>{{ row.delay }}</td>
@@ -447,7 +463,7 @@ function onExcelDownload() {
           </thead>
           <tbody>
             <tr v-for="row in filteredDefectConfirm" :key="row.name">
-              <td>{{ row.name }}</td>
+              <td><button type="button" class="count-link" @click="goToDefectByTester(row.name)">{{ row.name }}</button></td>
               <td>{{ row.registered }}</td>
               <td>{{ row.confirmed }}</td>
               <td>{{ row.rate }}%</td>
@@ -467,14 +483,21 @@ function onExcelDownload() {
     </div>
 
     <section class="panel card">
-      <h3>요청자 수행 현황</h3>
+      <h3>요청자 수행·결함확인 현황</h3>
       <table class="inner-table">
         <thead>
           <tr>
-            <th>요청자</th>
+            <th rowspan="2">요청자</th>
+            <th colspan="3" class="group-head">테스트 수행</th>
+            <th colspan="3" class="group-head">결함확인</th>
+          </tr>
+          <tr>
             <th>전체</th>
             <th>완료</th>
             <th>진척률</th>
+            <th>등록</th>
+            <th>확인완료</th>
+            <th>확인률</th>
           </tr>
         </thead>
         <tbody>
@@ -488,9 +511,17 @@ function onExcelDownload() {
                 <span>{{ row.rate }}%</span>
               </div>
             </td>
+            <td>{{ row.defectRegistered }}</td>
+            <td>{{ row.defectConfirmed }}</td>
+            <td>
+              <div class="prog">
+                <i :style="{ width: `${defectConfirmRate(row)}%` }" />
+                <span>{{ defectConfirmRate(row) }}%</span>
+              </div>
+            </td>
           </tr>
           <tr v-if="!data.requesterProgress?.length">
-            <td colspan="4" class="empty-row">조회 결과가 없습니다.</td>
+            <td colspan="7" class="empty-row">조회 결과가 없습니다.</td>
           </tr>
         </tbody>
       </table>
@@ -999,6 +1030,12 @@ function onExcelDownload() {
   background: var(--field);
   font-weight: 600;
   color: var(--ink-2);
+}
+
+.inner-table th.group-head {
+  text-align: center;
+  background: var(--teal-50);
+  color: var(--teal-700);
 }
 
 .prog {

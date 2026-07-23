@@ -20,7 +20,8 @@ watch(
     for (const name of props.caseRow.testers) {
       const existing = props.caseRow.testerInfo?.[name]
       form[name] = {
-        planDate: existing?.planDate || props.caseRow.planStart || '',
+        planStart: existing?.planStart || props.caseRow.planStart || '',
+        planEnd: existing?.planEnd || props.caseRow.planEnd || '',
         execDate: existing?.execDate || '',
         memo: existing?.memo || '',
       }
@@ -48,6 +49,26 @@ function save() {
   >
     <template v-if="caseRow">
       <p class="guide">{{ caseRow.caseName }} — 테스터별 계획일/수행일/메모를 입력하세요.</p>
+
+      <div class="summary">
+        <div class="summary__row">
+          <span class="summary__label">요구사항ID</span>
+          <span class="summary__val">{{ caseRow.reqId || '-' }}</span>
+          <span class="summary__label">시스템/업무</span>
+          <span class="summary__val">{{ caseRow.systemPath || '-' }}</span>
+          <span class="summary__label">차수</span>
+          <span class="summary__val">{{ caseRow.round || '-' }}</span>
+        </div>
+        <div class="summary__row">
+          <span class="summary__label">화면명</span>
+          <span class="summary__val">{{ caseRow.screenName || '-' }}</span>
+          <span class="summary__label">케이스ID</span>
+          <span class="summary__val">{{ caseRow.caseId || '-' }}</span>
+          <span class="summary__label">계획기간</span>
+          <span class="summary__val">{{ caseRow.planStart || '-' }} ~ {{ caseRow.planEnd || '-' }}</span>
+        </div>
+      </div>
+
       <table class="tbl">
         <thead>
           <tr>
@@ -60,7 +81,11 @@ function save() {
         <tbody>
           <tr v-for="name in caseRow.testers" :key="name">
             <td>{{ name }}</td>
-            <td><input v-model="form[name].planDate" class="inp inp--date" type="date" /></td>
+            <td class="plan-range">
+              <input v-model="form[name].planStart" class="inp inp--date" type="date" />
+              <span>~</span>
+              <input v-model="form[name].planEnd" class="inp inp--date" type="date" />
+            </td>
             <td><input v-model="form[name].execDate" class="inp inp--date" type="date" /></td>
             <td><input v-model="form[name].memo" class="inp" type="text" placeholder="메모 입력" /></td>
           </tr>
@@ -80,6 +105,40 @@ function save() {
   margin: 0 0 12px;
   font-size: 12px;
   color: var(--lnb-muted);
+}
+
+.summary {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--lnb-hover);
+}
+
+.summary__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr auto 1fr;
+  gap: 6px 10px;
+  font-size: 12px;
+}
+
+.summary__row + .summary__row {
+  margin-top: 6px;
+}
+
+.summary__label {
+  font-weight: 600;
+  color: var(--lnb-muted);
+}
+
+.summary__val {
+  color: var(--lnb-txt);
+}
+
+.plan-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tbl {

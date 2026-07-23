@@ -26,6 +26,20 @@ onMounted(loadData)
 watch(() => projectStore.currentProject?.id, loadData)
 
 const gaugePlan = computed(() => `${(data.value?.totalProgress.planRate / 2).toFixed(1)}%`)
+const gaugeExec = computed(() => `${(data.value?.totalProgress.execRate / 2).toFixed(1)}%`)
+
+const typeIcons = {
+  기획: { label: '기', color: 'var(--teal-600)' },
+  디자인: { label: '디', color: 'var(--blue)' },
+  퍼블리싱: { label: '퍼', color: 'var(--orange)' },
+  개발: { label: '개', color: 'var(--green)' },
+  DEV테스트: { label: 'DEV', color: 'var(--gray)' },
+  운영테스트: { label: '운영', color: 'var(--gray)' },
+}
+
+function typeIcon(type) {
+  return typeIcons[type] || { label: type?.slice(0, 1) || '-', color: 'var(--muted)' }
+}
 
 function complianceLabel(status) {
   return projectDashboardMeta.legend.find((l) => l.key === status)?.label || status
@@ -97,9 +111,12 @@ function onExcelDownload() {
       <section class="card pad progress-panel">
         <h3 class="sec-title">총 공정률 (자동계산)</h3>
         <div class="progress-main">
-          <div class="progress-big">
-            <span class="progress-big__lab">실행 기준</span>
-            <span class="progress-big__num">{{ data.totalProgress.execRate }}<small>%</small></span>
+          <div class="progress-sub__item">
+            <span class="progress-sub__lab">실행 기준</span>
+            <div class="gauge gauge--lg" :style="{ '--p': gaugeExec }">
+              <div class="gauge__arc" />
+              <div class="gauge__hole"><b>{{ data.totalProgress.execRate }}%</b></div>
+            </div>
           </div>
           <div class="progress-sub">
             <div class="progress-sub__item">
@@ -124,7 +141,7 @@ function onExcelDownload() {
       <section class="card pad summary-panel">
         <h3 class="sec-title">지연/단축 정보</h3>
         <div class="summary-chips">
-          <div class="summary-chip summary-chip--delay">
+          <div class="summary-chip summary-chip--delay" @click="goWbs">
             <span class="summary-chip__lab">경과(예상)</span>
             <span class="summary-chip__num">{{ data.delaySummary.expectedDelay }}<small>건</small></span>
           </div>
@@ -132,7 +149,7 @@ function onExcelDownload() {
             <span class="summary-chip__lab">정상</span>
             <span class="summary-chip__num">{{ data.delaySummary.normal }}<small>건</small></span>
           </div>
-          <div class="summary-chip summary-chip--shorten">
+          <div class="summary-chip summary-chip--shorten" @click="goWbs">
             <span class="summary-chip__lab">단축(예상)</span>
             <span class="summary-chip__num">{{ data.delaySummary.expectedShorten }}<small>건</small></span>
           </div>
@@ -150,6 +167,9 @@ function onExcelDownload() {
           class="type-card"
           :class="`type-card--${statusTone(item.status)}`"
         >
+          <span class="type-card__icon" :style="{ background: typeIcon(item.type).color }">{{
+            typeIcon(item.type).label
+          }}</span>
           <span class="type-card__name">{{ item.type }}</span>
           <span class="type-card__rate">{{ item.rate != null ? `${item.rate}%` : '- %' }}</span>
           <div v-if="item.rate != null" class="type-card__bar">
@@ -390,6 +410,20 @@ function onExcelDownload() {
   overflow: hidden;
 }
 
+.gauge--lg {
+  width: 96px;
+  height: 52px;
+}
+
+.gauge--lg .gauge__arc {
+  width: 96px;
+  height: 96px;
+}
+
+.gauge--lg .gauge__hole b {
+  font-size: 16px;
+}
+
 .gauge__arc {
   width: 72px;
   height: 72px;
@@ -429,6 +463,16 @@ function onExcelDownload() {
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--field);
+}
+
+.summary-chip--delay,
+.summary-chip--shorten {
+  cursor: pointer;
+}
+
+.summary-chip--delay:hover,
+.summary-chip--shorten:hover {
+  filter: brightness(0.97);
 }
 
 .summary-chip__lab {
@@ -480,6 +524,19 @@ function onExcelDownload() {
   flex-direction: column;
   gap: 6px;
   min-height: 100px;
+}
+
+.type-card__icon {
+  align-self: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
 }
 
 .type-card__name {

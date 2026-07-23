@@ -3,7 +3,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTestContext } from '@/composables/useTestContext'
-import { bizCategoryOptions, pageSizeOptions } from '@/data/testConfig'
+import { bizCategoryOptions, pageSizeOptions, systemOptions } from '@/data/testConfig'
 import {
   scenarioMeta,
   getScenarioList,
@@ -11,6 +11,7 @@ import {
   saveScenarioCase,
 } from '@/data/scenario'
 import ScenarioBulkRegisterModal from '@/components/test/ScenarioBulkRegisterModal.vue'
+import TestNoteModal from '@/components/test/TestNoteModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 import { addScenarioCases } from '@/data/scenario'
@@ -22,6 +23,7 @@ const rows = ref([])
 const filterExpanded = ref(false)
 const filters = ref({
   keyword: '',
+  system: '전체',
   bizCategory: '전체',
   round: '전체',
   executionType: '전체',
@@ -36,8 +38,8 @@ const expandedIds = ref(new Set())
 const expandAll = ref(false)
 
 const showBulkModal = ref(false)
-const editingNoteId = ref(null)
-const noteDraft = ref('')
+const showNoteModal = ref(false)
+const noteTarget = ref(null)
 
 const filteredList = computed(() =>
   rows.value.filter((row) => matchScenarioFilters(row, appliedFilters.value, config.value)),
@@ -70,6 +72,7 @@ watch(mode, loadData)
 function resetFilters() {
   filters.value = {
     keyword: '',
+    system: '전체',
     bizCategory: '전체',
     round: '전체',
     executionType: '전체',
@@ -120,21 +123,15 @@ function goRequirement(row) {
   router.push('/project/requirement')
 }
 
-function startEditNote(row) {
-  editingNoteId.value = row.id
-  noteDraft.value = row.note || ''
+function openNote(row) {
+  noteTarget.value = row
+  showNoteModal.value = true
 }
 
-function cancelEditNote() {
-  editingNoteId.value = null
-  noteDraft.value = ''
-}
-
-function saveNote(row) {
-  row.note = noteDraft.value.trim()
-  if (row.caseId) saveScenarioCase(row.caseId, { note: row.note })
-  editingNoteId.value = null
-  noteDraft.value = ''
+function onNoteSave(text) {
+  if (!noteTarget.value) return
+  noteTarget.value.note = text
+  if (noteTarget.value.caseId) saveScenarioCase(noteTarget.value.caseId, { note: text })
 }
 
 function onBulkRegister() {
@@ -170,7 +167,7 @@ function onBulkConfirm(items) {
     <h1 class="scenario__title">{{ pageTitle }}</h1>
 
     <section class="filter card">
-      <div class="filter__row filter__row--4">
+      <div class="filter__row filter__row--5">
         <div class="filter__field">
           <label>케이스 검색</label>
           <input
@@ -179,6 +176,12 @@ function onBulkConfirm(items) {
             type="text"
             placeholder="케이스 ID, 케이스명"
           />
+        </div>
+        <div class="filter__field">
+          <label>시스템</label>
+          <select v-model="filters.system" class="filter__select">
+            <option v-for="o in systemOptions" :key="o" :value="o">{{ o }}</option>
+          </select>
         </div>
         <div class="filter__field">
           <label>업무범주</label>
@@ -298,23 +301,10 @@ function onBulkConfirm(items) {
                 <td colspan="11">
                   <div class="step-panel">
                     <div class="step-note-row">
-                      <template v-if="editingNoteId === row.id">
-                        <input
-                          v-model="noteDraft"
-                          class="step-note__input"
-                          type="text"
-                          maxlength="200"
-                          placeholder="테스트 참고사항을 입력하세요"
-                        />
-                        <button type="button" class="link-btn" @click="saveNote(row)">저장</button>
-                        <button type="button" class="link-btn" @click="cancelEditNote">취소</button>
-                      </template>
-                      <template v-else>
-                        <p class="step-note">참고: {{ row.note || '-' }}</p>
-                        <button type="button" class="note-edit-btn" title="참고사항 편집" @click="startEditNote(row)">
-                          ✎
-                        </button>
-                      </template>
+                      <p class="step-note">참고: {{ row.note || '-' }}</p>
+                      <button type="button" class="note-edit-btn" title="참고사항 편집" @click="openNote(row)">
+                        ✎
+                      </button>
                     </div>
                     <table class="inner-table">
                       <thead>
@@ -356,6 +346,7 @@ function onBulkConfirm(items) {
       @close="showBulkModal = false"
       @register="onBulkConfirm"
     />
+    <TestNoteModal v-model="showNoteModal" :note="noteTarget?.note" @save="onNoteSave" />
   </div>
 </template>
 
@@ -383,6 +374,7 @@ function onBulkConfirm(items) {
   margin-bottom: 10px;
 }
 
+.filter__row--5 { grid-template-columns: repeat(5, 1fr); }
 .filter__row--4 { grid-template-columns: repeat(4, 1fr); }
 .filter__row--3 { grid-template-columns: 1.2fr 1fr; }
 
@@ -543,17 +535,6 @@ function onBulkConfirm(items) {
   margin: 0;
   font-size: 11px;
   color: var(--teal-600);
-}
-
-.step-note__input {
-  flex: 1;
-  max-width: 360px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 11.5px;
 }
 
 .note-edit-btn {

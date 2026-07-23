@@ -1,6 +1,6 @@
 <script setup>
 // POP-S-UAT-06 화면(메뉴) 검색 — 시나리오 테스트대상 신규등록/화면 지정용
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { screenSearchSystems, searchScreenMenus } from '@/data/screenMenuSearch'
 
@@ -14,6 +14,14 @@ const filters = ref({ system: screenSearchSystems[0], keyword: '' })
 const searched = ref(false)
 const rows = ref([])
 const selectedId = ref('')
+const currentPage = ref(1)
+const pageSize = 10
+
+const totalPages = computed(() => Math.max(1, Math.ceil(rows.value.length / pageSize)))
+const pagedRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return rows.value.slice(start, start + pageSize)
+})
 
 function close() {
   emit('update:modelValue', false)
@@ -23,6 +31,7 @@ function search() {
   rows.value = searchScreenMenus(filters.value)
   searched.value = true
   selectedId.value = ''
+  currentPage.value = 1
 }
 
 function selectRow(row) {
@@ -70,6 +79,7 @@ function confirm() {
           <thead>
             <tr>
               <th class="col-radio" />
+              <th>관리번호</th>
               <th>시스템</th>
               <th>관리구분</th>
               <th>화면경로</th>
@@ -78,7 +88,7 @@ function confirm() {
           </thead>
           <tbody>
             <tr
-              v-for="row in rows"
+              v-for="row in pagedRows"
               :key="row.id"
               :class="{ 'is-on': selectedId === row.id }"
               @click="selectRow(row)"
@@ -86,6 +96,7 @@ function confirm() {
               <td class="col-radio">
                 <input type="radio" name="scenario-screen-pick" :checked="selectedId === row.id" @change="selectRow(row)" />
               </td>
+              <td>{{ row.id }}</td>
               <td>{{ row.system }}</td>
               <td>{{ row.category }}</td>
               <td>{{ row.path }}</td>
@@ -93,6 +104,11 @@ function confirm() {
             </tr>
           </tbody>
         </table>
+      </div>
+      <div v-if="rows.length" class="pager">
+        <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">이전</button>
+        <span class="pager__info">{{ currentPage }} / {{ totalPages }}</span>
+        <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">다음</button>
       </div>
     </div>
 

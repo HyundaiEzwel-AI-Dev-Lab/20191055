@@ -177,6 +177,10 @@ function isConfirmLocked(row) {
 function onConfirmChange(row, field, value) {
   if (isConfirmLocked(row)) return
   row[field] = value
+  if (value === '확정') {
+    const atField = field === 'confirmRequester' ? 'confirmRequesterAt' : 'confirmTechAt'
+    row[atField] = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  }
 }
 
 function onIssueClick(row) {
@@ -313,6 +317,12 @@ function onFormSave(payload) {
     } else {
       const bothOn = !!form.confirmRequester && !!form.confirmTech
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      if (form.confirmRequester && formTarget.value.confirmRequester !== '확정') {
+        formTarget.value.confirmRequesterAt = now
+      }
+      if (form.confirmTech && formTarget.value.confirmTech !== '확정') {
+        formTarget.value.confirmTechAt = now
+      }
       if (!formTarget.value.changeHistory) formTarget.value.changeHistory = []
       formTarget.value.changeHistory.push({
         id: `ch-${Date.now()}`,

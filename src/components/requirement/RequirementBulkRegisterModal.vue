@@ -223,8 +223,10 @@ function onConfirm() {
                 <th>적용시스템</th>
                 <th>요청사항명</th>
                 <th>요구사항 원안</th>
+                <th>요구사항분석</th>
                 <th>업무구분</th>
                 <th>화면명</th>
+                <th>화면코드</th>
                 <th>업무유형</th>
                 <th>실패 사유</th>
               </tr>
@@ -237,8 +239,10 @@ function onConfirm() {
                 <td>{{ row.system || '-' }}</td>
                 <td>{{ row.name || '-' }}</td>
                 <td class="cell-clip">{{ row.original || '-' }}</td>
+                <td class="cell-clip">{{ row.analysis || '-' }}</td>
                 <td>{{ row.bizCategory || '-' }}</td>
                 <td>{{ row.screenMenu || '-' }}</td>
+                <td>{{ row.screenCode || '-' }}</td>
                 <td>{{ row.taskTypes || '-' }}</td>
                 <td class="fail-reason">{{ (row._errors || []).join(', ') }}</td>
               </tr>

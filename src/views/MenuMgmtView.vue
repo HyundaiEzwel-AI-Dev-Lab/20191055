@@ -46,12 +46,13 @@ watch([selectedSystem, selectedBiz], ([sys, biz]) => {
   markedForDelete.value = []
 })
 
-function selectBiz(biz) {
-  selectedBiz.value = biz
-}
-
 function search() {
   hasSearched.value = true
+}
+
+function resetFilters() {
+  filters.value = { id: '', name: '', path: '' }
+  search()
 }
 
 function toggleSelect(id) {
@@ -133,129 +134,123 @@ function onExcelDownload() {
   <div class="admin-page">
     <div class="notice">ⓘ {{ menuMgmtMeta.notice }}</div>
 
-    <div class="admin-split">
-      <aside class="card admin-side admin-side--wide">
-        <div class="admin-side__head">
-          <h3 class="admin-side__title">시스템 / 업무구분 코드</h3>
+    <section class="filter card">
+      <div class="filter__row filter__row--4">
+        <div class="filter__field">
+          <label>시스템</label>
           <select v-model="selectedSystem" class="filter__select">
             <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
           </select>
         </div>
-        <button
-          v-for="biz in bizList"
-          :key="biz"
-          type="button"
-          class="admin-side__item"
-          :class="{ 'is-on': selectedBiz === biz }"
-          @click="selectBiz(biz)"
-        >
-          {{ biz }}
-        </button>
-      </aside>
-
-      <div class="admin-main">
-        <div class="filter-row">
+        <div class="filter__field">
+          <label>업무구분</label>
+          <select v-model="selectedBiz" class="filter__select">
+            <option v-for="b in bizList" :key="b" :value="b">{{ b }}</option>
+          </select>
+        </div>
+        <div class="filter__field">
+          <label>관리번호</label>
           <input v-model="filters.id" class="filter__input" type="text" placeholder="관리번호 검색" @keyup.enter="search" />
+        </div>
+        <div class="filter__field">
+          <label>화면명</label>
           <input v-model="filters.name" class="filter__input" type="text" placeholder="화면명 검색" @keyup.enter="search" />
+        </div>
+      </div>
+      <div class="filter__row filter__row--2">
+        <div class="filter__field">
+          <label>화면경로</label>
           <input v-model="filters.path" class="filter__input" type="text" placeholder="화면경로 검색" @keyup.enter="search" />
-          <button type="button" class="btn btn--primary btn--sm" @click="search">조회</button>
         </div>
+      </div>
+      <div class="filter__actions">
+        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
+        <button type="button" class="btn btn--primary" @click="search">조회</button>
+      </div>
+    </section>
 
-        <div class="toolbar">
-          <span class="toolbar__count">화면코드 · 총 <b>{{ rows.length }}</b>건</span>
-          <div class="toolbar__actions">
-            <button type="button" class="btn btn--ghost btn--sm" :disabled="!canAdd" @click="addRow">＋</button>
-            <button type="button" class="btn btn--ghost btn--sm" @click="removeRows">－</button>
-            <button type="button" class="btn btn--primary btn--sm" @click="saveRows">저장</button>
-            <ExcelDownloadButton @click="onExcelDownload" />
-          </div>
-        </div>
+    <div class="toolbar">
+      <span class="toolbar__count">화면코드 · 총 <b>{{ rows.length }}</b>건</span>
+      <div class="toolbar__actions">
+        <button type="button" class="btn btn--ghost btn--sm" :disabled="!canAdd" @click="addRow">＋</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="removeRows">－</button>
+        <button type="button" class="btn btn--primary btn--sm" @click="saveRows">저장</button>
+        <ExcelDownloadButton @click="onExcelDownload" />
+      </div>
+    </div>
 
-        <div class="listcard">
-          <div class="listcard__scroll">
-            <table class="data-table" style="min-width: 980px">
-              <thead>
-                <tr>
-                  <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
-                  <th>관리번호</th>
-                  <th>화면명</th>
-                  <th>업무구분</th>
-                  <th>화면경로</th>
-                  <th>사용여부</th>
-                  <th>등록자</th>
-                  <th>등록일시</th>
-                  <th>수정자</th>
-                  <th>수정일시</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in rows"
-                  :key="row.id"
-                  :class="{ 'is-marked-delete': markedForDelete.includes(row.id) }"
+    <div class="listcard">
+      <div class="listcard__scroll">
+        <table class="data-table" style="min-width: 980px">
+          <thead>
+            <tr>
+              <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
+              <th>관리번호</th>
+              <th>화면명</th>
+              <th>업무구분</th>
+              <th>화면경로</th>
+              <th>사용여부</th>
+              <th>등록자</th>
+              <th>등록일시</th>
+              <th>수정자</th>
+              <th>수정일시</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in rows"
+              :key="row.id"
+              :class="{ 'is-marked-delete': markedForDelete.includes(row.id) }"
+            >
+              <td>
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.includes(row.id)"
+                  @change="toggleSelect(row.id)"
+                />
+              </td>
+              <td><span class="tbl__name">{{ row.id }}</span></td>
+              <td>
+                <input v-model="row.name" class="cell-input" type="text" />
+              </td>
+              <td>
+                <select v-if="row.isNew" v-model="row.bizCategory" class="cell-select">
+                  <option v-for="b in bizList" :key="b" :value="b">{{ b }}</option>
+                </select>
+                <span v-else class="tbl__muted">{{ row.bizCategory }}</span>
+              </td>
+              <td>
+                <input v-if="row.isNew" v-model="row.path" class="cell-input" type="text" placeholder="화면경로 입력" />
+                <span v-else class="tbl__muted">{{ row.path }}</span>
+              </td>
+              <td>
+                <select
+                  v-model="row.useYn"
+                  class="cell-select"
+                  :class="{ 'is-off': row.useYn === 'N' }"
                 >
-                  <td>
-                    <input
-                      type="checkbox"
-                      :checked="selectedIds.includes(row.id)"
-                      @change="toggleSelect(row.id)"
-                    />
-                  </td>
-                  <td><span class="tbl__name">{{ row.id }}</span></td>
-                  <td>
-                    <input v-model="row.name" class="cell-input" type="text" />
-                  </td>
-                  <td>
-                    <select v-if="row.isNew" v-model="row.bizCategory" class="cell-select">
-                      <option v-for="b in bizList" :key="b" :value="b">{{ b }}</option>
-                    </select>
-                    <span v-else class="tbl__muted">{{ row.bizCategory }}</span>
-                  </td>
-                  <td>
-                    <input v-if="row.isNew" v-model="row.path" class="cell-input" type="text" placeholder="화면경로 입력" />
-                    <span v-else class="tbl__muted">{{ row.path }}</span>
-                  </td>
-                  <td>
-                    <select
-                      v-model="row.useYn"
-                      class="cell-select"
-                      :class="{ 'is-off': row.useYn === 'N' }"
-                    >
-                      <option value="Y">Y</option>
-                      <option value="N">N</option>
-                    </select>
-                  </td>
-                  <td>{{ row.createdBy }}</td>
-                  <td class="tbl__muted">{{ row.createdAt }}</td>
-                  <td>
-                    <span :class="{ 'tbl__muted': row.updatedBy === '-' }">{{ row.updatedBy }}</span>
-                  </td>
-                  <td class="tbl__muted">{{ row.updatedAt || '-' }}</td>
-                </tr>
-                <tr v-if="!rows.length">
-                  <td colspan="10" class="empty">화면코드가 없습니다.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  <option value="Y">Y</option>
+                  <option value="N">N</option>
+                </select>
+              </td>
+              <td>{{ row.createdBy }}</td>
+              <td class="tbl__muted">{{ row.createdAt }}</td>
+              <td>
+                <span :class="{ 'tbl__muted': row.updatedBy === '-' }">{{ row.updatedBy }}</span>
+              </td>
+              <td class="tbl__muted">{{ row.updatedAt || '-' }}</td>
+            </tr>
+            <tr v-if="!rows.length">
+              <td colspan="10" class="empty">화면코드가 없습니다.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.filter-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.filter-row .filter__input {
-  flex: 1;
-  min-width: 0;
-}
-
 .is-marked-delete {
   opacity: 0.45;
   text-decoration: line-through;

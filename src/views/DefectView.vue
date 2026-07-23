@@ -34,7 +34,6 @@ const appliedFilters = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
 
-const showDetailModal = ref(false)
 const detailTarget = ref(null)
 
 const filteredList = computed(() =>
@@ -55,6 +54,7 @@ const totalPages = computed(() =>
 function loadData() {
   rows.value = getDefectList(mode.value)
   currentPage.value = 1
+  detailTarget.value = filteredList.value[0] || null
 }
 
 onMounted(() => {
@@ -62,6 +62,11 @@ onMounted(() => {
   if (route.query.bizCategory) {
     filters.value.bizCategory = String(route.query.bizCategory)
     appliedFilters.value = { ...filters.value }
+  }
+  if (route.query.tester) {
+    filters.value.tester = String(route.query.tester)
+    appliedFilters.value = { ...filters.value }
+    detailTarget.value = filteredList.value[0] || null
   }
 })
 watch(mode, loadData)
@@ -84,18 +89,19 @@ function resetFilters() {
 function search() {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+  detailTarget.value = filteredList.value[0] || null
 }
 
 function openDetail(row) {
   detailTarget.value = row
-  showDetailModal.value = true
 }
 
 function onDefectSave(updates) {
   if (!detailTarget.value) return
-  updateDefect(detailTarget.value.id, updates)
+  const targetId = detailTarget.value.id
+  updateDefect(targetId, updates)
   loadData()
-  const updated = rows.value.find((r) => r.id === detailTarget.value.id)
+  const updated = rows.value.find((r) => r.id === targetId)
   if (updated) detailTarget.value = updated
 }
 
@@ -226,7 +232,12 @@ function onExcelDownload() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, idx) in pagedList" :key="row.id">
+            <tr
+              v-for="(row, idx) in pagedList"
+              :key="row.id"
+              :class="{ 'is-selected': detailTarget?.id === row.id }"
+              @click="openDetail(row)"
+            >
               <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td>{{ row.defectId }}</td>
               <td>{{ row.systemPath || '-' }}</td>
@@ -249,7 +260,7 @@ function onExcelDownload() {
               <td>{{ row.registeredAt }}</td>
               <td>{{ row.updatedBy || '-' }}</td>
               <td>{{ row.updatedAt || '-' }}</td>
-              <td>
+              <td @click.stop>
                 <button type="button" class="link-btn" @click="openDetail(row)">보기</button>
               </td>
             </tr>
@@ -267,13 +278,7 @@ function onExcelDownload() {
       <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">다음</button>
     </div>
 
-    <DefectDetailModal
-      :visible="showDetailModal"
-      :row="detailTarget"
-      :config="config"
-      @close="showDetailModal = false"
-      @save="onDefectSave"
-    />
+    <DefectDetailModal :row="detailTarget" :config="config" @save="onDefectSave" />
   </div>
 </template>
 
@@ -396,6 +401,14 @@ function onExcelDownload() {
 .data-table th {
   background: var(--field);
   font-weight: 600;
+}
+
+.data-table tbody tr {
+  cursor: pointer;
+}
+
+.data-table tbody tr.is-selected td {
+  background: var(--teal-50);
 }
 
 .col-no {

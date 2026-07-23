@@ -2,7 +2,7 @@
 // figma: 06_전체프로젝트현황_대시보드.html
 
 export const dashboardMeta = {
-  yearScope: '당해연도 오픈 프로젝트',
+  yearScope: '전체 프로젝트 현황은 당해년도 오픈 프로젝트를 조회 대상으로 합니다.',
   queryTime: '2026-06-23 09:00',
 }
 

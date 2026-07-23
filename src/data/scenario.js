@@ -102,6 +102,7 @@ export function getScenarioList(mode = 'dev') {
 
 export function matchScenarioFilters(row, filters, config) {
   if (filters.round !== '전체' && row.round !== filters.round) return false
+  if (filters.system && filters.system !== '전체' && !row.systemPath.startsWith(filters.system)) return false
   if (filters.bizCategory !== '전체' && !row.systemPath.includes(filters.bizCategory)) return false
   if (filters.executionType !== '전체' && row.executionType !== filters.executionType) return false
   if (filters.keyword) {
@@ -127,6 +128,7 @@ export function getBulkRegisterPreview(mode = 'dev') {
       caseId: 'TC-010',
       caseName: '복지혜택 취소 플로우',
       screenName: '복지혜택 신청',
+      screenId: 'FO-101',
       executionType: '오픈 전',
       round,
       planDate: '2026-04-20',
@@ -140,6 +142,7 @@ export function getBulkRegisterPreview(mode = 'dev') {
       caseId: 'TC-011',
       caseName: '주문결제 PG 연동',
       screenName: '주문결제',
+      screenId: 'FO-203',
       executionType: '오픈 후',
       round,
       planDate: '2026-04-21',
@@ -153,6 +156,7 @@ export function getBulkRegisterPreview(mode = 'dev') {
       caseId: 'TC-001',
       caseName: '복지혜택 신청 정상 플로우 (수정)',
       screenName: '복지혜택 신청',
+      screenId: 'FO-101',
       executionType: '오픈 전',
       round,
       planDate: '2026-04-22',
@@ -166,6 +170,7 @@ export function getBulkRegisterPreview(mode = 'dev') {
       caseId: 'TC-012',
       caseName: '',
       screenName: '카드결제',
+      screenId: 'HPAS-012',
       executionType: '오픈 전',
       round,
       planDate: '2026-04-23',
@@ -213,6 +218,7 @@ export function addScenarioCases(items, mode = 'dev') {
       systemPath: item.systemPath || 'FO>법인숙박',
       screenPath: item.screenPath || '여행레저>복지혜택',
       screenName: item.screenName,
+      screenId: item.screenId || '',
       reqId: item.reqId,
       caseId: item.caseId || `TC-${String(caseSeq).padStart(3, '0')}`,
       caseName: item.caseName,

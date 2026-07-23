@@ -20,12 +20,13 @@ export const planChangeReasons = [
   '외부 일정',
   '요건 변경',
   '담당자 변경',
+  '착수일 미체크',
   '선행 업무 일정 변경',
   '기타(직접입력)',
 ]
 
 /** POP-S-WBS-05 다건 계획일 변경 사유 */
-export const bulkPlanChangeReasons = ['선행 업무 일정 변경', '기타(직접입력)']
+export const bulkPlanChangeReasons = ['착수일 미체크', '선행 업무 일정 변경', '기타(직접입력)']
 
 /** POP-S-WBS-06 실행 홀딩 사유 */
 export const holdChangeReasons = [
@@ -61,6 +62,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: '요건분석',
+    taskName: '요건분석',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '기획',
@@ -88,6 +91,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: '화면설계',
+    taskName: '화면설계',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '기획',
@@ -115,6 +120,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: '화면설계',
+    taskName: '화면설계',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '기획',
@@ -143,6 +150,8 @@ const baseTasks = [
     screenPath: '여행레저>복지혜택',
     screenName: '숙박바우처',
     requirementName: '고객사 맞춤페이지 신설',
+    taskName: '고객사 맞춤페이지 신설',
+    taskDetail: '맞춤페이지 퍼블리싱 작업',
     requirementId: 'REQ-001',
     requirementPreview:
       '1.법숙 입실/패널티 없을 경우 : 법인숙박 박수 회수 & 바우처 특복 배정\n2. 법숙 입실/패널티 있을 경우 : 변경 불가',
@@ -173,6 +182,8 @@ const baseTasks = [
     screenPath: '여행레저>복지혜택',
     screenName: '숙박바우처',
     requirementName: '바우처 특복 배정',
+    taskName: '바우처 특복 배정',
+    taskDetail: '바우처 특복 배정 처리 작업',
     requirementId: 'REQ-002',
     requirementPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정',
     requirementAnalysisPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정 상세 로직 정의',
@@ -201,6 +212,9 @@ const baseTasks = [
     screenPath: '주문/결제',
     screenName: '주문결제페이지',
     requirementName: '바우처 특복 사용 제한',
+    taskName: '바우처 특복 사용 제한',
+    taskDetail:
+      '1. 특복 바우처 횟수 2회 제한 처리\n2. 상품 결제 시 사용횟수 카운트 집계\n3. 취소수수료 결제 횟수 카운트 제외처리',
     requirementId: 'REQ-003',
     requirementPreview: '바우처 특복 사용 시 제한 조건 적용',
     requirementAnalysisPreview: '',
@@ -229,6 +243,8 @@ const baseTasks = [
     screenPath: '주문/결제',
     screenName: '주문결제페이지',
     requirementName: '바우처 특복 사용 제한',
+    taskName: '바우처 특복 사용 제한',
+    taskDetail: '',
     requirementId: 'REQ-003',
     requirementPreview: '바우처 특복 사용 시 제한 조건 적용',
     requirementAnalysisPreview: '',
@@ -257,6 +273,8 @@ const baseTasks = [
     screenPath: '여행레저>복지혜택',
     screenName: '숙박바우처',
     requirementName: '바우처 특복 배정',
+    taskName: '바우처 특복 배정',
+    taskDetail: '',
     requirementId: 'REQ-002',
     requirementPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정',
     requirementAnalysisPreview: '바우처 특복 선택 시, 바우처 특별포인트 배정 상세 로직 정의',
@@ -285,6 +303,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: '단위테스트',
+    taskName: '단위테스트',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '테스트',
@@ -312,6 +332,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: 'DEV테스트',
+    taskName: 'DEV테스트',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '테스트',
@@ -339,6 +361,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: '운영테스트-1차',
+    taskName: '운영테스트-1차',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '테스트',
@@ -366,6 +390,8 @@ const baseTasks = [
     screenPath: '-',
     screenName: '-',
     requirementName: '운영테스트-2차',
+    taskName: '운영테스트-2차',
+    taskDetail: '',
     requirementId: null,
     requirementPreview: null,
     taskType: '테스트',
@@ -444,7 +470,7 @@ export function matchWbsFilters(row, filters, myTasksOnly, currentUser = '권현
   if (!filters.showExcluded && row.excluded) return false
   if (filters.keyword) {
     const q = filters.keyword.toLowerCase()
-    const hay = [row.screenName, row.requirementName, row.wbsId, row.systemPath].join(' ').toLowerCase()
+    const hay = [row.taskName, row.wbsId, row.systemPath].join(' ').toLowerCase()
     if (!hay.includes(q)) return false
   }
   if (filters.taskType !== '전체' && row.taskType !== filters.taskType) return false
@@ -498,7 +524,7 @@ export function getCalendarRange(task) {
 export function calendarBlockLabel(task, index) {
   const suffix = index > 0 ? index + 1 : ''
   const type = task.taskType === '개발' ? `개발${suffix}` : task.taskType
-  const name = task.requirementName || task.screenName
+  const name = task.taskName || task.requirementName || task.screenName
   return `[${type}] ${name} – ${task.assigneeDisplay}`
 }
 

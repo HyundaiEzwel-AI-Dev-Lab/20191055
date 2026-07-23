@@ -50,9 +50,9 @@ export function getProgressData(mode = 'dev') {
     ],
     confirmLabel: '처리완료',
     requesterProgress: [
-      { requester: '마케팅팀', total: 40, done: 30, rate: 75 },
-      { requester: '복지서비스기획팀', total: 25, done: 16, rate: 64 },
-      { requester: 'IT기획팀', total: 18, done: 15, rate: 83 },
+      { requester: '마케팅팀', total: 40, done: 30, rate: 75, defectRegistered: 6, defectConfirmed: 4 },
+      { requester: '복지서비스기획팀', total: 25, done: 16, rate: 64, defectRegistered: 3, defectConfirmed: 3 },
+      { requester: 'IT기획팀', total: 18, done: 15, rate: 83, defectRegistered: 2, defectConfirmed: 1 },
     ],
   }
 

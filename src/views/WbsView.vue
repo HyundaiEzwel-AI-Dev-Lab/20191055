@@ -1,7 +1,7 @@
 <script setup>
 // PAG-S-WBS-01/08 WBS 관리
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   wbsMeta,
   taskTypeOptions,
@@ -20,13 +20,14 @@ import { bizCategoryMap } from '@/data/requirement'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 import WbsScheduleReasonModal from '@/components/wbs/WbsScheduleReasonModal.vue'
 import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
+import WbsRestartModal from '@/components/wbs/WbsRestartModal.vue'
 import WbsCalendar from '@/components/wbs/WbsCalendar.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
+import BaseTooltip from '@/components/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 import { addScheduleChangeRequest } from '@/data/approval'
 import { useProjectStore } from '@/stores/project'
 
-const router = useRouter()
 const route = useRoute()
 const projectStore = useProjectStore()
 
@@ -34,7 +35,6 @@ const tasks = ref([])
 const viewMode = ref('list')
 const myTasksOnly = ref(false)
 const selectedIds = ref(new Set())
-const hoverReqId = ref(null)
 const statusFilterOpen = ref(false)
 
 const filters = ref({
@@ -57,6 +57,8 @@ const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
 const showReasonModal = ref(false)
 const reasonTarget = ref(null)
+const showRestartModal = ref(false)
+const restartTarget = ref(null)
 const showBulkScheduleModal = ref(false)
 const bulkTargets = ref([])
 const showCopyAlert = ref(false)
@@ -180,6 +182,11 @@ function onAssigneeChange(row, assignee) {
   row.changedBy = '김현대'
 }
 
+function onTaskFieldChange(row) {
+  row.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  row.changedBy = '김현대'
+}
+
 function onScheduleClick(row) {
   if (row.excluded || row.status === '취소') return
   scheduleTarget.value = row
@@ -239,7 +246,11 @@ function canRestart(row) {
 }
 
 function onRestart(row) {
-  if (!window.confirm('재착수 처리하시겠습니까?')) return
+  restartTarget.value = row
+  showRestartModal.value = true
+}
+
+function onRestartConfirm(row) {
   row.status = '진행중'
   if (row.correctedPlanEnd) row.planEnd = row.correctedPlanEnd
   row.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
@@ -277,12 +288,6 @@ function onStatusClick(row) {
   showReasonModal.value = true
 }
 
-function onRequirementClick(row) {
-  if (row.requirementId) {
-    router.push('/project/requirement')
-  }
-}
-
 function onExclude() {
   if (!selectedRows.value.length) {
     window.alert('작업제외할 업무를 선택하세요.')
@@ -314,8 +319,8 @@ function onExcelDownload() {
   mockExcelDownload('WBS 관리', filteredTasks.value, [
     { key: 'wbsId', label: 'WBS ID' },
     { key: 'systemPath', label: '시스템경로' },
-    { key: 'screenName', label: '화면명' },
-    { key: 'requirementName', label: '요구사항' },
+    { key: 'taskName', label: '업무명' },
+    { key: 'taskDetail', label: '업무상세' },
     { key: 'taskType', label: '업무유형' },
     { key: 'assigneeDisplay', label: '담당자' },
     { key: 'status', label: '상태' },
@@ -368,7 +373,7 @@ function onCalendarSelect(task) {
     <div class="wbs__head">
       <h1 class="wbs__title">
         WBS 관리
-        <span class="wbs__hint">{{ wbsMeta.hint }}</span>
+        <BaseTooltip :text="wbsMeta.hint" />
       </h1>
       <div class="view-toggle">
         <button
@@ -400,7 +405,7 @@ function onCalendarSelect(task) {
             v-model="filters.keyword"
             class="filter__input"
             type="text"
-            placeholder="화면명, 요구사항명"
+            placeholder="업무명"
           />
         </div>
         <div class="filter__field">
@@ -495,9 +500,8 @@ function onCalendarSelect(task) {
                 <input type="checkbox" :checked="isAllSelected()" @change="toggleSelectAll($event.target.checked)" />
               </th>
               <th>시스템/업무구분</th>
-              <th>화면경로</th>
-              <th>화면명</th>
-              <th>요구사항명</th>
+              <th>업무명</th>
+              <th>업무상세</th>
               <th>업무유형</th>
               <th>담당자</th>
               <th>난이도</th>
@@ -525,29 +529,23 @@ function onCalendarSelect(task) {
                 />
               </td>
               <td>{{ row.systemPath }}</td>
-              <td>{{ row.screenPath }}</td>
-              <td>{{ row.screenName }}</td>
-              <td class="req-cell">
-                <button
-                  v-if="row.requirementId"
-                  type="button"
-                  class="req-link"
-                  @click="onRequirementClick(row)"
-                  @mouseenter="hoverReqId = row.id"
-                  @mouseleave="hoverReqId = null"
-                >
-                  {{ row.requirementName }}
-                </button>
-                <span v-else>{{ row.requirementName }}</span>
-                <div
-                  v-if="hoverReqId === row.id && (row.requirementPreview || row.requirementAnalysisPreview)"
-                  class="req-tooltip"
-                >
-                  <p class="req-tooltip__label">요구사항 원안</p>
-                  <p class="req-tooltip__text">{{ row.requirementPreview || '-' }}</p>
-                  <p class="req-tooltip__label">요구사항 분석</p>
-                  <p class="req-tooltip__text">{{ row.requirementAnalysisPreview || '-' }}</p>
-                </div>
+              <td>
+                <input
+                  v-model="row.taskName"
+                  class="task-name-input"
+                  type="text"
+                  maxlength="100"
+                  @change="onTaskFieldChange(row)"
+                />
+              </td>
+              <td>
+                <textarea
+                  v-model="row.taskDetail"
+                  class="task-detail-input"
+                  rows="1"
+                  maxlength="1000"
+                  @change="onTaskFieldChange(row)"
+                />
               </td>
               <td>{{ row.taskType }}</td>
               <td>
@@ -612,7 +610,7 @@ function onCalendarSelect(task) {
               <td>{{ row.confirmed }}</td>
             </tr>
             <tr v-if="!filteredTasks.length">
-              <td colspan="14" class="empty-row">조회 결과가 없습니다.</td>
+              <td colspan="13" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -635,6 +633,7 @@ function onCalendarSelect(task) {
       @open-multi-change="onOpenMultiChangeFromSchedule"
     />
     <WbsScheduleReasonModal v-model="showReasonModal" :task="reasonTarget" />
+    <WbsRestartModal v-model="showRestartModal" :task="restartTarget" @confirm="onRestartConfirm" />
     <WbsBulkScheduleModal
       v-model="showBulkScheduleModal"
       :tasks="bulkTargets"
@@ -686,16 +685,6 @@ function onCalendarSelect(task) {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.wbs__hint {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--lnb-side);
-  border: 1px solid var(--line);
-  padding: 2px 8px;
-  border-radius: 20px;
 }
 
 .view-toggle {
@@ -933,58 +922,35 @@ function onCalendarSelect(task) {
   background: var(--gray-bg);
 }
 
-.req-cell {
-  position: relative;
-  min-width: 120px;
-}
-
-.req-link {
-  border: none;
-  background: none;
-  color: var(--ink);
-  font-weight: 600;
-  cursor: pointer;
+.task-name-input {
+  width: 100%;
+  min-width: 140px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   font-family: inherit;
   font-size: 12px;
-  padding: 0;
-  text-align: left;
+  background: var(--field);
+  color: var(--ink);
 }
 
-.req-link:hover {
-  color: var(--teal-600);
-  text-decoration: underline;
-}
-
-.req-tooltip {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  z-index: 10;
-  width: 280px;
-  padding: 10px 12px;
-  background: var(--lnb-side);
+.task-detail-input {
+  width: 100%;
+  min-width: 160px;
+  height: 26px;
+  padding: 4px 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(20, 40, 50, 0.12);
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--ink-2);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  background: var(--field);
+  color: var(--ink);
+  resize: vertical;
 }
 
-.req-tooltip__label {
-  margin: 0 0 3px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--teal-600);
-}
-
-.req-tooltip__text {
-  margin: 0 0 8px;
-  white-space: pre-wrap;
-}
-
-.req-tooltip__text:last-child {
-  margin-bottom: 0;
+.task-detail-input:focus {
+  height: 64px;
 }
 
 .assignee-select {

@@ -30,6 +30,7 @@ const baseRuns = [
     planStart: '2026-04-01',
     planEnd: '2026-04-30',
     testers: ['김현대', '박테스트'],
+    testerPlanDates: { 김현대: '2026-04-01', 박테스트: '2026-04-05' },
     stepTotal: 3,
     stepDone: 3,
     progress: 100,
@@ -72,6 +73,7 @@ const baseRuns = [
     planStart: '2026-04-01',
     planEnd: '2026-04-30',
     testers: ['김현대'],
+    testerPlanDates: { 김현대: '2026-04-16' },
     stepTotal: 2,
     stepDone: 1,
     progress: 50,
@@ -87,7 +89,7 @@ const baseRuns = [
     ],
     resultsMatrix: [
       [{ result: '정상', executedAt: '2026-04-16', fixStatus: null }],
-      [{ result: '오류', executedAt: '2026-04-16', fixStatus: '접수' }],
+      [{ result: '오류', executedAt: '2026-04-16', fixStatus: '처리예정' }],
     ],
   },
   {
@@ -103,6 +105,7 @@ const baseRuns = [
     planStart: '2026-04-01',
     planEnd: '2026-04-30',
     testers: ['이테스트'],
+    testerPlanDates: { 이테스트: '2026-04-20' },
     stepTotal: 2,
     stepDone: 0,
     progress: 0,
@@ -134,6 +137,7 @@ const baseRuns = [
     planStart: '2026-04-01',
     planEnd: '2026-04-15',
     testers: ['김현대', '최테스트'],
+    testerPlanDates: { 김현대: '2026-04-10', 최테스트: '2026-04-11' },
     stepTotal: 3,
     stepDone: 3,
     progress: 100,
@@ -208,7 +212,7 @@ export function computeTestRunKpi(rows) {
         else if (t.result === '오류') kpi.error += 1
         else if (t.result === '재처리요청') kpi.retry += 1
         else if (t.result === '기타') kpi.etc += 1
-        if (t?.fixStatus === '접수') kpi.pending += 1
+        if (t?.result === '오류' && t.fixStatus !== '처리완료') kpi.pending += 1
       }
     }
     if (r.planEnd < today && r.result === '대기') kpi.delay += 1

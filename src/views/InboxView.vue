@@ -1,6 +1,6 @@
 <script setup>
 // PAG-M-MY-01/02/03 내업무 (진입화면)
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -11,8 +11,10 @@ import {
   getInboxBundle,
   routeForTaskType,
 } from '@/data/inbox'
+import { calcDday } from '@/data/wbs'
 import InboxCalendar from '@/components/inbox/InboxCalendar.vue'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
+import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -24,7 +26,14 @@ const viewMode = ref('card')
 const bundle = computed(() => getInboxBundle(auth.user?.id))
 const summary = computed(() => bundle.value.summary)
 const progressProjects = computed(() => bundle.value.progressProjects)
-const myTasks = computed(() => bundle.value.myTasks)
+const myTasks = ref([])
+watch(
+  () => auth.user?.id,
+  () => {
+    myTasks.value = JSON.parse(JSON.stringify(bundle.value.myTasks))
+  },
+  { immediate: true },
+)
 const waitingProjects = computed(() => bundle.value.waitingProjects)
 
 const avatarPalette = ['#119a8a', '#7c5cf0', '#f59e0b', '#ec4899', '#3b82f6', '#22c55e']
@@ -105,6 +114,45 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
 const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
+const showBulkScheduleModal = ref(false)
+const bulkTargets = ref([])
+
+/** 일정 저장 결과를 내 할 일 목록에 즉시 반영 */
+function applyTaskScheduleUpdate(wbsId, start, end) {
+  if (!wbsId || !end) return
+  const t = myTasks.value.find((x) => x.wbsId === wbsId)
+  if (!t) return
+  t.planStart = start || t.planStart
+  t.planEnd = end
+  const [, m, d] = end.split('-').map(Number)
+  t.dueLabel = `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')} 마감`
+  const dday = calcDday(end)
+  t.dday = dday
+  t.delayed = dday.startsWith('D+')
+}
+
+function onScheduleSave(payload) {
+  applyTaskScheduleUpdate(scheduleTarget.value?.wbsId, payload.planStart, payload.planEnd)
+}
+
+function onOpenMultiChangeFromSchedule(task) {
+  if (!task) return
+  bulkTargets.value = [task]
+  showBulkScheduleModal.value = true
+}
+
+function onBulkScheduleRequest(payload) {
+  const targetTasks = payload.tasks || []
+  if (payload.type === '계획일 변경') {
+    targetTasks.forEach((t) => applyTaskScheduleUpdate(t.wbsId, t.newPlanStart, t.newPlanEnd))
+  } else if (payload.type === '실행 홀딩') {
+    targetTasks.forEach((t) => {
+      const found = myTasks.value.find((x) => x.wbsId === t.wbsId)
+      if (found) found.dueLabel = '홀딩'
+    })
+  }
+  bulkTargets.value = []
+}
 
 function onTaskRowClick(task) {
   closeMore()
@@ -116,14 +164,15 @@ function onTaskRowClick(task) {
 }
 function onScheduleManage(task) {
   closeMore()
-  openProject({ id: task.projectId, name: task.project, stage: '처리중' }, '/project/wbs')
+  projectStore.setCurrentProject({ id: task.projectId, name: task.project, stage: '처리중' })
   scheduleTarget.value = {
     wbsId: task.wbsId,
     requirementName: task.name,
+    taskName: task.name,
     taskType: task.taskType,
     assigneeDisplay: auth.user?.name || '김현대',
-    planStart: null,
-    planEnd: null,
+    planStart: task.planStart || null,
+    planEnd: task.planEnd || null,
     execStart: null,
     execEnd: null,
   }
@@ -382,7 +431,17 @@ function nextWaiting() {
       </div>
     </Teleport>
 
-    <WbsScheduleModal v-model="showScheduleModal" :task="scheduleTarget" />
+    <WbsScheduleModal
+      v-model="showScheduleModal"
+      :task="scheduleTarget"
+      @save="onScheduleSave"
+      @open-multi-change="onOpenMultiChangeFromSchedule"
+    />
+    <WbsBulkScheduleModal
+      v-model="showBulkScheduleModal"
+      :tasks="bulkTargets"
+      @request="onBulkScheduleRequest"
+    />
   </div>
 </template>
 

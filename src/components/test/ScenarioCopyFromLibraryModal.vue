@@ -13,6 +13,7 @@ const emit = defineEmits(['update:modelValue', 'confirm'])
 const filters = ref({ system: '전체', bizCategory: '전체', screenName: '', sourceProject: '', caseName: '' })
 const searched = ref(false)
 const staged = ref([])
+const detailTarget = ref(null)
 
 const flatCases = computed(() =>
   libraryList.flatMap((lib) =>
@@ -67,11 +68,16 @@ watch(
     filters.value = { system: '전체', bizCategory: '전체', screenName: '', sourceProject: '', caseName: '' }
     searched.value = false
     staged.value = []
+    detailTarget.value = null
   },
 )
 
 function search() {
   searched.value = true
+}
+
+function showDetail(row) {
+  detailTarget.value = row
 }
 
 function addToStaged(row) {
@@ -135,6 +141,8 @@ function confirm() {
       <table class="tbl">
         <thead>
           <tr>
+            <th>시스템</th>
+            <th>업무구분</th>
             <th>유형</th>
             <th>라이브러리</th>
             <th>화면명</th>
@@ -146,21 +154,45 @@ function confirm() {
         </thead>
         <tbody>
           <tr v-for="row in filtered" :key="row.key">
+            <td>{{ row.system }}</td>
+            <td>{{ row.bizCategory }}</td>
             <td>{{ row.type }}</td>
             <td class="name">{{ row.libTitle }}</td>
             <td>{{ row.screenName }}</td>
             <td class="name">{{ row.sourceProject }}</td>
-            <td class="name">{{ row.caseName }}</td>
+            <td class="name">
+              <button type="button" class="case-link" @click="showDetail(row)">{{ row.caseName }}</button>
+            </td>
             <td>{{ row.steps.length }}</td>
             <td>
               <button type="button" class="btn btn--ghost btn--sm" @click="addToStaged(row)">담기</button>
             </td>
           </tr>
           <tr v-if="searched && !filtered.length">
-            <td colspan="7" class="empty">검색 결과가 없습니다.</td>
+            <td colspan="9" class="empty">검색 결과가 없습니다.</td>
           </tr>
           <tr v-if="!searched">
-            <td colspan="7" class="empty">조회 버튼을 눌러 라이브러리 케이스를 검색하세요.</td>
+            <td colspan="9" class="empty">조회 버튼을 눌러 라이브러리 케이스를 검색하세요.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="detailTarget" class="detail-panel">
+      <h4 class="detail-panel__title">케이스 상세 — {{ detailTarget.caseName }}</h4>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>절차</th>
+            <th>예상결과</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(s, i) in detailTarget.steps" :key="i">
+            <td>{{ i + 1 }}</td>
+            <td>{{ s.procedure }}</td>
+            <td>{{ s.expected }}</td>
           </tr>
         </tbody>
       </table>
@@ -169,13 +201,30 @@ function confirm() {
     <div class="staged">
       <h4 class="staged__title">선택된 케이스 ({{ staged.length }}건)</h4>
       <div v-if="!staged.length" class="empty staged__empty">담은 케이스가 없습니다.</div>
-      <ul v-else class="staged__list">
-        <li v-for="row in staged" :key="row.key">
-          <span class="name">{{ row.caseName }}</span>
-          <span class="muted">{{ row.screenName }} · {{ row.libTitle }}</span>
-          <button type="button" class="link-btn" @click="removeStaged(row.key)">✕</button>
-        </li>
-      </ul>
+      <table v-else class="tbl staged__table">
+        <thead>
+          <tr>
+            <th>시스템</th>
+            <th>업무구분</th>
+            <th>케이스명</th>
+            <th>화면명</th>
+            <th>라이브러리</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in staged" :key="row.key">
+            <td>{{ row.system }}</td>
+            <td>{{ row.bizCategory }}</td>
+            <td class="name">{{ row.caseName }}</td>
+            <td>{{ row.screenName }}</td>
+            <td class="name">{{ row.libTitle }}</td>
+            <td>
+              <button type="button" class="link-btn" @click="removeStaged(row.key)">✕</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <template #footer>
@@ -284,33 +333,10 @@ function confirm() {
   padding: 12px !important;
 }
 
-.staged__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.staged__list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+.staged__table {
   background: var(--lnb-side);
   border-radius: 6px;
-  font-size: 12px;
-}
-
-.staged__list .name {
-  font-weight: 600;
-}
-
-.muted {
-  color: var(--lnb-muted);
-  font-size: 11px;
-  flex: 1;
+  overflow: hidden;
 }
 
 .link-btn {
@@ -319,5 +345,30 @@ function confirm() {
   color: var(--red);
   cursor: pointer;
   font-size: 12px;
+}
+
+.case-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--teal-600);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.detail-panel {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--lnb-line);
+  border-radius: 8px;
+}
+
+.detail-panel__title {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lnb-txt);
 }
 </style>

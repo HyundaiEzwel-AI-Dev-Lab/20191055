@@ -645,6 +645,7 @@ function diffFields(entry) {
             @change="onConfirmToggle('confirmRequester', $event)"
           />
           요청자
+          <span v-if="props.data?.confirmRequesterAt" class="confirm-time">{{ props.data.confirmRequesterAt }}</span>
         </label>
         <label class="confirm-item" :class="{ 'confirm-item--locked': !canEditConfirmTech }">
           <input
@@ -654,6 +655,7 @@ function diffFields(entry) {
             @change="onConfirmToggle('confirmTech', $event)"
           />
           테크
+          <span v-if="props.data?.confirmTechAt" class="confirm-time">{{ props.data.confirmTechAt }}</span>
         </label>
       </div>
 
@@ -981,6 +983,11 @@ label.fld--req::after {
 
 .confirm-item--locked {
   opacity: 0.7;
+}
+
+.confirm-time {
+  font-size: 11px;
+  color: var(--lnb-muted);
 }
 
 .meta-line {

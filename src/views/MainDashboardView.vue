@@ -179,7 +179,7 @@ function onOverdueClick(row) {
 <template>
   <div class="dashboard">
     <p class="dashboard__hint">
-      {{ dashboardMeta.yearScope }} · 조회시점 {{ dashboardMeta.queryTime }}
+      {{ dashboardMeta.yearScope }} (조회시점 {{ dashboardMeta.queryTime }})
     </p>
 
     <!-- 검색조건 -->

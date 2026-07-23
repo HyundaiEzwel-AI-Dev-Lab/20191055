@@ -224,22 +224,6 @@ function onExcelDownload() {
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
       <div class="toolbar__actions">
-        <button
-          type="button"
-          class="btn btn--ghost btn--sm"
-          :disabled="!canApproveReject"
-          @click="applyStatus('승인반려')"
-        >
-          승인반려
-        </button>
-        <button
-          type="button"
-          class="btn btn--primary btn--sm"
-          :disabled="!canApproveReject"
-          @click="applyStatus('승인완료')"
-        >
-          승인완료
-        </button>
         <ExcelDownloadButton @click="onExcelDownload" />
       </div>
     </div>
@@ -397,6 +381,25 @@ function onExcelDownload() {
           </div>
         </div>
       </div>
+
+      <div class="detail-card__foot">
+        <button
+          type="button"
+          class="btn btn--ghost btn--sm"
+          :disabled="!canApproveReject"
+          @click="applyStatus('승인반려')"
+        >
+          승인반려
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary btn--sm"
+          :disabled="!canApproveReject"
+          @click="applyStatus('승인완료')"
+        >
+          승인완료
+        </button>
+      </div>
     </section>
   </div>
 </template>
@@ -457,5 +460,14 @@ function onExcelDownload() {
   padding: 8px 10px;
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+.detail-card__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lnb-line);
 }
 </style>

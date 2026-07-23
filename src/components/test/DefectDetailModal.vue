@@ -1,18 +1,16 @@
 <script setup>
-// POP-UAT 결함 상세
+// PAG-S-UAT-15 결함 상세 — 목록 선택 시 하단에 표시되는 마스터-디테일 패널
 import { computed, ref, watch } from 'vue'
-import BaseModal from '@/components/ui/BaseModal.vue'
 import { actionStatusValues } from '@/data/testConfig'
 
 const CURRENT_USER = '김현대'
 
 const props = defineProps({
-  visible: { type: Boolean, default: false },
   row: { type: Object, default: null },
   config: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['close', 'save'])
+const emit = defineEmits(['save'])
 
 const form = ref({
   status: '접수',
@@ -86,7 +84,6 @@ function save() {
     appendHistory(form.value.status, form.value.comment)
   }
   emit('save', updates)
-  emit('close')
 }
 
 function setStatus(status) {
@@ -94,7 +91,6 @@ function setStatus(status) {
   form.value.status = status
   appendHistory(status, form.value.comment || `${status} 처리`)
   emit('save', { status })
-  emit('close')
 }
 
 function saveConfirm() {
@@ -109,17 +105,14 @@ function saveConfirm() {
       `DEV확인:${confirmDevChecked.value ? 'Y' : 'N'} STG확인:${confirmStgChecked.value ? 'Y' : 'N'} 운영확인:${confirmOpsChecked.value ? 'Y' : 'N'}`,
   )
   emit('save', { result: confirmStatus.value })
-  emit('close')
 }
 </script>
 
 <template>
-  <BaseModal
-    :visible="visible"
-    :title="row ? `결함 상세 — ${row.defectId}` : '결함 상세'"
-    @close="$emit('close')"
-  >
-    <template v-if="row">
+  <section v-if="row" class="card detail-card">
+    <div class="detail-card__head">
+      <h3 class="detail-card__title">결함 상세 — {{ row.defectId }}</h3>
+    </div>
       <div class="meta-grid">
         <div><span class="lbl">케이스</span>{{ row.caseId }} · {{ row.caseName }}</div>
         <div><span class="lbl">화면</span>{{ row.screenName }}</div>
@@ -236,18 +229,40 @@ function saveConfirm() {
           <p>{{ h.body }}</p>
         </article>
       </div>
-    </template>
 
-    <template #footer>
-      <button type="button" class="btn btn--ghost" @click="$emit('close')">닫기</button>
+    <div class="detail-card__foot">
       <button type="button" class="btn btn--ghost" @click="setStatus('오류아님')">오류아님</button>
       <button type="button" class="btn btn--primary" @click="setStatus('처리완료')">처리완료</button>
       <button type="button" class="btn btn--primary" @click="save">저장</button>
-    </template>
-  </BaseModal>
+    </div>
+  </section>
 </template>
 
 <style scoped>
+.detail-card {
+  margin-top: 14px;
+  padding: 16px 18px;
+}
+
+.detail-card__head {
+  margin-bottom: 14px;
+}
+
+.detail-card__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.detail-card__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

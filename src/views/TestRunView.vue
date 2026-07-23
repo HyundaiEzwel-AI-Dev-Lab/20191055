@@ -14,6 +14,7 @@ import { getDefectList } from '@/data/testDefect'
 import TestErrorRegisterModal from '@/components/test/TestErrorRegisterModal.vue'
 import TestRunTesterChangeModal from '@/components/test/TestRunTesterChangeModal.vue'
 import TestRunInfoModal from '@/components/test/TestRunInfoModal.vue'
+import TestNoteModal from '@/components/test/TestNoteModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 
@@ -30,8 +31,8 @@ const filterExpanded = ref(false)
 const showTesterChange = ref(false)
 const showRunInfo = ref(false)
 const runInfoTarget = ref(null)
-const editingNoteId = ref(null)
-const noteDraft = ref('')
+const showNoteModal = ref(false)
+const noteTarget = ref(null)
 
 const filters = ref({
   system: '전체',
@@ -55,6 +56,7 @@ onMounted(() => {
   loadRows()
   if (route.query.system) filters.value.system = String(route.query.system)
   if (route.query.result) filters.value.result = String(route.query.result)
+  if (route.query.tester) filters.value.tester = String(route.query.tester)
 })
 watch(mode, loadRows)
 
@@ -145,20 +147,14 @@ function onRunInfoSave(info) {
   runInfoTarget.value.testerInfo = info
 }
 
-function startEditNote(row) {
-  editingNoteId.value = row.id
-  noteDraft.value = row.note || ''
+function openNote(row) {
+  noteTarget.value = row
+  showNoteModal.value = true
 }
 
-function cancelEditNote() {
-  editingNoteId.value = null
-  noteDraft.value = ''
-}
-
-function saveNote(row) {
-  row.note = noteDraft.value.trim()
-  editingNoteId.value = null
-  noteDraft.value = ''
+function onNoteSave(text) {
+  if (!noteTarget.value) return
+  noteTarget.value.note = text
 }
 
 function viewErrors(row, step) {
@@ -366,7 +362,7 @@ function onExcelDownload() {
         <div class="kpi-chip kpi-chip--err"><span class="kpi-chip__lab">오류</span><span class="kpi-chip__num">{{ kpi.error }}</span></div>
         <div class="kpi-chip"><span class="kpi-chip__lab">재처리요청</span><span class="kpi-chip__num">{{ kpi.retry }}</span></div>
         <div class="kpi-chip"><span class="kpi-chip__lab">수정완료</span><span class="kpi-chip__num">{{ kpi.fixed }}</span></div>
-        <div class="kpi-chip kpi-chip--warn"><span class="kpi-chip__lab">접수</span><span class="kpi-chip__num">{{ kpi.pending }}</span></div>
+        <div class="kpi-chip kpi-chip--warn"><span class="kpi-chip__lab">미조치</span><span class="kpi-chip__num">{{ kpi.pending }}</span></div>
         <div class="kpi-chip"><span class="kpi-chip__lab">기타</span><span class="kpi-chip__num">{{ kpi.etc }}</span></div>
       </div>
     </div>
@@ -416,23 +412,10 @@ function onExcelDownload() {
 
         <div v-if="expanded.has(row.id)" class="case-body">
           <div class="note-row">
-            <template v-if="editingNoteId === row.id">
-              <input
-                v-model="noteDraft"
-                class="note-row__input"
-                type="text"
-                maxlength="200"
-                placeholder="테스트 참고사항 입력"
-              />
-              <button type="button" class="link-btn" @click="saveNote(row)">저장</button>
-              <button type="button" class="link-btn" @click="cancelEditNote">취소</button>
-            </template>
-            <template v-else>
-              <span class="note-row__text">참고사항: {{ row.note || '-' }}</span>
-              <button type="button" class="note-edit-btn" title="참고사항 편집" @click="startEditNote(row)">
-                ✎
-              </button>
-            </template>
+            <span class="note-row__text">참고사항: {{ row.note || '-' }}</span>
+            <button type="button" class="note-edit-btn" title="참고사항 편집" @click="openNote(row)">
+              ✎
+            </button>
           </div>
           <table class="step-grid">
             <thead>
@@ -442,6 +425,7 @@ function onExcelDownload() {
                 <th rowspan="2">예상결과</th>
                 <th v-for="name in row.testers" :key="name" :colspan="4" class="tester-group">
                   {{ name }}
+                  <span class="tester-group__date">계획일 {{ row.testerPlanDates?.[name] || '-' }}</span>
                 </th>
               </tr>
               <tr>
@@ -493,7 +477,7 @@ function onExcelDownload() {
                     <span
                       v-if="step.byTester[name]?.fixStatus"
                       class="fix-tag"
-                      :class="{ pending: step.byTester[name]?.fixStatus === '접수' }"
+                      :class="{ pending: ['접수', '처리예정'].includes(step.byTester[name]?.fixStatus) }"
                     >
                       {{ step.byTester[name].fixStatus }}
                     </span>
@@ -523,6 +507,7 @@ function onExcelDownload() {
       @save="onTesterChangeSave"
     />
     <TestRunInfoModal v-model="showRunInfo" :case-row="runInfoTarget" @save="onRunInfoSave" />
+    <TestNoteModal v-model="showNoteModal" :note="noteTarget?.note" @save="onNoteSave" />
   </div>
 </template>
 
@@ -771,16 +756,6 @@ function onExcelDownload() {
   color: var(--ink-2);
 }
 
-.note-row__input {
-  flex: 1;
-  max-width: 360px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 11.5px;
-}
 
 .note-edit-btn {
   border: none;
@@ -814,6 +789,14 @@ function onExcelDownload() {
 .tester-group {
   background: var(--teal-50);
   color: var(--teal-700);
+}
+
+.tester-group__date {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .center {

@@ -102,6 +102,8 @@ const baseMyTasks = [
     projectId: 'p3',
     taskType: '단위테스트',
     wbsId: 'WBS-010',
+    planStart: '2026-03-10',
+    planEnd: '2026-03-20',
   },
   {
     id: 't2',
@@ -114,6 +116,8 @@ const baseMyTasks = [
     projectId: 'p2',
     taskType: '개발',
     wbsId: 'WBS-011',
+    planStart: '2026-03-12',
+    planEnd: '2026-03-22',
   },
   {
     id: 't3',
@@ -126,6 +130,8 @@ const baseMyTasks = [
     projectId: 'p2',
     taskType: '개발',
     wbsId: 'WBS-012',
+    planStart: '2026-03-20',
+    planEnd: '2026-03-30',
   },
   {
     id: 't4',
@@ -138,6 +144,8 @@ const baseMyTasks = [
     projectId: 'p1',
     taskType: '개발',
     wbsId: 'WBS-013',
+    planStart: null,
+    planEnd: null,
   },
   {
     id: 't5',
@@ -150,6 +158,8 @@ const baseMyTasks = [
     projectId: 'p3',
     taskType: '기획',
     wbsId: 'WBS-001',
+    planStart: '2026-03-23',
+    planEnd: '2026-04-02',
   },
   {
     id: 't6',
@@ -162,6 +172,8 @@ const baseMyTasks = [
     projectId: 'p4',
     taskType: '디자인',
     wbsId: 'WBS-002',
+    planStart: '2026-03-26',
+    planEnd: '2026-04-05',
   },
   {
     id: 't7',
@@ -174,24 +186,38 @@ const baseMyTasks = [
     projectId: 'p1',
     taskType: 'DEV테스트',
     wbsId: 'WBS-020',
+    planStart: '2026-03-29',
+    planEnd: '2026-04-08',
   },
 ]
+
+/** dueLabel의 M/D 기준 -10일을 계획시작일로 산정 */
+function planStartFor(month, day) {
+  const d = new Date(2026, month - 1, day)
+  d.setDate(d.getDate() - 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 /** 페이징 확인용 — 총 45건 */
 export const myTasks = [
   ...baseMyTasks,
-  ...Array.from({ length: 38 }, (_, i) => ({
-    id: `t-extra-${i + 1}`,
-    name: `추가 업무 ${String(i + 1).padStart(2, '0')}`,
-    dueLabel: `4/${String((i % 28) + 1).padStart(2, '0')} 마감`,
-    dday: `D-${i + 1}`,
-    delayed: false,
-    progress: (i * 7) % 100,
-    project: progressProjects[i % progressProjects.length].name,
-    projectId: progressProjects[i % progressProjects.length].id,
-    taskType: ['개발', '퍼블리싱', '기획', '디자인', '단위테스트'][i % 5],
-    wbsId: `WBS-E${String(i + 1).padStart(3, '0')}`,
-  })),
+  ...Array.from({ length: 38 }, (_, i) => {
+    const day = (i % 28) + 1
+    return {
+      id: `t-extra-${i + 1}`,
+      name: `추가 업무 ${String(i + 1).padStart(2, '0')}`,
+      dueLabel: `4/${String(day).padStart(2, '0')} 마감`,
+      dday: `D-${i + 1}`,
+      delayed: false,
+      progress: (i * 7) % 100,
+      project: progressProjects[i % progressProjects.length].name,
+      projectId: progressProjects[i % progressProjects.length].id,
+      taskType: ['개발', '퍼블리싱', '기획', '디자인', '단위테스트'][i % 5],
+      wbsId: `WBS-E${String(i + 1).padStart(3, '0')}`,
+      planStart: planStartFor(4, day),
+      planEnd: `2026-04-${String(day).padStart(2, '0')}`,
+    }
+  }),
 ]
 
 export const waitingProjects = [
