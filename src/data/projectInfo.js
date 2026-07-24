@@ -1,5 +1,6 @@
 // PAG-S-INF-01 프로젝트 정보 목업
 // SB p.55~60, figma: 11_프로젝트정보.html
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export { projectStageOptions as stageOptions } from './commonOptions'
 
@@ -170,7 +171,34 @@ function cloneDetail(data) {
   return JSON.parse(JSON.stringify(data))
 }
 
-export function getProjectDetail(projectId, projectName) {
+export function getProjectDetail(projectId, projectName, userId) {
+  if (userId === EMPTY_DATA_USER_ID) {
+    return {
+      jira: '',
+      itVoc: '',
+      name: projectName || '',
+      stage: '접수',
+      workCategories: [],
+      scheduledOpenDate: '',
+      actualOpenDate: '',
+      initiator: '',
+      devType: '',
+      summary: '',
+      requestDept: '',
+      requester: '',
+      assignees: Object.fromEntries(assigneeRoles.map((role) => [role, []])),
+      testUsage: [],
+      testRoundDev: '1차',
+      testRoundStg: '1차',
+      testRoundUat: '1차',
+      testLibrary: '미등록',
+      testLibraryScenarios: [],
+      hasRegisteredTestCases: false,
+      memo: '',
+      testerChangePending: null,
+      issues: [],
+    }
+  }
   const base = cloneDetail(defaultDetail)
   const override = projectOverrides[projectId]
   if (override) {

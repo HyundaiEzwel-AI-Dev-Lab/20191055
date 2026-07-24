@@ -1,5 +1,6 @@
 // PAG-S-WBS-01/08 WBS 관리 목업
 // SB p.93~99, figma: 13_WBS관리.html
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const wbsMeta = {
   hint: '요구사항 확정 시 자동 생성된 작업단위 · 담당자/일정/공정률',
@@ -422,7 +423,8 @@ const taskTypeColors = {
   테스트: 'var(--gray)',
 }
 
-export function getWbsTasks() {
+export function getWbsTasks(userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   return JSON.parse(JSON.stringify(baseTasks))
 }
 

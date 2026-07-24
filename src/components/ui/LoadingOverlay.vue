@@ -87,7 +87,7 @@ defineProps({
 
 .loading__msg {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: calc(var(--font-size-md) + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-txt);
   text-align: center;

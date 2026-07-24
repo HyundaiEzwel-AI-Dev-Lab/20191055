@@ -1,4 +1,5 @@
 // PAG-S-UAT-01 시나리오 관리 목업
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const scenarioMeta = {
   notice:
@@ -92,7 +93,8 @@ const uatRoundMap = {
   '5차': '운영3차',
 }
 
-export function getScenarioList(mode = 'dev') {
+export function getScenarioList(mode = 'dev', userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   return baseCases.map((row) => ({
     ...row,
     round: mode === 'uat' ? (uatRoundMap[row.round] || row.round) : row.round,

@@ -5,10 +5,11 @@
  */
 import { ref, computed } from 'vue'
 import { calendarTasks, unscheduledTasks, projectColors } from '@/data/inboxCalendar'
-import { myProjects } from '@/data/headerPopups'
+import { getMyProjects } from '@/data/headerPopups'
 import { INBOX_GUIDE } from '@/data/inbox'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { EMPTY_DATA_USER_ID } from '@/data/mockUsers'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
 import WbsBulkScheduleModal from '@/components/wbs/WbsBulkScheduleModal.vue'
 
@@ -21,9 +22,12 @@ const projectStore = useProjectStore()
 const localTasks = ref(JSON.parse(JSON.stringify(calendarTasks)))
 const localUnsched = ref(JSON.parse(JSON.stringify(unscheduledTasks)))
 
-const isEmptyUser = computed(() => auth.user?.id === '2024099')
+const isEmptyUser = computed(
+  () => auth.user?.id === '2024099' || auth.user?.id === EMPTY_DATA_USER_ID,
+)
 const tasks = computed(() => (isEmptyUser.value ? [] : localTasks.value))
 const unsched = computed(() => (isEmptyUser.value ? [] : localUnsched.value))
+const myProjects = computed(() => getMyProjects(auth.user?.id))
 
 const today = new Date(2026, 2, 20)
 const cursor = ref(new Date(2026, 2, 1))
@@ -151,7 +155,7 @@ function goToday() {
 
 function resolveProject(task) {
   const raw = (task.project || '').replace(/\s*\([^)]*\)\s*$/, '').trim()
-  const found = myProjects.find(
+  const found = myProjects.value.find(
     (p) =>
       p.name === raw ||
       p.name.includes(raw) ||
@@ -378,7 +382,7 @@ function statusLabel(task) {
 
 .cal-guide {
   margin: 12px 2px 0;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   line-height: 1.55;
 }
@@ -406,7 +410,7 @@ function statusLabel(task) {
 }
 
 .cal__label {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--color-text);
   min-width: 100px;
@@ -435,7 +439,7 @@ function statusLabel(task) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--color-text-2);
   cursor: pointer;
 }
@@ -454,7 +458,7 @@ function statusLabel(task) {
 
 .cal__wd {
   text-align: center;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--color-text-muted);
   padding: 8px 0;
   font-weight: 600;
@@ -490,7 +494,7 @@ function statusLabel(task) {
 .cal__cell.today { background: var(--lnb-hover); }
 
 .cal__day {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--color-text-2);
   padding: 2px 4px;
   font-weight: 500;
@@ -512,7 +516,7 @@ function statusLabel(task) {
 }
 
 .tblock--span {
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   line-height: 1.3;
   padding: 3px 6px;
   border-radius: 4px;
@@ -542,7 +546,7 @@ function statusLabel(task) {
 
 .tblock__project {
   font-weight: 400;
-  font-size: 9.5px;
+  font-size: calc(9.5px + var(--font-size-offset, 0px));
   color: var(--color-text-muted);
 }
 
@@ -560,7 +564,7 @@ function statusLabel(task) {
 }
 
 .tblock__badge {
-  font-size: 9px;
+  font-size: calc(9px + var(--font-size-offset, 0px));
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -608,7 +612,7 @@ function statusLabel(task) {
 }
 
 .unsched__head {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
   margin-bottom: 12px;
 }
@@ -619,7 +623,7 @@ function statusLabel(task) {
 }
 
 .unsched__list { display: flex; flex-direction: column; gap: 10px; }
-.unsched__empty { font-size: 12px; color: var(--color-text-muted); padding: 8px 0; }
+.unsched__empty { font-size: calc(12px + var(--font-size-offset, 0px)); color: var(--color-text-muted); padding: 8px 0; }
 
 .ucard {
   border: 1px solid var(--color-border);
@@ -628,7 +632,7 @@ function statusLabel(task) {
 }
 
 .ucard__proj {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -637,7 +641,7 @@ function statusLabel(task) {
 }
 
 .ucard__name {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -646,7 +650,7 @@ function statusLabel(task) {
   height: 28px;
   padding: 0 10px;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 500;
   border: 1px solid var(--color-border);
   background: var(--color-surface);

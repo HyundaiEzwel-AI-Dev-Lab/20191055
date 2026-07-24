@@ -67,7 +67,7 @@ function close() {
 <style scoped>
 .sub {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -88,7 +88,7 @@ function close() {
   display: grid;
   grid-template-columns: 80px 1fr;
   gap: 8px 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   margin-bottom: 10px;
 }
 
@@ -114,7 +114,7 @@ function close() {
 
 .delay-item__plus {
   color: var(--red);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 20px;
@@ -124,7 +124,7 @@ function close() {
 .delay-item__reason {
   border-top: 1px solid var(--lnb-line);
   padding-top: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .delay-item__reason p {

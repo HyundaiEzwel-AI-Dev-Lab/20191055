@@ -499,7 +499,7 @@ function formatExecProgress(progress) {
   flex-shrink: 0;
   width: 18px;
   line-height: 1.5;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   color: var(--teal-600);
 }
 
@@ -511,7 +511,7 @@ function formatExecProgress(progress) {
 
 .tech-resource__hint-body p {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.5;
   color: var(--lnb-txt);
@@ -519,7 +519,7 @@ function formatExecProgress(progress) {
 
 .tech-resource__hint-time {
   margin-top: 4px !important;
-  font-size: 11px !important;
+  font-size: calc(11px + var(--font-size-offset, 0px)) !important;
   font-weight: 500 !important;
   color: var(--lnb-muted) !important;
 }
@@ -539,7 +539,7 @@ function formatExecProgress(progress) {
   position: relative;
   margin: 0 0 12px;
   padding-left: 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
@@ -578,7 +578,7 @@ function formatExecProgress(progress) {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -590,7 +590,7 @@ function formatExecProgress(progress) {
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--lnb-txt);
 }
@@ -603,7 +603,7 @@ function formatExecProgress(progress) {
   margin-top: 8px;
   border: none;
   background: none;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   cursor: pointer;
   font-family: inherit;
@@ -621,7 +621,7 @@ function formatExecProgress(progress) {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -663,7 +663,7 @@ function formatExecProgress(progress) {
   padding: 24px;
   text-align: center;
   color: var(--lnb-muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .chart-row {
@@ -686,7 +686,7 @@ function formatExecProgress(progress) {
 }
 
 .chart-donut-item__lab {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -711,13 +711,13 @@ function formatExecProgress(progress) {
 }
 
 .donut__v {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--teal-600);
 }
 
 .donut__l {
-  font-size: 8px;
+  font-size: calc(8px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -735,7 +735,7 @@ function formatExecProgress(progress) {
   grid-template-columns: 90px 1fr 48px;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .chart-bar-row__lab {
@@ -787,7 +787,7 @@ function formatExecProgress(progress) {
 
 .kpi__lab {
   display: block;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: currentColor;
   opacity: 0.75;
   font-weight: 600;
@@ -795,14 +795,14 @@ function formatExecProgress(progress) {
 
 .kpi__num {
   display: block;
-  font-size: 28px;
+  font-size: calc(28px + var(--font-size-offset, 0px));
   font-weight: 800;
   margin-top: 4px;
   color: currentColor;
 }
 
 .kpi__num small {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
   margin-left: 2px;
 }
@@ -829,7 +829,7 @@ function formatExecProgress(progress) {
 
 .listcard__cnt {
   margin-left: auto;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .listcard__cnt b {
@@ -841,7 +841,7 @@ function formatExecProgress(progress) {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -854,7 +854,7 @@ function formatExecProgress(progress) {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl thead th {
@@ -868,7 +868,7 @@ function formatExecProgress(progress) {
 }
 
 .tbl__subhead th {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   padding: 7px 8px;
 }
@@ -904,7 +904,7 @@ function formatExecProgress(progress) {
 
 .tbl__emp {
   display: block;
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 400;
 }
@@ -951,7 +951,7 @@ function formatExecProgress(progress) {
   transform: translateX(-50%);
   background: var(--lnb-logo);
   color: var(--color-text-inverse);
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   padding: 4px 8px;
   border-radius: 6px;
   white-space: nowrap;
@@ -982,7 +982,7 @@ function formatExecProgress(progress) {
 }
 
 .stbadge {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -999,7 +999,7 @@ function formatExecProgress(progress) {
   background: none;
   padding: 0;
   font: inherit;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--red);
   text-decoration: underline;
@@ -1022,7 +1022,7 @@ function formatExecProgress(progress) {
   border: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   color: var(--lnb-txt);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -1040,7 +1040,7 @@ function formatExecProgress(progress) {
 }
 
 .pager__info {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   margin-left: 8px;
 }

@@ -482,7 +482,7 @@ function onMonthPresetChange() {
   flex-shrink: 0;
   width: 18px;
   line-height: 1.5;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   color: var(--teal-600);
 }
 
@@ -494,7 +494,7 @@ function onMonthPresetChange() {
 
 .performance__hint-body p {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.5;
   color: var(--lnb-txt);
@@ -502,7 +502,7 @@ function onMonthPresetChange() {
 
 .performance__hint-time {
   margin-top: 4px !important;
-  font-size: 11px !important;
+  font-size: calc(11px + var(--font-size-offset, 0px)) !important;
   font-weight: 500 !important;
   color: var(--lnb-muted) !important;
 }
@@ -522,7 +522,7 @@ function onMonthPresetChange() {
   position: relative;
   margin: 0 0 12px;
   padding-left: 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
@@ -565,7 +565,7 @@ function onMonthPresetChange() {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -577,7 +577,7 @@ function onMonthPresetChange() {
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--lnb-txt);
 }
@@ -601,7 +601,7 @@ function onMonthPresetChange() {
   margin-top: 8px;
   border: none;
   background: none;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   cursor: pointer;
   font-family: inherit;
@@ -619,7 +619,7 @@ function onMonthPresetChange() {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -675,7 +675,7 @@ function onMonthPresetChange() {
 
 .kpi__lab {
   display: block;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: currentColor;
   opacity: 0.75;
   font-weight: 600;
@@ -683,14 +683,14 @@ function onMonthPresetChange() {
 
 .kpi__num {
   display: block;
-  font-size: 28px;
+  font-size: calc(28px + var(--font-size-offset, 0px));
   font-weight: 800;
   margin-top: 4px;
   color: currentColor;
 }
 
 .kpi__num small {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
   margin-left: 2px;
 }
@@ -758,13 +758,13 @@ function onMonthPresetChange() {
 }
 
 .donut__val {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--lnb-logo);
 }
 
 .donut__lab {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -775,7 +775,7 @@ function onMonthPresetChange() {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   flex: 1;
 }
 
@@ -799,7 +799,7 @@ function onMonthPresetChange() {
 
 .legend__pct {
   color: var(--lnb-muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .legend__sw {
@@ -819,7 +819,7 @@ function onMonthPresetChange() {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .hbar__lab {
@@ -870,7 +870,7 @@ function onMonthPresetChange() {
 
 .listcard__cnt {
   margin-left: auto;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .listcard__cnt b {
@@ -882,7 +882,7 @@ function onMonthPresetChange() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -895,7 +895,7 @@ function onMonthPresetChange() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl thead th {
@@ -909,7 +909,7 @@ function onMonthPresetChange() {
 }
 
 .tbl__subhead th {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   padding: 7px 8px;
 }
@@ -937,7 +937,7 @@ function onMonthPresetChange() {
 
 .tbl__emp {
   display: block;
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 400;
 }
@@ -949,7 +949,7 @@ function onMonthPresetChange() {
 }
 
 .sched-badge {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -987,7 +987,7 @@ function onMonthPresetChange() {
   border: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   color: var(--lnb-txt);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -1005,7 +1005,7 @@ function onMonthPresetChange() {
 }
 
 .pager__info {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   margin-left: 8px;
 }

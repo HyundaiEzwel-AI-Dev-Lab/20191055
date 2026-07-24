@@ -139,7 +139,7 @@ function confirm() {
 }
 
 .fld label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
@@ -149,7 +149,7 @@ function confirm() {
   padding: 0 10px;
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -170,7 +170,7 @@ function confirm() {
 .empty {
   padding: 48px 16px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -182,7 +182,7 @@ function confirm() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl th,

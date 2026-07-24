@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getNewProjectDetail } from '@/data/projectRegister'
 import { getProjectDetail } from '@/data/projectInfo'
+import { useAuthStore } from '@/stores/auth'
 
 function cloneDetail(data) {
   return JSON.parse(JSON.stringify(data))
@@ -55,7 +56,8 @@ export const useProjectStore = defineStore('project', () => {
     if (projectDetails.value[projectId]) {
       return cloneDetail(projectDetails.value[projectId])
     }
-    return getProjectDetail(projectId, projectName)
+    const authStore = useAuthStore()
+    return getProjectDetail(projectId, projectName, authStore.user?.id)
   }
 
   function requireProject(

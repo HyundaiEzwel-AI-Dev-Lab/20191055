@@ -1,4 +1,5 @@
 // 헤더 팝업 목업 — POP-M-COM-04~07 (기획서 예시 기반)
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const searchTypeLabel = {
   menu: '메뉴',
@@ -92,6 +93,11 @@ export const myProjects = [
   { id: 'p11', name: '카드사 제휴 포인트 정산 연동', stage: '처리중', stageType: 'prog', role: '개발', openDate: '2026/05/00', dday: 'D-45' },
   { id: 'p12', name: '모바일 영수증 OCR 도입', stage: '테스트', stageType: 'test', role: 'QA', openDate: '2026/04/00', dday: 'D-10' },
 ]
+
+export function getMyProjects(userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
+  return myProjects
+}
 
 export const notifications = [
   // 프로젝트 알림 — 배정 / 마감 / 지연
@@ -206,6 +212,11 @@ export const notifications = [
     read: true,
   },
 ]
+
+export function getNotifications(userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
+  return notifications
+}
 
 export const notificationTabs = [
   { id: 'project', label: '프로젝트 알림' },

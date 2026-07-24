@@ -251,7 +251,7 @@ function confirm() {
 }
 
 .fld label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
@@ -262,7 +262,7 @@ function confirm() {
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   box-sizing: border-box;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -284,7 +284,7 @@ function confirm() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl th,
@@ -324,7 +324,7 @@ function confirm() {
 
 .staged__title {
   margin: 0 0 8px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
 }
@@ -344,7 +344,7 @@ function confirm() {
   background: none;
   color: var(--red);
   cursor: pointer;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .case-link {
@@ -353,7 +353,7 @@ function confirm() {
   padding: 0;
   color: var(--teal-600);
   font-weight: 600;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   text-decoration: underline;
 }
@@ -367,7 +367,7 @@ function confirm() {
 
 .detail-panel__title {
   margin: 0 0 8px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }

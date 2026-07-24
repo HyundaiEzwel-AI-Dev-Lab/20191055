@@ -262,7 +262,7 @@ function onConfirm() {
 <style scoped>
 .guide {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   line-height: 1.55;
 }
@@ -286,7 +286,7 @@ function onConfirm() {
 .upload-panel__head h4,
 .result-panel h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -311,7 +311,7 @@ function onConfirm() {
   justify-content: center;
   padding: 16px;
   color: var(--lnb-muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   text-align: center;
 }
 
@@ -333,7 +333,7 @@ function onConfirm() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .file-chip__name {
@@ -349,7 +349,7 @@ function onConfirm() {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   line-height: 1;
   padding: 0 2px;
@@ -369,7 +369,7 @@ function onConfirm() {
   display: flex;
   gap: 14px;
   margin: 10px 0 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
@@ -389,7 +389,7 @@ function onConfirm() {
   margin: 0 0 12px;
   padding: 10px 12px;
   border-radius: var(--radius-md, 8px);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   line-height: 1.55;
   font-weight: 600;
 }
@@ -414,7 +414,7 @@ function onConfirm() {
 .fail-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   min-width: 900px;
 }
 

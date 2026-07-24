@@ -25,7 +25,7 @@
 - DESIGN_GUIDE / TEST_ACCOUNTS / CLAUDE 등은 이미 목적별 분리되어 있음
 - “기획서 대비 구현 차이”는 본 문서 하단에 모아 두는 것이 온보딩에 유리
 
-관련: `DESIGN_GUIDE.md`(토큰·시각), `TEST_ACCOUNTS.md`(계정), `README.md`(실행)
+관련: `DESIGN_GUIDE.md`(토큰·시각), `TEST_ACCOUNTS.md`(계정), `MOCK_DATA.md`(실연동 시 목업 삭제), `README.md`(실행)
 
 ---
 

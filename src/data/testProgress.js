@@ -1,7 +1,37 @@
 // PAG-S-UAT-16 진척관리 목업
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
-export function getProgressData(mode = 'dev') {
+function emptyProgressData(isUat) {
+  return {
+    updatedAt: '2026-04-17 08:00',
+    kpi: {
+      progressRate: 0,
+      progressDone: 0,
+      progressTotal: 0,
+      defectFixRate: 0,
+      defectFixed: 0,
+      defectTotal: 0,
+      pendingDefectRate: 0,
+      pendingDefects: 0,
+      pendingTotal: 0,
+    },
+    progressStatus: { total: 0, wait: 0, progress: 0, delay: 0, delayMinor: 0 },
+    systemProgressDefect: [],
+    systemDetail: [],
+    byTester: [],
+    defectConfirm: [],
+    confirmLabel: '처리완료',
+    requesterProgress: [],
+    defectByPhase: [],
+    systemCompare: isUat ? [] : null,
+    unitCompare: isUat ? null : [],
+    unitDevSystemCompare: isUat ? null : [],
+  }
+}
+
+export function getProgressData(mode = 'dev', userId) {
   const isUat = mode === 'uat'
+  if (userId === EMPTY_DATA_USER_ID) return emptyProgressData(isUat)
 
   const base = {
     updatedAt: '2026-04-17 08:00',

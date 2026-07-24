@@ -1,6 +1,7 @@
 // 프로젝트 변경이력 공용 목업
 // PAG-M-PST-03 (통합·전체) / PAG-S-INF-05 (개별·현재 프로젝트)
 // SB 49~54 Case 템플릿: 1-1 설정값 · 1-2 이슈 · 2 WBS · 3-1 우선순위/상태 · 3-2 이슈 · 3-3 상세변경
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const projectHistoryMeta = {
   hint: '변경구분별 상세 양식',
@@ -431,7 +432,8 @@ function defaultHistory(projectId) {
   return buildHistoryCases(`ph-${projectId}`)
 }
 
-export function getProjectHistory(projectId, projectName = '') {
+export function getProjectHistory(projectId, projectName = '', userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   const raw = historyByProject[projectId] || defaultHistory(projectId)
   return enrichRows(projectId, JSON.parse(JSON.stringify(raw)), projectName).filter(
     isVisibleHistoryRow,

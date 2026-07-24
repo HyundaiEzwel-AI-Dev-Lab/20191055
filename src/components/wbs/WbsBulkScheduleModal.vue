@@ -378,7 +378,7 @@ function submit() {
   border-radius: var(--radius-md);
   background: var(--lnb-side);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   color: var(--lnb-txt);
 }
@@ -392,7 +392,7 @@ function submit() {
 
 .guide {
   margin: 0 0 14px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   line-height: 1.55;
   color: var(--lnb-muted);
 }
@@ -403,7 +403,7 @@ function submit() {
 
 .section__title {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -421,7 +421,7 @@ function submit() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .tbl th,
@@ -444,7 +444,7 @@ function submit() {
 
 .tbl__sub th {
   top: 28px;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 500;
 }
 
@@ -461,7 +461,7 @@ function submit() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--lnb-side);
   color: var(--lnb-txt);
   box-sizing: border-box;
@@ -476,7 +476,7 @@ function submit() {
   width: 128px;
   height: 28px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .locked {
@@ -487,7 +487,7 @@ function submit() {
 }
 
 .restart {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
@@ -499,7 +499,7 @@ function submit() {
 
 .hint-row {
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -511,7 +511,7 @@ function submit() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   resize: vertical;
   background: var(--lnb-side);
 }
@@ -520,7 +520,7 @@ function submit() {
   display: block;
   margin-top: 4px;
   text-align: right;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 

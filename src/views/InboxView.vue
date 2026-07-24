@@ -461,7 +461,7 @@ function nextWaiting() {
   border: 1px solid var(--lnb-line);
   border-radius: 14px;
   padding: 12px 16px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
   margin-bottom: 12px;
   box-shadow: var(--shadow-sm);
@@ -511,11 +511,11 @@ function nextWaiting() {
   white-space: nowrap;
 }
 .stat-chip__body b {
-  font-size: 17px;
+  font-size: calc(17px + var(--font-size-offset, 0px));
   font-weight: 800;
 }
 .stat-chip__body span {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   opacity: 0.8;
   font-weight: 600;
 }
@@ -535,7 +535,7 @@ function nextWaiting() {
 }
 .viewtoggle span {
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   cursor: pointer;
 }
@@ -555,7 +555,7 @@ function nextWaiting() {
   margin-bottom: 10px;
 }
 .block__head h3 {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0;
 }
@@ -587,7 +587,7 @@ function nextWaiting() {
   border-radius: 6px;
   background: var(--lnb-side);
   color: var(--lnb-txt);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   cursor: pointer;
 }
 .roll__btn:disabled {
@@ -631,11 +631,11 @@ function nextWaiting() {
   margin-bottom: 8px;
 }
 .pcard__dday {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 .pcard__name {
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--font-size-offset, 0px));
   font-weight: 700;
   line-height: 1.4;
   margin-bottom: 12px;
@@ -665,7 +665,7 @@ function nextWaiting() {
   border-radius: 8px;
 }
 .pct {
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--lnb-logo);
   width: 38px;
@@ -698,12 +698,12 @@ function nextWaiting() {
   flex-shrink: 0;
 }
 .mini-stat__num {
-  font-size: 15px;
+  font-size: calc(15px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--lnb-logo);
 }
 .mini-stat__lab {
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -728,7 +728,7 @@ function nextWaiting() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9.5px;
+  font-size: calc(9.5px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--color-text-inverse);
   margin-left: -6px;
@@ -742,7 +742,7 @@ function nextWaiting() {
 
 /* 상태 뱃지 */
 .stbadge {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -783,7 +783,7 @@ function nextWaiting() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
 }
 .tbl thead th {
   background: var(--lnb-hover);
@@ -845,12 +845,12 @@ function nextWaiting() {
   border-color: var(--lnb-logo);
 }
 .wcard__meta {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   margin-bottom: 8px;
 }
 .wcard__name {
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin-bottom: 10px;
 }
@@ -861,12 +861,12 @@ function nextWaiting() {
   border-radius: 10px;
   padding: 22px;
   color: var(--lnb-muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
 }
 
 .guide {
   margin: 10px 2px 0;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   line-height: 1.55;
 }
@@ -877,7 +877,7 @@ function nextWaiting() {
 .more-btn {
   border: none;
   background: transparent;
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   line-height: 1;
   cursor: pointer;
   color: var(--lnb-muted);
@@ -906,7 +906,7 @@ function nextWaiting() {
   background: transparent;
   text-align: left;
   padding: 8px 12px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--lnb-txt);
   cursor: pointer;

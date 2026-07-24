@@ -177,7 +177,7 @@ function selectNoScreen() {
 }
 
 .fld label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
@@ -187,7 +187,7 @@ function selectNoScreen() {
   padding: 0 10px;
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
 }
@@ -207,7 +207,7 @@ function selectNoScreen() {
 .empty {
   padding: 48px 16px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -219,7 +219,7 @@ function selectNoScreen() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl th,

@@ -1,4 +1,5 @@
 // PAG-S-DAS-01 프로젝트 대시보드 목업 — SB p.160~161
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const projectDashboardMeta = {
   refreshInterval: '1시간',
@@ -13,8 +14,26 @@ export const projectDashboardMeta = {
   ],
 }
 
-export function getProjectDashboard(projectId, projectName) {
+export function getProjectDashboard(projectId, projectName, userId) {
   void projectId
+  if (userId === EMPTY_DATA_USER_ID) {
+    return {
+      updatedAt: '2026-04-17 08:00:00',
+      projectName: projectName || '',
+      totalProgress: {
+        execRate: 0,
+        planRate: 0,
+        diff: 0,
+        diffLabel: '계획 대비 0%',
+        planPeriod: { start: '', end: '' },
+        execPeriod: { start: '', end: '' },
+      },
+      scheduleCards: [],
+      delaySummary: { expectedDelay: 0, normal: 0, expectedShorten: 0 },
+      typeSummary: [],
+      details: [],
+    }
+  }
   return {
     updatedAt: '2026-04-17 08:00:00',
     projectName: projectName || '프로모션 운영 프로세스 및 기능 개선',

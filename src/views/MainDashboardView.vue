@@ -494,7 +494,7 @@ function onOverdueClick(row) {
 
 .dashboard__hint {
   margin: 0 0 14px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--lnb-muted);
   background: var(--lnb-side);
@@ -519,7 +519,7 @@ function onOverdueClick(row) {
   position: relative;
   margin: 0 0 12px;
   padding-left: 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
@@ -558,7 +558,7 @@ function onOverdueClick(row) {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -570,7 +570,7 @@ function onOverdueClick(row) {
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--lnb-txt);
 }
@@ -594,7 +594,7 @@ function onOverdueClick(row) {
   margin-top: 8px;
   border: none;
   background: none;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   cursor: pointer;
   font-family: inherit;
@@ -612,7 +612,7 @@ function onOverdueClick(row) {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -683,7 +683,7 @@ function onOverdueClick(row) {
 
 .kpi__lab {
   display: block;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: currentColor;
   opacity: 0.75;
   font-weight: 600;
@@ -691,7 +691,7 @@ function onOverdueClick(row) {
 
 .kpi__num {
   display: block;
-  font-size: 28px;
+  font-size: calc(28px + var(--font-size-offset, 0px));
   font-weight: 800;
   margin-top: 4px;
   color: currentColor;
@@ -751,7 +751,7 @@ function onOverdueClick(row) {
 }
 
 .gauge__hole b {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--lnb-logo);
 }
@@ -805,13 +805,13 @@ function onOverdueClick(row) {
 }
 
 .donut__val {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--lnb-logo);
 }
 
 .donut__lab {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -822,7 +822,7 @@ function onOverdueClick(row) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   flex: 1;
 }
 
@@ -846,7 +846,7 @@ function onOverdueClick(row) {
 
 .legend__pct {
   color: var(--lnb-muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .legend__sw {
@@ -867,7 +867,7 @@ function onOverdueClick(row) {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .hbar__lab {
@@ -919,7 +919,7 @@ function onOverdueClick(row) {
 
 .listcard__cnt {
   margin-left: auto;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
@@ -932,7 +932,7 @@ function onOverdueClick(row) {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -945,7 +945,7 @@ function onOverdueClick(row) {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
 }
 
 .tbl thead th {
@@ -1031,7 +1031,7 @@ function onOverdueClick(row) {
 }
 
 .stbadge {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -1061,7 +1061,7 @@ function onOverdueClick(row) {
   border: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   color: var(--lnb-txt);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }

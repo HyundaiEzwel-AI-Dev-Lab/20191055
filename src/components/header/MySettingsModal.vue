@@ -5,6 +5,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import {
   useThemeStore,
   conceptOptions,
+  fontSizeOptions,
   avatarColorOptions,
   avatarTextColor,
 } from '@/stores/theme'
@@ -20,7 +21,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
-const { concept, avatarColor } = storeToRefs(themeStore)
+const { concept, fontSize, avatarColor } = storeToRefs(themeStore)
 const { user } = storeToRefs(authStore)
 
 const initials = computed(() =>
@@ -64,6 +65,28 @@ function close() {
             @click="themeStore.setAvatarColor(color)"
           />
         </div>
+      </section>
+
+      <section class="settings__sec">
+        <div class="settings__head">
+          <h3 class="settings__title">폰트 사이즈</h3>
+          <p class="settings__hint">화면 전체 글자 크기를 조정합니다</p>
+        </div>
+        <div class="concept-seg">
+          <button
+            v-for="f in fontSizeOptions"
+            :key="f.value"
+            type="button"
+            class="concept-seg__item"
+            :class="{ on: fontSize === f.value }"
+            @click="themeStore.setFontSize(f.value)"
+          >
+            {{ f.label }}
+          </button>
+        </div>
+        <p class="settings__desc">
+          {{ fontSizeOptions.find((f) => f.value === fontSize)?.desc }}
+        </p>
       </section>
 
       <section class="settings__sec">
@@ -116,14 +139,14 @@ function close() {
 
 .settings__title {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
 
 .settings__hint {
   margin: 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -143,13 +166,13 @@ function close() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .settings__preview-lab {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
@@ -189,7 +212,7 @@ function close() {
 
 .settings__desc {
   margin: 0;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   line-height: 1.45;
 }

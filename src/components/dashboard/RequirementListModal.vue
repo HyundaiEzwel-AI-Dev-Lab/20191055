@@ -116,14 +116,14 @@ function goRequirement() {
 
 .toolbar__name {
   margin: 0 0 4px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
 
 .toolbar__sub {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -136,7 +136,7 @@ function goRequirement() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl thead th {

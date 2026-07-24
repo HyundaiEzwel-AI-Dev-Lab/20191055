@@ -6,9 +6,11 @@ import { useTestContext } from '@/composables/useTestContext'
 import { getProgressData, donutStyle, gaugeStyle } from '@/data/testProgress'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
+import { useAuthStore } from '@/stores/auth'
 
 const { mode, pageTitle } = useTestContext()
 const router = useRouter()
+const authStore = useAuthStore()
 
 const SYSTEM_DONUT_LIMIT = 4
 const SYSTEM_DETAIL_LIMIT = 5
@@ -23,7 +25,7 @@ const showAllSystems = ref(false)
 const showAllSystemDetail = ref(false)
 
 function loadData() {
-  data.value = getProgressData(mode.value)
+  data.value = getProgressData(mode.value, authStore.user?.id)
   search()
 }
 
@@ -658,7 +660,7 @@ function onExcelDownload() {
 .progress {
   padding: 14px 18px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .progress__head {
@@ -670,13 +672,13 @@ function onExcelDownload() {
 }
 
 .progress__title {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0;
 }
 
 .progress__hint {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
   margin: 0 0 14px;
 }
@@ -701,7 +703,7 @@ function onExcelDownload() {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--muted);
 }
@@ -712,7 +714,7 @@ function onExcelDownload() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .filter__actions {
@@ -746,22 +748,22 @@ function onExcelDownload() {
 }
 
 .kpi-card__ico {
-  font-size: 24px;
+  font-size: calc(24px + var(--font-size-offset, 0px));
 }
 
 .kpi-card__label {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .kpi-card__value {
-  font-size: 24px;
+  font-size: calc(24px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--teal-600);
 }
 
 .kpi-card__value small {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
 }
 
 .kpi-card__value--green {
@@ -773,7 +775,7 @@ function onExcelDownload() {
 }
 
 .kpi-card__sub {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   margin-top: 5px;
 }
@@ -818,7 +820,7 @@ function onExcelDownload() {
 
 .panel h3 {
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -838,7 +840,7 @@ function onExcelDownload() {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -871,20 +873,20 @@ function onExcelDownload() {
 
 .status-block__lab {
   display: block;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
 
 .status-block__num {
   display: block;
-  font-size: 20px;
+  font-size: calc(20px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
 .status-block__pct {
   display: block;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -947,14 +949,14 @@ function onExcelDownload() {
 
 .overlay-box__head h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: calc(15px + var(--font-size-offset, 0px));
 }
 
 .overlay-box__close {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1010,13 +1012,13 @@ function onExcelDownload() {
 }
 
 .donut__v {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--teal-700);
 }
 
 .donut__l {
-  font-size: 9px;
+  font-size: calc(9px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1024,17 +1026,17 @@ function onExcelDownload() {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .donut-meta b {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .inner-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .inner-table th,
@@ -1104,7 +1106,7 @@ function onExcelDownload() {
 }
 
 .gauge__hole b {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .compare-row {
@@ -1121,7 +1123,7 @@ function onExcelDownload() {
 }
 
 .compare-sub {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1136,7 +1138,7 @@ function onExcelDownload() {
   grid-template-columns: 72px 1fr 100px;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .phase-bar__lab {
@@ -1144,7 +1146,7 @@ function onExcelDownload() {
 }
 
 .phase-bar__num {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   text-align: right;
 }

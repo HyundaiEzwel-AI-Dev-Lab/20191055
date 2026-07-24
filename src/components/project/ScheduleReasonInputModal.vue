@@ -79,7 +79,7 @@ function save() {
 <style scoped>
 .notice {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--lnb-txt);
 }
@@ -96,7 +96,7 @@ function save() {
   grid-template-columns: 100px 1fr;
   gap: 8px 12px;
   padding: 11px 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   border-bottom: 1px solid var(--lnb-line);
 }
 
@@ -129,7 +129,7 @@ function save() {
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
 }
@@ -143,7 +143,7 @@ function save() {
   display: block;
   margin-top: 6px;
   text-align: right;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 </style>

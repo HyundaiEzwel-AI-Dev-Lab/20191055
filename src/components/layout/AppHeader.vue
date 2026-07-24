@@ -9,7 +9,7 @@ import MyInfoModal from '@/components/header/MyInfoModal.vue'
 import PasswordResetModal from '@/components/auth/PasswordResetModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { notifications } from '@/data/headerPopups'
+import { getNotifications } from '@/data/headerPopups'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -23,7 +23,9 @@ const showProjects = ref(false)
 const showInfo = ref(false)
 const showPasswordReset = ref(false)
 const passwordPrefill = ref(null)
-const unreadCount = ref(notifications.filter((n) => !n.read).length)
+const unreadCount = ref(
+  getNotifications(authStore.user?.id).filter((n) => !n.read).length,
+)
 
 function scrollTabs(dir) {
   tabBarRef.value?.scrollBy(dir)

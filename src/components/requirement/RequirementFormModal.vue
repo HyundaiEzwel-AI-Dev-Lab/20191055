@@ -773,7 +773,7 @@ function diffFields(entry) {
 
 .section__title {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -809,7 +809,7 @@ label.fld--req::after {
 }
 
 .fld label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -820,7 +820,7 @@ label.fld--req::after {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 7px);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--lnb-side);
 }
 
@@ -844,13 +844,13 @@ label.fld--req::after {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
 }
 
 .count {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   text-align: right;
 }
@@ -864,7 +864,7 @@ label.fld--req::after {
 
 .seg__btn {
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   border: none;
   border-right: 1px solid var(--lnb-line);
   background: var(--lnb-side);
@@ -900,7 +900,7 @@ label.fld--req::after {
   border: 1px solid var(--lnb-line);
   border-radius: 20px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -930,7 +930,7 @@ label.fld--req::after {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
@@ -942,7 +942,7 @@ label.fld--req::after {
   border: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   color: var(--teal-600);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -962,7 +962,7 @@ label.fld--req::after {
   background: var(--lnb-side);
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: var(--lnb-txt);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.55;
   white-space: pre-line;
@@ -972,7 +972,7 @@ label.fld--req::after {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   cursor: pointer;
 }
 
@@ -986,13 +986,13 @@ label.fld--req::after {
 }
 
 .confirm-time {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
 .meta-line {
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -1011,7 +1011,7 @@ label.fld--req::after {
   background: var(--lnb-side);
   text-align: left;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   color: var(--lnb-txt);
 }
@@ -1062,7 +1062,7 @@ label.fld--req::after {
   border: 1px solid var(--teal-100, var(--lnb-line));
   background: var(--teal-50, var(--lnb-side));
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--teal-600, var(--lnb-txt));
 }
 
@@ -1072,7 +1072,7 @@ label.fld--req::after {
   color: inherit;
   opacity: 0.6;
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   padding: 0 2px;
 }
 
@@ -1089,7 +1089,7 @@ label.fld--req::after {
   border: 1px solid var(--lnb-line);
   border-radius: 20px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
 }
 
@@ -1102,7 +1102,7 @@ label.fld--req::after {
 
 .history-summary {
   margin-bottom: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
@@ -1113,7 +1113,7 @@ label.fld--req::after {
 .history-empty {
   padding: 20px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -1138,7 +1138,7 @@ label.fld--req::after {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .history-item__round {
@@ -1153,7 +1153,7 @@ label.fld--req::after {
 }
 
 .history-item__meta {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -1161,7 +1161,7 @@ label.fld--req::after {
   width: 100%;
   margin-top: 10px;
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .history-diff th,

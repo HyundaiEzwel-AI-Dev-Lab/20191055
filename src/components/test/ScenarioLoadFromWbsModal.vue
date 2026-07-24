@@ -64,7 +64,7 @@ function confirm() {
 <style scoped>
 .notice {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   line-height: 1.55;
   color: var(--lnb-muted);
 }
@@ -72,7 +72,7 @@ function confirm() {
 .empty {
   padding: 32px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -90,7 +90,7 @@ function confirm() {
   align-items: center;
   gap: 10px;
   padding: 11px 14px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   cursor: pointer;
   border-bottom: 1px solid var(--lnb-line);
 }

@@ -362,7 +362,7 @@ function save() {
   grid-template-columns: 1fr 1fr;
   gap: 10px 16px;
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .detail-item {
@@ -372,7 +372,7 @@ function save() {
 }
 
 .detail-label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -383,7 +383,7 @@ function save() {
 
 .section h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .req {
@@ -410,7 +410,7 @@ function save() {
 
 .segments--sm .seg {
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
 }
 
 .seg {
@@ -418,7 +418,7 @@ function save() {
   background: var(--lnb-side);
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-family: inherit;
   cursor: pointer;
   color: var(--ink-2);
@@ -438,7 +438,7 @@ function save() {
 .defect-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .step-table th,
@@ -466,7 +466,7 @@ function save() {
   border: 1px solid var(--line);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   line-height: 1.4;
   resize: vertical;
   box-sizing: border-box;
@@ -488,7 +488,7 @@ function save() {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .attach-list li {
@@ -505,18 +505,18 @@ function save() {
 
 .attach-meta {
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .empty-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .file-hint {
   margin: 0 0 8px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -546,7 +546,7 @@ function save() {
   height: 28px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-family: inherit;
 }
 
@@ -561,7 +561,7 @@ function save() {
 }
 
 .form-block label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -572,7 +572,7 @@ function save() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .textarea {
@@ -586,7 +586,7 @@ function save() {
   background: none;
   color: var(--teal-600);
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   margin-left: auto;
 }
 </style>

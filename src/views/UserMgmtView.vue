@@ -479,7 +479,7 @@ function saveRegister() {
 
 .modal-hint {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 

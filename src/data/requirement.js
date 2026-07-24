@@ -1,5 +1,6 @@
 // PAG-S-REQ-01 요구사항 관리 목업
 // SB p.68~71, figma: 12_요구사항관리.html
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const requirementMeta = {
   hint: '요구사항 ID = 1 시스템 + 1 업무유형',
@@ -502,7 +503,8 @@ function cloneList(list) {
   return JSON.parse(JSON.stringify(list))
 }
 
-export function getRequirementList() {
+export function getRequirementList(userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   return cloneList(baseRequirements)
 }
 

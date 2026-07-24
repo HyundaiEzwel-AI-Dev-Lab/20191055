@@ -205,18 +205,18 @@ function login() {
   gap: 26px;
 }
 .left h1 {
-  font-size: 30px;
+  font-size: calc(30px + var(--font-size-offset, 0px));
   font-weight: 800;
   line-height: 1.35;
   margin: 0;
 }
 .left .sub {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   opacity: 0.9;
   margin-bottom: 10px;
 }
 .left .desc {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   opacity: 0.85;
   line-height: 1.7;
   margin: 14px 0 0;
@@ -233,14 +233,14 @@ function login() {
   min-width: 84px;
 }
 .left .lk .l {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   opacity: 0.85;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 .left .lk .v {
-  font-size: 24px;
+  font-size: calc(24px + var(--font-size-offset, 0px));
   font-weight: 800;
   margin-top: 2px;
 }
@@ -258,7 +258,7 @@ function login() {
   color: var(--ink-2);
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   line-height: 1.5;
   white-space: nowrap;
   box-shadow: 0 6px 24px rgba(20, 40, 50, 0.18);
@@ -279,12 +279,12 @@ function login() {
   gap: 14px;
 }
 .form h2 {
-  font-size: 20px;
+  font-size: calc(20px + var(--font-size-offset, 0px));
   margin: 0 0 4px;
   text-align: center;
 }
 .form .lab {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
   margin-bottom: 6px;
@@ -304,7 +304,7 @@ function login() {
   border: none;
   background: none;
   outline: none;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--ink);
 }
@@ -321,7 +321,7 @@ function login() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 .form .rowx .save {
@@ -344,7 +344,7 @@ function login() {
   border: none;
   border-radius: 9px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -353,18 +353,18 @@ function login() {
 }
 .form .err {
   color: var(--red);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   text-align: center;
   margin: 0;
   min-height: 16px;
 }
 .form .foot {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   text-align: center;
 }
 .form .notice {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   text-align: center;
   border: 1px solid var(--line);

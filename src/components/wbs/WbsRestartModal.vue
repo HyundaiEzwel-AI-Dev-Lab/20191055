@@ -75,13 +75,13 @@ function confirm() {
 
 .info-grid__label {
   flex: 0 0 88px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
 
 .info-grid__val {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
@@ -92,7 +92,7 @@ function confirm() {
 
 .guide {
   margin: 12px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   line-height: 1.55;
   color: var(--lnb-muted);
 }

@@ -27,9 +27,11 @@ import BaseTooltip from '@/components/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 import { addScheduleChangeRequest } from '@/data/approval'
 import { useProjectStore } from '@/stores/project'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const projectStore = useProjectStore()
+const authStore = useAuthStore()
 
 const tasks = ref([])
 const viewMode = ref('list')
@@ -85,7 +87,7 @@ const filteredTasks = computed(() =>
 const selectedRows = computed(() => tasks.value.filter((t) => selectedIds.value.has(t.id)))
 
 onMounted(() => {
-  tasks.value = getWbsTasks()
+  tasks.value = getWbsTasks(authStore.user?.id)
   const action = route.query.action
   const taskName = String(route.query.task || '')
   if ((action === 'schedule' || action === 'register') && taskName) {
@@ -664,7 +666,7 @@ function onCalendarSelect(task) {
 <style scoped>
 .wbs {
   padding: 14px 18px 28px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   color: var(--ink);
 }
 
@@ -678,7 +680,7 @@ function onCalendarSelect(task) {
 }
 
 .wbs__title {
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0;
   display: flex;
@@ -699,7 +701,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
   color: var(--ink-2);
@@ -714,14 +716,14 @@ function onCalendarSelect(task) {
 
 .wbs__progress {
   margin-left: 4px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   white-space: nowrap;
 }
 
 .wbs__progress b {
   color: var(--teal-600);
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -750,7 +752,7 @@ function onCalendarSelect(task) {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -762,7 +764,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
 }
 
@@ -786,7 +788,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
   color: var(--muted);
@@ -800,7 +802,7 @@ function onCalendarSelect(task) {
 }
 
 .toolbar__count {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 
@@ -819,7 +821,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
   text-align: left;
   cursor: pointer;
@@ -847,7 +849,7 @@ function onCalendarSelect(task) {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   color: var(--ink-2);
 }
@@ -860,7 +862,7 @@ function onCalendarSelect(task) {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   cursor: pointer;
 }
@@ -883,7 +885,7 @@ function onCalendarSelect(task) {
 .wbs-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   min-width: 1400px;
 }
 
@@ -930,7 +932,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
   color: var(--ink);
 }
@@ -943,7 +945,7 @@ function onCalendarSelect(task) {
   border: 1px solid var(--line);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
   color: var(--ink);
   resize: vertical;
@@ -958,14 +960,14 @@ function onCalendarSelect(task) {
   padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   min-width: 72px;
 }
 
 .assignee-text {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .schedule-link {
@@ -975,7 +977,7 @@ function onCalendarSelect(task) {
   text-decoration: underline;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   padding: 0;
 }
 
@@ -1010,7 +1012,7 @@ function onCalendarSelect(task) {
 .st {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 20px;
@@ -1053,7 +1055,7 @@ function onCalendarSelect(task) {
   margin-left: 6px;
   height: 22px;
   padding: 0 8px;
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
 }
 
 .st__reason {
@@ -1075,7 +1077,7 @@ function onCalendarSelect(task) {
 
 .muted {
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   white-space: nowrap;
 }
 
@@ -1098,7 +1100,7 @@ function onCalendarSelect(task) {
 
 .calendar__title {
   font-weight: 700;
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   min-width: 120px;
   text-align: center;
 }
@@ -1112,7 +1114,7 @@ function onCalendarSelect(task) {
   background: var(--lnb-side);
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .cal-today-btn {
@@ -1126,7 +1128,7 @@ function onCalendarSelect(task) {
   gap: 4px;
   margin-bottom: 4px;
   text-align: center;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -1151,7 +1153,7 @@ function onCalendarSelect(task) {
 }
 
 .calendar__day {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -1164,7 +1166,7 @@ function onCalendarSelect(task) {
 }
 
 .cal-block {
-  font-size: 9px;
+  font-size: calc(9px + var(--font-size-offset, 0px));
   color: var(--color-text-inverse);
   padding: 2px 4px;
   border-radius: 3px;
@@ -1175,7 +1177,7 @@ function onCalendarSelect(task) {
 
 .calendar__hint {
   margin: 12px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1183,7 +1185,7 @@ function onCalendarSelect(task) {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -1196,7 +1198,7 @@ function onCalendarSelect(task) {
 .btn--sm {
   height: 28px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .btn--primary {
@@ -1241,7 +1243,7 @@ function onCalendarSelect(task) {
 
 .alert-box p {
   margin: 0 0 18px;
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--font-size-offset, 0px));
   line-height: 1.6;
 }
 

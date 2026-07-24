@@ -208,7 +208,7 @@ function close() {
 <style scoped>
 .guide {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   line-height: 1.5;
 }
@@ -221,7 +221,7 @@ function close() {
 }
 
 .actions-row__label {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 
@@ -234,7 +234,7 @@ function close() {
   border-radius: 7px;
   background: var(--teal-50);
   color: var(--teal-600);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   cursor: pointer;
 }
@@ -245,7 +245,7 @@ function close() {
   border: 1px dashed var(--line);
   border-radius: 8px;
   text-align: center;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--muted);
   background: var(--field);
 }
@@ -257,14 +257,14 @@ function close() {
 }
 
 .file-name {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
   margin: 0 0 12px;
 }
 
 .preview h4 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .fail-title {
@@ -276,7 +276,7 @@ function close() {
   flex-wrap: wrap;
   gap: 14px;
   margin-bottom: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 
@@ -299,7 +299,7 @@ td.fail {
 .preview-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .preview-table th,

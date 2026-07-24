@@ -511,7 +511,7 @@ function onPageSizeChange() {
 
 .project-status__hint {
   margin: 0 0 14px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--lnb-muted);
   background: var(--lnb-side);
@@ -554,7 +554,7 @@ function onPageSizeChange() {
   align-items: center;
   gap: 6px;
   color: var(--lnb-muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .filter__range .filter__input {
@@ -577,7 +577,7 @@ function onPageSizeChange() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--lnb-txt);
   cursor: pointer;
@@ -590,7 +590,7 @@ function onPageSizeChange() {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
@@ -602,7 +602,7 @@ function onPageSizeChange() {
   border: 1px solid var(--lnb-line);
   border-radius: 7px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--lnb-txt);
 }
@@ -615,7 +615,7 @@ function onPageSizeChange() {
   margin-top: 8px;
   border: none;
   background: none;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   cursor: pointer;
   font-family: inherit;
@@ -633,7 +633,7 @@ function onPageSizeChange() {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -686,7 +686,7 @@ function onPageSizeChange() {
 }
 
 .kpi__lab {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   display: flex;
   align-items: center;
@@ -702,20 +702,20 @@ function onPageSizeChange() {
   border-radius: 50%;
   background: var(--orange-bg);
   color: var(--orange);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
 }
 
 .kpi__num {
   display: block;
-  font-size: 22px;
+  font-size: calc(22px + var(--font-size-offset, 0px));
   font-weight: 800;
   margin-top: 2px;
   color: var(--lnb-logo);
 }
 
 .kpi__num small {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
   margin-left: 2px;
 }
@@ -732,7 +732,7 @@ function onPageSizeChange() {
   top: calc(100% + 6px);
   background: var(--lnb-logo);
   color: var(--color-text-inverse);
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   padding: 8px 10px;
   border-radius: 8px;
   line-height: 1.5;
@@ -753,7 +753,7 @@ function onPageSizeChange() {
 }
 
 .listcard__cnt {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .listcard__cnt b {
@@ -772,7 +772,7 @@ function onPageSizeChange() {
   border: 1px solid var(--lnb-line);
   border-radius: 6px;
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -785,7 +785,7 @@ function onPageSizeChange() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
 }
 
 .tbl thead th {
@@ -872,7 +872,7 @@ function onPageSizeChange() {
 }
 
 .stbadge {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -901,7 +901,7 @@ function onPageSizeChange() {
   border: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   color: var(--lnb-txt);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }

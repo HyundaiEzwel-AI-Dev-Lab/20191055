@@ -217,7 +217,7 @@ function saveAll() {
 
 .admin-side__group-lab {
   padding: 8px 14px 4px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-muted);
 }

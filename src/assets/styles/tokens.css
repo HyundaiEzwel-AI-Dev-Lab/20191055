@@ -84,6 +84,8 @@
   --font-size-lg: 14px;
   --font-size-xl: 16px;
   --font-size-2xl: 20px;
+  /* 폰트 크기 설정 (내 정보 > 설정 > 폰트 사이즈) 오프셋 */
+  --font-size-offset: 0px;
 
   /* Layout */
   --header-height: 52px;
@@ -104,6 +106,19 @@
   /* Transition */
   --transition-fast: 120ms ease;
   --transition-normal: 200ms ease;
+}
+
+/* ===== 폰트 사이즈: 작게/중간/크게 (내 정보 > 설정 > 폰트 사이즈에서 선택) =====
+   전체 화면의 font-size 선언은 calc(원래값 + var(--font-size-offset, 0px))
+   형태로 변환되어 있어, 이 오프셋 하나로 전 화면 글자 크기가 함께 조정된다. */
+:root[data-font-size="small"] {
+  --font-size-offset: 0px;
+}
+:root[data-font-size="medium"] {
+  --font-size-offset: 1px;
+}
+:root[data-font-size="large"] {
+  --font-size-offset: 2px;
 }
 
 /* ===== 화면 컨셉: 프리미엄 (내 정보 > 컨셉 변경에서 선택) =====

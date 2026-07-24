@@ -529,7 +529,7 @@ function openMultiChange() {
 <style scoped>
 .last-modified {
   margin: 0 0 10px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   text-align: right;
 }
@@ -552,13 +552,13 @@ function openMultiChange() {
 }
 
 .info-grid__lab {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   font-weight: 600;
 }
 
 .info-grid__val {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-txt);
   overflow: hidden;
@@ -591,7 +591,7 @@ function openMultiChange() {
   border: none;
   background: none;
   color: var(--lnb-muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   transition: transform var(--transition-fast);
 }
@@ -602,7 +602,7 @@ function openMultiChange() {
 
 .panel__title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -627,7 +627,7 @@ function openMultiChange() {
   align-items: center;
   gap: 4px;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-txt);
 }
@@ -651,7 +651,7 @@ function openMultiChange() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--lnb-side);
   color: var(--lnb-txt);
 }
@@ -672,7 +672,7 @@ function openMultiChange() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   resize: vertical;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -680,19 +680,19 @@ function openMultiChange() {
 
 .guide {
   margin: 0 0 12px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   line-height: 1.55;
   color: var(--lnb-muted);
 }
 
 .exec-date {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
 }
 
 .badge {
   margin-left: 6px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--blue);
   background: var(--blue-bg);
@@ -720,7 +720,7 @@ function openMultiChange() {
   border-right: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
   cursor: pointer;
 }
@@ -739,7 +739,7 @@ function openMultiChange() {
   display: block;
   margin-top: 4px;
   text-align: right;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -750,7 +750,7 @@ function openMultiChange() {
   border: 1px solid var(--orange);
   background: var(--orange-bg);
   color: var(--orange);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   cursor: help;
   line-height: 1;
@@ -768,7 +768,7 @@ function openMultiChange() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   line-height: 1.5;
   color: var(--lnb-txt);
   font-weight: 500;
@@ -787,7 +787,7 @@ function openMultiChange() {
   border-radius: var(--radius-md);
   background: var(--lnb-side);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   color: var(--lnb-txt);
 }
@@ -800,7 +800,7 @@ function openMultiChange() {
 }
 
 .readonly {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-txt);
   padding: 6px 0;
@@ -830,13 +830,13 @@ function openMultiChange() {
 
 .alert-box h4 {
   margin: 0 0 10px;
-  font-size: 15px;
+  font-size: calc(15px + var(--font-size-offset, 0px));
 }
 
 .alert-box p,
 .alert-box__msg {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.55;
 }
 

@@ -1084,11 +1084,11 @@ function openIssueForm() {
 .project-info {
   padding: 8px 24px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .project-info__title {
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 2px 2px 12px;
   display: flex;
@@ -1100,14 +1100,14 @@ function openIssueForm() {
 .register-notice {
   margin: 0 0 12px;
   padding: 10px 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   background: var(--teal-50);
   border: 1px solid var(--teal-100);
 }
 
 .project-info__hint {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--muted);
   background: var(--lnb-side);
@@ -1149,7 +1149,7 @@ function openIssueForm() {
 }
 
 .sec-h {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1164,7 +1164,7 @@ function openIssueForm() {
   border-radius: 5px;
   background: var(--teal);
   color: var(--color-text-inverse);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1172,7 +1172,7 @@ function openIssueForm() {
 }
 
 .sec-h__sub {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--muted);
 }
@@ -1234,7 +1234,7 @@ function openIssueForm() {
 .stage-block > label,
 .category-block > label,
 .assignee-label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -1248,7 +1248,7 @@ function openIssueForm() {
   display: flex;
   align-items: center;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
 }
 
@@ -1299,7 +1299,7 @@ select.inp--edit {
 }
 
 .test-round__label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
   white-space: nowrap;
@@ -1329,7 +1329,7 @@ select.inp--edit {
   border-radius: 20px;
   background: var(--lnb-side);
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -1361,7 +1361,7 @@ select.inp--edit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: calc(9px + var(--font-size-offset, 0px));
   line-height: 1;
   border: 1.5px solid var(--line);
   color: transparent;
@@ -1395,7 +1395,7 @@ select.inp--edit {
 
 .category-add-row__sep {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .chip {
@@ -1407,12 +1407,12 @@ select.inp--edit {
   border: 1px solid var(--teal-100);
   background: var(--teal-50);
   border-radius: 20px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--teal-600);
 }
 
 .chip--person {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .chip__x {
@@ -1421,7 +1421,7 @@ select.inp--edit {
   color: var(--teal-600);
   opacity: 0.6;
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   padding: 0 2px;
 }
 
@@ -1447,7 +1447,7 @@ select.inp--edit {
 }
 
 .assignee-card__title {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -1459,7 +1459,7 @@ select.inp--edit {
 }
 
 .assignee-card__count {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -1472,7 +1472,7 @@ select.inp--edit {
 .assignee-search__input {
   width: 100%;
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--lnb-side);
@@ -1506,7 +1506,7 @@ select.inp--edit {
   border: none;
   background: transparent;
   text-align: left;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -1518,18 +1518,18 @@ select.inp--edit {
 
 .assignee-search__empty {
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .assignee-card__empty {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .field-hint {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1542,7 +1542,7 @@ select.inp--edit {
 
 .library-list__hint {
   margin: 0 0 12px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1550,7 +1550,7 @@ select.inp--edit {
   margin: 0;
   padding: 20px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
   background: var(--lnb-side);
   border: 1px dashed var(--line);
@@ -1568,7 +1568,7 @@ select.inp--edit {
 .lib-group__title {
   display: block;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
 }
@@ -1592,7 +1592,7 @@ select.inp--edit {
   border-radius: 8px;
   background: var(--lnb-side);
   color: var(--ink-2);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   text-align: left;
   cursor: pointer;
   font-family: inherit;
@@ -1659,7 +1659,7 @@ select.inp--edit {
   border: 1px solid var(--line);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
 }
@@ -1673,7 +1673,7 @@ select.inp--edit {
   display: block;
   margin-top: 4px;
   text-align: right;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1708,7 +1708,7 @@ select.inp--edit {
   border: none;
   background: transparent;
   text-align: left;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -1720,7 +1720,7 @@ select.inp--edit {
 
 .mention-list__empty {
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1737,7 +1737,7 @@ select.inp--edit {
   border: 1px solid var(--line);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
 }
@@ -1750,7 +1750,7 @@ select.inp--edit {
 }
 
 .issue-form__count {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -1763,7 +1763,7 @@ select.inp--edit {
   text-align: center;
   padding: 24px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .issue-item {
@@ -1780,19 +1780,19 @@ select.inp--edit {
 }
 
 .issue-item__author {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--ink);
 }
 
 .issue-item__time {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .issue-item__body {
   margin: 0 0 8px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--ink-2);
   white-space: pre-wrap;
@@ -1806,14 +1806,14 @@ select.inp--edit {
 
 .issue-item__sep {
   color: var(--line);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .link-btn {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -1835,7 +1835,7 @@ select.inp--edit {
 .readonly-notice {
   text-align: center;
   padding: 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
   background: var(--line-2);
   border-radius: 8px;
@@ -1845,7 +1845,7 @@ select.inp--edit {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -1859,7 +1859,7 @@ select.inp--edit {
 .btn--sm {
   height: 28px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .btn--primary {
@@ -1921,14 +1921,14 @@ select.inp--edit {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: calc(20px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0 auto 12px;
 }
 
 .alert-box__msg {
   margin: 0 0 18px;
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--ink);
 }

@@ -1,5 +1,6 @@
 // 내업무 (PAG-M-MY-01/02/03) 목업 데이터
 // figma/기획서 예시값 기반
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export const INBOX_GUIDE =
   "프로젝트 관리 > 요구사항 관리에서 요구사항이 '확정'되면 WBS 관리 메뉴에 작업범위가 자동 생성됩니다. WBS 관리 메뉴에서 일정이 등록된 업무만 내 할 일 업무에 일정이 표시됩니다. (단, 캘린더: 일정 등록된 업무만 표시)"
@@ -258,9 +259,9 @@ export const waitingProjects = [
   },
 ]
 
-/** 배정 없음 계정(2024099)용 */
+/** 배정 없음 계정(2024099, 2024100)용 */
 export function getInboxBundle(userId) {
-  if (userId === '2024099') {
+  if (userId === '2024099' || userId === EMPTY_DATA_USER_ID) {
     return {
       summary: { ...emptySummary },
       progressProjects: [],

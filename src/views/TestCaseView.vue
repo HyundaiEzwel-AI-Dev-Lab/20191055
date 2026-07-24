@@ -758,7 +758,7 @@ function onExcelDownload() {
   border-radius: 50%;
   background: var(--orange);
   color: var(--color-text-inverse);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 800;
   flex-shrink: 0;
   margin-top: 1px;
@@ -821,7 +821,7 @@ function onExcelDownload() {
 }
 
 .tlb-list__title {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-logo);
 }
@@ -836,7 +836,7 @@ function onExcelDownload() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
@@ -860,7 +860,7 @@ function onExcelDownload() {
 .tlb-list__pagesize {
   margin-left: 6px;
   height: 26px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
@@ -890,7 +890,7 @@ function onExcelDownload() {
 }
 
 .tlb-card__name {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-logo);
   margin-bottom: 8px;
@@ -900,7 +900,7 @@ function onExcelDownload() {
 .tlb-card__line {
   display: flex;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
   margin-bottom: 3px;
   line-height: 1.4;
@@ -918,7 +918,7 @@ function onExcelDownload() {
   flex-wrap: wrap;
   gap: 8px 12px;
   margin-top: 8px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -940,7 +940,7 @@ function onExcelDownload() {
 
 .tlb-detail__title {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 800;
   color: var(--lnb-logo);
 }
@@ -954,7 +954,7 @@ function onExcelDownload() {
 
 .tlb-detail__hint {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   font-weight: 600;
 }
@@ -979,7 +979,7 @@ function onExcelDownload() {
 
 .tlb-field label,
 .tlb-field__lab {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
@@ -1000,7 +1000,7 @@ function onExcelDownload() {
 
 .tlb-field__sub {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -1014,7 +1014,7 @@ function onExcelDownload() {
   border-radius: 50%;
   background: var(--lnb-muted);
   color: var(--color-text-inverse);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   font-family: inherit;
   line-height: 1;
@@ -1039,7 +1039,7 @@ function onExcelDownload() {
   border-radius: var(--radius-sm, 8px);
   background: var(--lnb-logo);
   color: var(--color-text-inverse);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.5;
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.12));
@@ -1067,14 +1067,14 @@ function onExcelDownload() {
 
 .tlb-steps-head h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-logo);
 }
 
 .tlb-steps__grip {
   color: var(--lnb-muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   letter-spacing: -2px;
   text-align: center;
   user-select: none;
@@ -1084,7 +1084,7 @@ function onExcelDownload() {
   border: none;
   background: none;
   color: var(--lnb-muted);
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   line-height: 1;
   cursor: pointer;
   padding: 0 4px;
@@ -1102,7 +1102,7 @@ function onExcelDownload() {
   text-align: center;
   color: var(--lnb-muted);
   padding: 48px 16px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .tlb-empty__img {
@@ -1145,7 +1145,7 @@ function onExcelDownload() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   padding: 0 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-family: inherit;
   color: var(--lnb-txt);
   background: var(--lnb-side);

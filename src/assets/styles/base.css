@@ -10,7 +10,7 @@ html,
 body {
   height: 100%;
   font-family: var(--font-family);
-  font-size: var(--font-size-md);
+  font-size: calc(var(--font-size-md) + var(--font-size-offset, 0px));
   color: var(--color-text);
   background: var(--color-bg-subtle);
   -webkit-font-smoothing: antialiased;
@@ -58,7 +58,7 @@ img {
 }
 
 .page-title {
-  font-size: var(--font-size-xl);
+  font-size: calc(var(--font-size-xl) + var(--font-size-offset, 0px));
   font-weight: 600;
   margin-bottom: var(--space-lg);
 }

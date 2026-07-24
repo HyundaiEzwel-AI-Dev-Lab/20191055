@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
 import { useSubTabsStore } from '@/stores/subTabs'
+import { useAuthStore } from '@/stores/auth'
 import {
   changeCategoryOptions,
   changePeriodOptions,
@@ -29,6 +30,7 @@ const router = useRouter()
 const projectStore = useProjectStore()
 const tabsStore = useTabsStore()
 const subTabsStore = useSubTabsStore()
+const authStore = useAuthStore()
 
 /** 통합관리 진입 시 전체, 프로젝트 메뉴 진입 시 현재 프로젝트만 */
 const isIntegrated = computed(() => route.name === 'project-history')
@@ -60,7 +62,9 @@ function loadData() {
     rows.value = getAllProjectHistory()
   } else {
     const project = projectStore.currentProject
-    rows.value = project?.id ? getProjectHistory(project.id, project.name) : []
+    rows.value = project?.id
+      ? getProjectHistory(project.id, project.name, authStore.user?.id)
+      : []
   }
   expandedId.value = null
   currentPage.value = 1
@@ -480,7 +484,7 @@ function wbsTaskPath(chg) {
 .project-history {
   padding: 8px 24px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .filter {
@@ -509,7 +513,7 @@ function wbsTaskPath(chg) {
 }
 
 .filter__field label {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
 }
@@ -517,7 +521,7 @@ function wbsTaskPath(chg) {
 .filter__input,
 .filter__select {
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
@@ -548,7 +552,7 @@ function wbsTaskPath(chg) {
 
 .filter__range-sep {
   color: var(--lnb-muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   flex-shrink: 0;
 }
 
@@ -571,7 +575,7 @@ function wbsTaskPath(chg) {
 }
 
 .toolbar__count {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 
@@ -582,7 +586,7 @@ function wbsTaskPath(chg) {
 .toolbar__mini {
   margin-left: auto;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   border: 1px solid var(--line);
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
@@ -601,7 +605,7 @@ function wbsTaskPath(chg) {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .data-table th,
@@ -656,7 +660,7 @@ function wbsTaskPath(chg) {
 
 .datetime__time {
   display: block;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -671,14 +675,14 @@ function wbsTaskPath(chg) {
 
 .detail-panel__label {
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--muted);
 }
 
 .detail-panel__meta {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -706,7 +710,7 @@ function wbsTaskPath(chg) {
 
 .detail-table__body {
   padding: 16px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.7;
   white-space: pre-wrap;
 }

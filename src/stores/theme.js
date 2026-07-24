@@ -3,11 +3,18 @@ import { computed, ref } from 'vue'
 
 const CONCEPT_KEY = 'hpms.themeConcept'
 const AVATAR_KEY = 'hpms.avatarColor'
+const FONT_SIZE_KEY = 'hpms.fontSize'
 
 export const conceptOptions = [
   { value: 'default', label: '기본', desc: '현재 적용중인 화면' },
   { value: 'premium', label: '프리미엄', desc: '카드 깊이감·모션을 다듬은 버전' },
   { value: 'dark', label: '다크', desc: 'Claude Desktop 톤 · 따뜻한 near-black과 크림 텍스트' },
+]
+
+export const fontSizeOptions = [
+  { value: 'small', label: '작게', desc: '기본 글자 크기' },
+  { value: 'medium', label: '중간', desc: '기본보다 1px 크게' },
+  { value: 'large', label: '크게', desc: '기본보다 2px 크게' },
 ]
 
 /** 프로필 아이콘용 20색 (비비드 + 파스텔 혼합) */
@@ -40,6 +47,10 @@ function applyConcept(value) {
   document.documentElement.setAttribute('data-concept', value)
 }
 
+function applyFontSize(value) {
+  document.documentElement.setAttribute('data-font-size', value)
+}
+
 function luminance(hex) {
   const raw = hex.replace('#', '')
   if (raw.length !== 6) return 0
@@ -64,7 +75,13 @@ export const useThemeStore = defineStore('theme', () => {
     avatarColorOptions.includes(storedAvatar) ? storedAvatar : DEFAULT_AVATAR,
   )
 
+  const storedFontSize = localStorage.getItem(FONT_SIZE_KEY)
+  const fontSize = ref(
+    fontSizeOptions.some((f) => f.value === storedFontSize) ? storedFontSize : 'small',
+  )
+
   applyConcept(concept.value)
+  applyFontSize(fontSize.value)
 
   const avatarFg = computed(() => avatarTextColor(avatarColor.value))
 
@@ -81,11 +98,20 @@ export const useThemeStore = defineStore('theme', () => {
     localStorage.setItem(AVATAR_KEY, value)
   }
 
+  function setFontSize(value) {
+    if (!fontSizeOptions.some((f) => f.value === value) || value === fontSize.value) return
+    fontSize.value = value
+    localStorage.setItem(FONT_SIZE_KEY, value)
+    applyFontSize(value)
+  }
+
   return {
     concept,
     setConcept,
     avatarColor,
     avatarFg,
     setAvatarColor,
+    fontSize,
+    setFontSize,
   }
 })

@@ -249,7 +249,7 @@ function saveReply(issue) {
 <style scoped>
 .issue-guide {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -258,7 +258,7 @@ function saveReply(issue) {
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
@@ -289,7 +289,7 @@ function saveReply(issue) {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
 }
@@ -311,7 +311,7 @@ function saveReply(issue) {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -322,7 +322,7 @@ function saveReply(issue) {
   text-align: center;
   padding: 32px;
   color: var(--lnb-muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .issue-list {
@@ -361,25 +361,25 @@ function saveReply(issue) {
 }
 
 .issue__author {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-logo);
 }
 
 .issue__time {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
 .issue__mention {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--teal-600);
 }
 
 .issue__body {
   margin: 0;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--lnb-txt);
   white-space: pre-wrap;
@@ -394,14 +394,14 @@ function saveReply(issue) {
 
 .issue__collab {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
 }
 
 .issue__details {
   margin: 0;
   padding-left: 18px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   line-height: 1.55;
   color: var(--lnb-txt);
 }

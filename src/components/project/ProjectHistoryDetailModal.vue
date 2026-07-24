@@ -58,7 +58,7 @@ defineEmits(['close'])
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .meta__badge {
@@ -75,14 +75,14 @@ defineEmits(['close'])
 
 .body {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
 }
 
 .detail-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   margin-bottom: 14px;
 }
 
@@ -102,13 +102,13 @@ defineEmits(['close'])
 
 .changes h4 {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
 .change-line {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .change-line__label {

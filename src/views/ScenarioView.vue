@@ -15,8 +15,10 @@ import TestNoteModal from '@/components/test/TestNoteModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
 import { addScenarioCases } from '@/data/scenario'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const { mode, config, pageTitle } = useTestContext()
 
 const rows = ref([])
@@ -61,7 +63,7 @@ const allExpandedOnPage = computed(
 )
 
 function loadData() {
-  rows.value = getScenarioList(mode.value)
+  rows.value = getScenarioList(mode.value, authStore.user?.id)
   expandedIds.value = new Set()
   currentPage.value = 1
 }
@@ -354,11 +356,11 @@ function onBulkConfirm(items) {
 .scenario {
   padding: 14px 18px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .scenario__title {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0 0 14px;
 }
@@ -385,7 +387,7 @@ function onBulkConfirm(items) {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -397,7 +399,7 @@ function onBulkConfirm(items) {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
   color: var(--ink);
 }
@@ -414,7 +416,7 @@ function onBulkConfirm(items) {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   cursor: pointer;
   padding: 0;
   margin-bottom: 10px;
@@ -433,7 +435,7 @@ function onBulkConfirm(items) {
   background: var(--teal-50);
   border-color: var(--teal-100);
   color: var(--teal-600);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .toolbar {
@@ -444,7 +446,7 @@ function onBulkConfirm(items) {
   flex-wrap: wrap;
 }
 
-.toolbar__count { font-size: 12px; color: var(--ink-2); }
+.toolbar__count { font-size: calc(12px + var(--font-size-offset, 0px)); color: var(--ink-2); }
 .toolbar__count b { color: var(--teal-600); }
 .toolbar__mini {
   height: 24px;
@@ -453,7 +455,7 @@ function onBulkConfirm(items) {
   border-radius: 6px;
   background: var(--lnb-side);
   color: var(--ink);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
   cursor: pointer;
 }
@@ -471,7 +473,7 @@ function onBulkConfirm(items) {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .data-table th,
@@ -511,7 +513,7 @@ function onBulkConfirm(items) {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -533,7 +535,7 @@ function onBulkConfirm(items) {
 
 .step-note {
   margin: 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--teal-600);
 }
 
@@ -542,14 +544,14 @@ function onBulkConfirm(items) {
   background: none;
   color: var(--teal-600);
   cursor: pointer;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   padding: 0;
 }
 
 .inner-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .inner-table th,
@@ -587,11 +589,11 @@ function onBulkConfirm(items) {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
 
 .pager__btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.pager__info { font-size: 12px; color: var(--ink-2); }
+.pager__info { font-size: calc(12px + var(--font-size-offset, 0px)); color: var(--ink-2); }
 </style>

@@ -150,7 +150,7 @@ function save() {
 
 .section__title {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -164,7 +164,7 @@ function save() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl th,
@@ -207,7 +207,7 @@ function save() {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   margin-bottom: 6px;
   cursor: pointer;
 }
@@ -230,7 +230,7 @@ function save() {
 
 .individual-row__label {
   min-width: 140px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -244,7 +244,7 @@ function save() {
   border: 1px solid var(--lnb-line);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--lnb-side);
 }
 

@@ -79,7 +79,22 @@ export const mockUsers = [
     role: '사용자',
     position: '사원',
   },
+  {
+    id: '2024100',
+    password: 'Ezwel123!',
+    name: '무데이터',
+    phone: '01000000000',
+    status: 'active',
+    failCount: 0,
+    dept: 'IT기획팀',
+    email: '2024100@ezwel.com',
+    role: '사용자',
+    position: '사원',
+  },
 ]
+
+/** 전 화면 빈 데이터(empty state) 확인용 테스트 계정 ID */
+export const EMPTY_DATA_USER_ID = '2024100'
 
 export function findUserById(id) {
   return mockUsers.find((u) => u.id === id)

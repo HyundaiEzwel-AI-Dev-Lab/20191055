@@ -70,7 +70,7 @@ function submit() {
 }
 
 .register-form__label {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -78,7 +78,7 @@ function submit() {
 .register-form__input {
   width: 100%;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
 }
@@ -90,7 +90,7 @@ function submit() {
 
 .register-form__error {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--red);
 }
 </style>

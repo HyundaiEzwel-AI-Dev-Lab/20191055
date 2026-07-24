@@ -80,7 +80,7 @@ function save() {
   right: 10px;
   border: none;
   background: none;
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   cursor: pointer;
   color: #6b6b30;
   line-height: 1;
@@ -88,7 +88,7 @@ function save() {
 
 .postit__label {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: #6b6b30;
 }
@@ -101,7 +101,7 @@ function save() {
   background: transparent;
   resize: none;
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: #4a4a1f;
   box-sizing: border-box;
@@ -118,7 +118,7 @@ function save() {
 }
 
 .postit__count {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: #8a8a4f;
 }
 
@@ -128,7 +128,7 @@ function save() {
   padding: 6px 14px;
   background: #4a4a1f;
   color: #fff6a8;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
   cursor: pointer;
 }

@@ -5,11 +5,12 @@ import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
+import { useAuthStore } from '@/stores/auth'
 import {
-  notifications as seed,
+  getNotifications,
   notificationTabs,
   notificationTagClass,
-  myProjects,
+  getMyProjects,
 } from '@/data/headerPopups'
 
 defineProps({
@@ -20,8 +21,10 @@ const emit = defineEmits(['update:modelValue', 'unread-change'])
 const router = useRouter()
 const projectStore = useProjectStore()
 const tabsStore = useTabsStore()
+const authStore = useAuthStore()
 
-const items = ref(seed.map((n) => ({ ...n })))
+const myProjects = computed(() => getMyProjects(authStore.user?.id))
+const items = ref(getNotifications(authStore.user?.id).map((n) => ({ ...n })))
 const activeTab = ref('project')
 
 const unreadCount = computed(() => items.value.filter((n) => !n.read).length)
@@ -67,14 +70,14 @@ function removeItem(id) {
 }
 
 function openProjectContext(item) {
-  const project = myProjects.find((p) => p.id === item.projectId)
+  const project = myProjects.value.find((p) => p.id === item.projectId)
   if (project) {
     projectStore.setCurrentProject({
       id: project.id,
       name: project.name,
       stage: project.stage,
     })
-    projectStore.setProjectList(myProjects)
+    projectStore.setProjectList(myProjects.value)
     tabsStore.openProjectTab({
       projectId: project.id,
       title: project.name,

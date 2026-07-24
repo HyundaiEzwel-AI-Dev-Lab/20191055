@@ -417,7 +417,7 @@ function onExcelDownload() {
 }
 
 .filter__range-sep {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -441,7 +441,7 @@ function onExcelDownload() {
 
 .detail-section__title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-logo);
 }

@@ -250,7 +250,7 @@ function saveConfirm() {
 
 .detail-card__title {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -268,7 +268,7 @@ function saveConfirm() {
   grid-template-columns: 1fr 1fr;
   gap: 8px 16px;
   margin-bottom: 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .lbl {
@@ -277,7 +277,7 @@ function saveConfirm() {
   margin-right: 6px;
   color: var(--muted);
   font-weight: 600;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .grade {
@@ -294,12 +294,12 @@ function saveConfirm() {
 
 .block h4 {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .desc {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   line-height: 1.5;
   color: var(--ink-2);
 }
@@ -319,7 +319,7 @@ function saveConfirm() {
 }
 
 .field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -330,7 +330,7 @@ function saveConfirm() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .textarea {
@@ -341,13 +341,13 @@ function saveConfirm() {
 
 .history h4 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .history-item {
   padding: 8px 0;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .history-item header {
@@ -355,7 +355,7 @@ function saveConfirm() {
   gap: 8px;
   margin-bottom: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .history-item .action {
@@ -391,14 +391,14 @@ function saveConfirm() {
   border: 1px solid var(--line);
   background: var(--field);
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .attach__x {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   padding: 0 2px;
 }
 
@@ -411,7 +411,7 @@ function saveConfirm() {
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
 }
 
@@ -431,7 +431,7 @@ function saveConfirm() {
 
 .confirm-block h4 {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .confirm-radios,
@@ -446,7 +446,7 @@ function saveConfirm() {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   cursor: pointer;
 }
 </style>

@@ -1,4 +1,5 @@
 // PAG-S-UAT-14 결함관리 목업
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 const baseDefects = [
   {
@@ -120,7 +121,8 @@ const baseDefects = [
 
 const uatRoundMap = { '2차': 'STG', '3차': '운영1차' }
 
-export function getDefectList(mode = 'dev') {
+export function getDefectList(mode = 'dev', userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   return baseDefects.map((row) => ({
     ...row,
     round: mode === 'uat' ? (uatRoundMap[row.round] || row.round) : row.round,

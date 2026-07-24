@@ -48,14 +48,14 @@ function close() {
 
 .reason-box__text {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--lnb-txt);
 }
 
 .reason-box__meta {
   margin: 10px 0 0;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 </style>

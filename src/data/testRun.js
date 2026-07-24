@@ -1,4 +1,5 @@
 // PAG-S-UAT-09 테스트 수행 목업
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 function makeStepRows(procedures, testers, resultsMatrix) {
   return procedures.map((p, idx) => ({
@@ -184,7 +185,8 @@ function hydrateRow(row, mode) {
   }
 }
 
-export function getTestRunList(mode = 'dev') {
+export function getTestRunList(mode = 'dev', userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   return baseRuns.map((row) => hydrateRow(row, mode))
 }
 

@@ -101,7 +101,7 @@ function close() {
   grid-template-columns: 100px 1fr;
   gap: 8px 12px;
   padding: 11px 14px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   border-bottom: 1px solid var(--lnb-line);
 }
 
@@ -134,7 +134,7 @@ function close() {
 }
 
 .delay-badge {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 20px;
@@ -152,27 +152,27 @@ function close() {
 
 .reason-box__label {
   margin: 0 0 8px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
 }
 
 .reason-box__text {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--lnb-txt);
 }
 
 .reason-box__meta {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
 .history__title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
 }
@@ -186,7 +186,7 @@ function close() {
 .history__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .history__table thead th {
@@ -217,7 +217,7 @@ function close() {
 
 .history__time {
   white-space: nowrap;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 </style>

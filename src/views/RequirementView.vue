@@ -23,7 +23,9 @@ import RequirementBulkRegisterModal from '@/components/requirement/RequirementBu
 import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const requirements = ref([])
 const filterExpanded = ref(false)
 const filters = ref({
@@ -92,7 +94,7 @@ const selectedRows = computed(() =>
 const canExpandAll = computed(() => pageSize.value === 20)
 
 onMounted(() => {
-  requirements.value = getRequirementList()
+  requirements.value = getRequirementList(authStore.user?.id)
 })
 
 function resetFilters() {
@@ -827,11 +829,11 @@ function onPageSizeChange() {
 .requirement {
   padding: 14px 18px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .requirement__title {
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 2px 2px 12px;
   display: flex;
@@ -841,7 +843,7 @@ function onPageSizeChange() {
 }
 
 .requirement__hint {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--muted);
   background: var(--lnb-side);
@@ -882,7 +884,7 @@ function onPageSizeChange() {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -894,7 +896,7 @@ function onPageSizeChange() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
 }
 
@@ -912,7 +914,7 @@ function onPageSizeChange() {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   cursor: pointer;
   padding: 0;
   margin-bottom: 10px;
@@ -931,7 +933,7 @@ function onPageSizeChange() {
   background: var(--teal-50);
   border-color: var(--teal-100);
   color: var(--teal-600);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   line-height: 1.5;
 }
 
@@ -944,7 +946,7 @@ function onPageSizeChange() {
 }
 
 .toolbar__count {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 
@@ -958,7 +960,7 @@ function onPageSizeChange() {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--lnb-side);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   font-family: inherit;
   cursor: pointer;
@@ -1001,7 +1003,7 @@ function onPageSizeChange() {
   border: none;
   background: none;
   text-align: left;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -1025,7 +1027,7 @@ function onPageSizeChange() {
 .req-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   min-width: 1200px;
 }
 
@@ -1072,7 +1074,7 @@ function onPageSizeChange() {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   padding: 0;
 }
 
@@ -1089,7 +1091,7 @@ function onPageSizeChange() {
 }
 
 .st {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -1112,7 +1114,7 @@ function onPageSizeChange() {
 }
 
 .pri {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
@@ -1145,13 +1147,13 @@ function onPageSizeChange() {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   line-height: 1.2;
 }
 
 .confirm-subhead th {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   background: var(--field);
   padding: 6px 8px;
@@ -1164,7 +1166,7 @@ function onPageSizeChange() {
   border: 1px solid var(--lnb-line);
   background: var(--lnb-side);
   color: var(--teal-600);
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -1185,7 +1187,7 @@ function onPageSizeChange() {
   background: var(--lnb-side);
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: var(--lnb-txt);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.55;
   white-space: pre-line;
@@ -1199,7 +1201,7 @@ function onPageSizeChange() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -1227,13 +1229,13 @@ function onPageSizeChange() {
   text-decoration: underline;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
 }
 
 .reg-cell {
   white-space: nowrap;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .muted {
@@ -1258,14 +1260,14 @@ function onPageSizeChange() {
 
 .detail-panel__label {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
 }
 
 .detail-panel__text {
   margin: 0;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--ink-2);
   white-space: pre-wrap;
@@ -1280,7 +1282,7 @@ function onPageSizeChange() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   flex-wrap: wrap;
 }
@@ -1306,7 +1308,7 @@ function onPageSizeChange() {
   border: 1px solid var(--line);
   background: var(--lnb-side);
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -1327,7 +1329,7 @@ function onPageSizeChange() {
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -1340,7 +1342,7 @@ function onPageSizeChange() {
 .btn--sm {
   height: 28px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .btn--primary {
@@ -1385,7 +1387,7 @@ function onPageSizeChange() {
 
 .alert-box p {
   margin: 0 0 18px;
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--font-size-offset, 0px));
   line-height: 1.6;
 }
 

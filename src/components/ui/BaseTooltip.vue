@@ -30,7 +30,7 @@ defineProps({
   border-radius: 50%;
   background: var(--lnb-hover);
   color: var(--lnb-muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-style: italic;
   font-weight: 700;
   cursor: default;
@@ -49,7 +49,7 @@ defineProps({
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
   color: var(--lnb-txt);
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.5;
   white-space: normal;

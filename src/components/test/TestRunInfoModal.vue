@@ -103,7 +103,7 @@ function save() {
 <style scoped>
 .guide {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
@@ -119,7 +119,7 @@ function save() {
   display: grid;
   grid-template-columns: auto 1fr auto 1fr auto 1fr;
   gap: 6px 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .summary__row + .summary__row {
@@ -144,7 +144,7 @@ function save() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .tbl th,
@@ -166,7 +166,7 @@ function save() {
   border: 1px solid var(--lnb-line);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   box-sizing: border-box;
   background: var(--lnb-side);
 }

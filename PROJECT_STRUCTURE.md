@@ -76,6 +76,7 @@ HPMS/
 |------|--------|
 | `SOURCE_TREE.md` | “이 파일이 뭐지?” / Wiki 붙여넣기 / 기획과 다른 합침 내역 |
 | `PROJECT_STRUCTURE.md` | “왜 이렇게 나눴지?” / 확정 결정 테이블 |
+| `MOCK_DATA.md` | 실연동 시 목업 삭제 목록 · 화면별 `@/data` import |
 | `HPMS_공통레이아웃_정의.md` | Tab·LNB·헤더 UX 구현 시 |
 | `DESIGN_GUIDE.md` | 색·폰트·간격 토큰 |
 

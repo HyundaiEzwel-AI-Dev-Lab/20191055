@@ -5,8 +5,9 @@ import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
+import { useAuthStore } from '@/stores/auth'
 import { useProjectRegister } from '@/composables/useProjectRegister'
-import { myProjects } from '@/data/headerPopups'
+import { getMyProjects } from '@/data/headerPopups'
 
 defineProps({
   modelValue: { type: Boolean, default: false },
@@ -16,13 +17,16 @@ const emit = defineEmits(['update:modelValue'])
 const router = useRouter()
 const projectStore = useProjectStore()
 const tabsStore = useTabsStore()
+const authStore = useAuthStore()
 const { openRegisterModal } = useProjectRegister()
 const keyword = ref('')
 
+const myProjects = computed(() => getMyProjects(authStore.user?.id))
+
 const filtered = computed(() => {
   const q = keyword.value.trim().toLowerCase()
-  if (!q) return myProjects
-  return myProjects.filter((p) =>
+  if (!q) return myProjects.value
+  return myProjects.value.filter((p) =>
     [p.name, p.stage, p.role].join(' ').toLowerCase().includes(q),
   )
 })
@@ -37,7 +41,7 @@ function selectProject(project) {
     name: project.name,
     stage: project.stage,
   })
-  projectStore.setProjectList(myProjects)
+  projectStore.setProjectList(myProjects.value)
   tabsStore.openProjectTab({
     projectId: project.id,
     title: project.name,

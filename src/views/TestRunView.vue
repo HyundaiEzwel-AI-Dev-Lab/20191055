@@ -52,7 +52,7 @@ const filters = ref({
 })
 
 function loadRows() {
-  rows.value = getTestRunList(mode.value)
+  rows.value = getTestRunList(mode.value, auth.user?.id)
   expanded.value = new Set()
 }
 
@@ -532,11 +532,11 @@ function onExcelDownload() {
 .test-run {
   padding: 14px 18px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .test-run__title {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0 0 14px;
 }
@@ -566,7 +566,7 @@ function onExcelDownload() {
 }
 
 .filter__field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -577,7 +577,7 @@ function onExcelDownload() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .filter__actions {
@@ -605,7 +605,7 @@ function onExcelDownload() {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   cursor: pointer;
   padding: 0;
   margin-bottom: 10px;
@@ -619,14 +619,14 @@ function onExcelDownload() {
   border: 1px solid var(--orange);
   border-radius: 8px;
   color: var(--orange);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .chk {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   margin-right: auto;
 }
 
@@ -639,13 +639,13 @@ function onExcelDownload() {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   margin-bottom: 10px;
 }
 
 .ref-link {
   margin-left: auto;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--teal-600);
 }
 
@@ -666,13 +666,13 @@ function onExcelDownload() {
 
 .kpi-chip__lab {
   display: block;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
 
 .kpi-chip__num {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
@@ -685,7 +685,7 @@ function onExcelDownload() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .toolbar__btns {
@@ -719,7 +719,7 @@ function onExcelDownload() {
   border: none;
   background: var(--lnb-side);
   font-family: inherit;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   text-align: left;
   cursor: pointer;
 }
@@ -731,7 +731,7 @@ function onExcelDownload() {
   background: var(--teal-50);
   color: var(--teal-600);
   border-radius: 12px;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -766,7 +766,7 @@ function onExcelDownload() {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .note-row__text {
@@ -779,14 +779,14 @@ function onExcelDownload() {
   background: none;
   color: var(--teal-600);
   cursor: pointer;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   padding: 0;
 }
 
 .step-grid {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   min-width: 800px;
 }
 
@@ -811,7 +811,7 @@ function onExcelDownload() {
 .tester-group__date {
   display: block;
   margin-top: 2px;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--muted);
 }
@@ -825,7 +825,7 @@ function onExcelDownload() {
   height: 28px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-family: inherit;
 }
 
@@ -838,7 +838,7 @@ function onExcelDownload() {
   background: none;
   color: var(--teal-600);
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .link-btn:disabled {
@@ -847,7 +847,7 @@ function onExcelDownload() {
 }
 
 .fix-tag {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--teal-50);
@@ -863,7 +863,7 @@ function onExcelDownload() {
   text-align: center;
   padding: 32px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .muted {

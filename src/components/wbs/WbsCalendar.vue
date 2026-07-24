@@ -249,7 +249,7 @@ function blockStyle(bar) {
 }
 
 .cal__label {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 600;
   min-width: 110px;
   color: var(--lnb-logo);
@@ -262,7 +262,7 @@ function blockStyle(bar) {
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
   cursor: pointer;
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-offset, 0px));
   line-height: 1;
   color: var(--lnb-txt);
 }
@@ -274,7 +274,7 @@ function blockStyle(bar) {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
@@ -291,7 +291,7 @@ function blockStyle(bar) {
 
 .cal__wd {
   text-align: center;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   padding: 8px 0;
   font-weight: 600;
@@ -334,7 +334,7 @@ function blockStyle(bar) {
 }
 
 .cal__day {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
   padding: 2px 4px;
   font-weight: 500;
@@ -355,7 +355,7 @@ function blockStyle(bar) {
 }
 
 .tblock {
-  font-size: 10.5px;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   line-height: 1.3;
   padding: 3px 6px;
   border-radius: 4px;
@@ -398,7 +398,7 @@ function blockStyle(bar) {
 .cal__hint {
   margin: 0;
   padding: 10px 14px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   border-top: 1px solid var(--lnb-line);
   line-height: 1.5;

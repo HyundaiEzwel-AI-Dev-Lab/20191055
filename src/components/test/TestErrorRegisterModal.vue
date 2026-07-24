@@ -221,13 +221,13 @@ function register() {
 
 .list-col__title {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .list-col__empty {
   margin: 0;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -241,7 +241,7 @@ function register() {
   flex-direction: column;
   gap: 4px;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
@@ -253,7 +253,7 @@ function register() {
 }
 
 .field label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -270,7 +270,7 @@ function register() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .textarea {
@@ -302,7 +302,7 @@ function register() {
   padding: 8px 10px;
   background: var(--orange-bg);
   border-radius: 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--ink-2);
 }
 
@@ -336,14 +336,14 @@ function register() {
   border: 1px solid var(--line);
   background: var(--field);
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
 .attach__x {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   padding: 0 2px;
 }
 
@@ -356,7 +356,7 @@ function register() {
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--lnb-side);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
 }
 

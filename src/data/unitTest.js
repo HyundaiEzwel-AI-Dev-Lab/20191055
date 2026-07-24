@@ -1,6 +1,7 @@
 // PAG-S-TST-01 단위테스트 목업 — SB p.112
 
 import { testResultClass, defectStatusClass } from '@/data/testConfig'
+import { EMPTY_DATA_USER_ID } from './mockUsers'
 
 export { testResultClass as unitResultClass, defectStatusClass }
 
@@ -187,7 +188,8 @@ const baseRows = [
   },
 ]
 
-export function getUnitTestList() {
+export function getUnitTestList(userId) {
+  if (userId === EMPTY_DATA_USER_ID) return []
   return baseRows.map((r) => ({
     ...r,
     defects: r.defects.map((d) => ({ ...d })),

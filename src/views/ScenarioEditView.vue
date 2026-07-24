@@ -404,7 +404,7 @@ function onLibraryConfirm(cases) {
 .scenario-edit {
   padding: 14px 18px 28px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .head {
@@ -418,13 +418,13 @@ function onLibraryConfirm(cases) {
   border: none;
   background: none;
   color: var(--teal-600);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
 }
 
 .scenario-edit__title {
-  font-size: 18px;
+  font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0;
 }
@@ -446,7 +446,7 @@ function onLibraryConfirm(cases) {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .round-sel select {
@@ -455,7 +455,7 @@ function onLibraryConfirm(cases) {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
   color: var(--ink);
 }
@@ -466,7 +466,7 @@ function onLibraryConfirm(cases) {
   background: var(--teal-50);
   border: 1px solid var(--teal-100);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--teal-600);
 }
 
@@ -474,7 +474,7 @@ function onLibraryConfirm(cases) {
   padding: 40px 16px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .target {
@@ -490,7 +490,7 @@ function onLibraryConfirm(cases) {
   margin-bottom: 14px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .target__req {
@@ -503,7 +503,7 @@ function onLibraryConfirm(cases) {
 }
 
 .target__screen {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
 }
 
 .case-block {
@@ -531,13 +531,13 @@ function onLibraryConfirm(cases) {
 }
 
 .case-id {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
 
 .case-no {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-700);
   min-width: 18px;
@@ -547,7 +547,7 @@ function onLibraryConfirm(cases) {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
   color: var(--muted);
   padding: 0 2px;
 }
@@ -561,7 +561,7 @@ function onLibraryConfirm(cases) {
   margin-left: auto;
   width: 22px;
   height: 22px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   color: var(--teal-600);
   font-weight: 700;
 }
@@ -583,7 +583,7 @@ function onLibraryConfirm(cases) {
 }
 
 .form-block label {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
@@ -597,7 +597,7 @@ function onLibraryConfirm(cases) {
 
 .steps-head h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .inp {
@@ -606,7 +606,7 @@ function onLibraryConfirm(cases) {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
   background: var(--field);
   color: var(--ink);
 }
@@ -620,7 +620,7 @@ function onLibraryConfirm(cases) {
 .step-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .step-table th,
@@ -645,7 +645,7 @@ function onLibraryConfirm(cases) {
   width: 24px;
   height: 22px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
 }
 
 .icon-btn:disabled {
@@ -658,6 +658,6 @@ function onLibraryConfirm(cases) {
   background: none;
   color: var(--teal-600);
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 </style>

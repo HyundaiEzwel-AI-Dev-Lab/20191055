@@ -79,7 +79,7 @@ function save() {
 <style scoped>
 .notice {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--lnb-txt);
 }
@@ -91,7 +91,7 @@ function save() {
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   background: var(--lnb-side);
   color: var(--lnb-txt);
   box-sizing: border-box;
@@ -109,7 +109,7 @@ function save() {
   border: 1px solid var(--lnb-line);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
 }
@@ -123,7 +123,7 @@ function save() {
   display: block;
   margin-top: 6px;
   text-align: right;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 </style>
