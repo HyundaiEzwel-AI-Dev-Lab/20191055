@@ -125,7 +125,7 @@ function onKpiClick(key) {
 }
 
 function onProjectClick() {
-  router.push('/project/info')
+  router.push('/workspace/info')
 }
 
 function onRegisterClick() {

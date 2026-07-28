@@ -185,7 +185,7 @@ function onDelayClick(personId, project) {
 }
 
 function onTaskCountClick() {
-  router.push('/project/wbs')
+  router.push('/workspace/wbs')
 }
 
 function formatPlanMd(md) {

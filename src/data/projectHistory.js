@@ -79,13 +79,13 @@ export const historyDevDeptOptions = [
 
 /** 상세 바로가기 대상 화면 */
 export const HISTORY_DETAIL_ROUTE = {
-  projectSetting: '/project/info',
-  projectIssue: '/project/info',
-  wbs: '/project/wbs',
-  reqPriority: '/project/requirement',
-  reqIssue: '/project/requirement',
-  reqDetail: '/project/requirement',
-  generic: '/project/info',
+  projectSetting: '/workspace/info',
+  projectIssue: '/workspace/info',
+  wbs: '/workspace/wbs',
+  reqPriority: '/workspace/requirement',
+  reqIssue: '/workspace/requirement',
+  reqDetail: '/workspace/requirement',
+  generic: '/workspace/info',
 }
 
 /** 펼침 템플릿 키 (뷰 분기용) */

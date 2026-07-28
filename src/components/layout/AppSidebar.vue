@@ -48,7 +48,11 @@ function isProjectRowDisabled(menu) {
 function isActiveItem(item) {
   if (!item?.name) return false
   if (item.name === 'scenario-dev' || item.name === 'scenario-uat') {
-    return route.name === 'scenario' && route.params.mode === (item.name === 'scenario-dev' ? 'dev' : 'uat')
+    const want = item.name === 'scenario-dev' ? 'dev' : 'uat'
+    return (
+      (route.name === 'scenario' || route.name === 'scenario-edit') &&
+      route.params.mode === want
+    )
   }
   if (item.name === 'defect-dev' || item.name === 'defect-uat') {
     return route.name === 'defect' && route.params.mode === (item.name === 'defect-dev' ? 'dev' : 'uat')

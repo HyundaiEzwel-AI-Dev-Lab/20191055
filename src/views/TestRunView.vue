@@ -10,7 +10,7 @@ import {
   matchTestRunFilters,
   isCaseDimmed,
 } from '@/data/testRun'
-import { getDefectList, updateDefect } from '@/data/testDefect'
+import { getDefectList, updateDefect, addDefect } from '@/data/testDefect'
 import TestErrorRegisterModal from '@/components/test/TestErrorRegisterModal.vue'
 import TestRunTesterChangeModal from '@/components/test/TestRunTesterChangeModal.vue'
 import TestRunInfoModal from '@/components/test/TestRunInfoModal.vue'
@@ -124,6 +124,12 @@ function isMyColumn(name) {
   return !currentUser.value || name === currentUser.value
 }
 
+// 오류등록/조치여부는 담당자별이 아니라 절차(스텝) 1건당 공용으로 관리한다 (SB p162, POP-S-UAT-13).
+// 내가 담당한 테스터 컬럼 중 '오류'로 표시된 항목이 있으면 그 컬럼을 등록 대상으로 사용한다.
+function myErrorTesterFor(row, step) {
+  return row.testers.find((name) => isMyColumn(name) && step.byTester[name]?.result === '오류')
+}
+
 function openTesterChange() {
   showTesterChange.value = true
 }
@@ -161,9 +167,10 @@ function onNoteSave(text) {
   noteTarget.value.note = text
 }
 
-function viewErrors(row, step, name) {
+function viewErrors(row, step) {
+  // 케이스 + 절차 단위로 등록된 오류를 모두 보여준다 (담당자별로 쪼개지 않음).
   const list = getDefectList(mode.value).filter(
-    (d) => d.caseId === row.caseId && d.stepNo === step.no && (!name || d.tester === name),
+    (d) => d.caseId === row.caseId && d.stepNo === step.no,
   )
   if (!list.length) {
     window.alert('등록된 오류가 없습니다.')
@@ -177,7 +184,11 @@ function onErrorDetailSave(updates) {
   if (!errorDetailTarget.value) return
   updateDefect(errorDetailTarget.value.id, updates)
   const refreshed = getDefectList(mode.value).find((d) => d.id === errorDetailTarget.value.id)
-  if (refreshed) errorDetailTarget.value = refreshed
+  if (!refreshed) return
+  errorDetailTarget.value = refreshed
+  const row = rows.value.find((r) => r.caseId === refreshed.caseId)
+  const step = row?.steps.find((s) => s.no === refreshed.stepNo)
+  if (step) step.fixStatus = refreshed.status
 }
 
 function openErrorRegister(row, step, testerName) {
@@ -190,18 +201,20 @@ function closeErrorRegister() {
 
 function onErrorRegistered(payload) {
   const { row, step, testerName } = errorTarget.value
+  // 결함관리(PAG-S-UAT-14)·오류 목록(POP-S-UAT-13 사이드바)에 실제로 반영되도록 결함을 등록한다.
+  const newDefect = addDefect(payload, mode.value)
   const cell = step.byTester[testerName]
   if (cell) {
     cell.result = '오류'
-    cell.fixStatus = '접수'
     if (!cell.executedAt) cell.executedAt = '2026-04-17'
   }
+  // 조치여부는 절차(스텝) 1건에 공용으로 붙는다 — 담당자별로 각각 생기지 않는다.
+  step.fixStatus = newDefect.status
   row.errorCount = (row.errorCount || 0) + 1
   row.fixPending = (row.fixPending || 0) + 1
   row.result = '오류'
   recalcRow(row)
   closeErrorRegister()
-  void payload
 }
 
 function setStepResult(row, step, testerName, result) {
@@ -214,9 +227,6 @@ function setStepResult(row, step, testerName, result) {
   cell.result = result
   if (result !== '대기' && !cell.executedAt) {
     cell.executedAt = '2026-04-17'
-  }
-  if (result === '정상') {
-    cell.fixStatus = null
   }
   recalcRow(row)
 }
@@ -437,17 +447,17 @@ function onExcelDownload() {
                 <th rowspan="2">NO</th>
                 <th rowspan="2">절차</th>
                 <th rowspan="2">예상결과</th>
-                <th v-for="name in row.testers" :key="name" :colspan="4" class="tester-group">
+                <th v-for="name in row.testers" :key="name" :colspan="2" class="tester-group">
                   {{ name }}
                   <span class="tester-group__date">계획일 {{ row.testerPlanDates?.[name] || '-' }}</span>
                 </th>
+                <th rowspan="2">오류등록</th>
+                <th rowspan="2">조치여부</th>
               </tr>
               <tr>
                 <template v-for="name in row.testers" :key="`${name}-sub`">
                   <th>결과</th>
                   <th>실행일</th>
-                  <th>오류등록</th>
-                  <th>조치여부</th>
                 </template>
               </tr>
             </thead>
@@ -476,28 +486,29 @@ function onExcelDownload() {
                   <td class="center" :title="`최종수정일: ${step.byTester[name]?.executedAt || '-'}`">
                     {{ step.byTester[name]?.executedAt || '-' }}
                   </td>
-                  <td class="center">
-                    <button
-                      type="button"
-                      class="link-btn"
-                      :disabled="!isMyColumn(name) || step.byTester[name]?.result !== '오류'"
-                      @click="openErrorRegister(row, step, name)"
-                    >
-                      등록
-                    </button>
-                    <button type="button" class="link-btn" @click="viewErrors(row, step, name)">조회</button>
-                  </td>
-                  <td class="center">
-                    <span
-                      v-if="step.byTester[name]?.fixStatus"
-                      class="fix-tag"
-                      :class="{ pending: ['접수', '처리예정'].includes(step.byTester[name]?.fixStatus) }"
-                    >
-                      {{ step.byTester[name].fixStatus }}
-                    </span>
-                    <span v-else class="muted">-</span>
-                  </td>
                 </template>
+                <!-- 오류등록/조치여부는 담당자별이 아니라 절차(케이스) 1건당 공용 컬럼이다. -->
+                <td class="center">
+                  <button
+                    type="button"
+                    class="link-btn"
+                    :disabled="!myErrorTesterFor(row, step)"
+                    @click="openErrorRegister(row, step, myErrorTesterFor(row, step))"
+                  >
+                    등록
+                  </button>
+                  <button type="button" class="link-btn" @click="viewErrors(row, step)">조회</button>
+                </td>
+                <td class="center">
+                  <span
+                    v-if="step.fixStatus"
+                    class="fix-tag"
+                    :class="{ pending: ['접수', '처리예정'].includes(step.fixStatus) }"
+                  >
+                    {{ step.fixStatus }}
+                  </span>
+                  <span v-else class="muted">-</span>
+                </td>
               </tr>
             </tbody>
           </table>

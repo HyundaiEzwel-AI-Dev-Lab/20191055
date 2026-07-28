@@ -1,20 +1,24 @@
 // PAG-S-UAT-09 테스트 수행 목업
 import { EMPTY_DATA_USER_ID } from './mockUsers'
 
+// 오류등록/조치여부는 담당자(테스터)별이 아니라 케이스의 절차(스텝) 단위로 1개만 관리한다 (SB p162, POP-S-UAT-13).
 function makeStepRows(procedures, testers, resultsMatrix) {
-  return procedures.map((p, idx) => ({
-    no: idx + 1,
-    procedure: p.procedure,
-    expected: p.expected,
-    byTester: testers.reduce((acc, name, ti) => {
-      acc[name] = resultsMatrix[idx]?.[ti] || {
-        result: '대기',
-        executedAt: null,
-        fixStatus: null,
-      }
+  return procedures.map((p, idx) => {
+    const rowCells = resultsMatrix[idx] || []
+    const byTester = testers.reduce((acc, name, ti) => {
+      const cell = rowCells[ti] || { result: '대기', executedAt: null }
+      acc[name] = { result: cell.result, executedAt: cell.executedAt }
       return acc
-    }, {}),
-  }))
+    }, {})
+    const fixStatus = rowCells.reduce((found, cell) => found || cell?.fixStatus || null, null)
+    return {
+      no: idx + 1,
+      procedure: p.procedure,
+      expected: p.expected,
+      byTester,
+      fixStatus,
+    }
+  })
 }
 
 const baseRuns = [
@@ -214,7 +218,8 @@ export function computeTestRunKpi(rows) {
         else if (t.result === '오류') kpi.error += 1
         else if (t.result === '재처리요청') kpi.retry += 1
         else if (t.result === '기타') kpi.etc += 1
-        if (t?.result === '오류' && t.fixStatus !== '처리완료') kpi.pending += 1
+        // 조치여부는 절차(스텝) 단위 공용 상태이므로 step.fixStatus 기준으로 판단한다.
+        if (t?.result === '오류' && step.fixStatus !== '처리완료') kpi.pending += 1
       }
     }
     if (r.planEnd < today && r.result === '대기') kpi.delay += 1

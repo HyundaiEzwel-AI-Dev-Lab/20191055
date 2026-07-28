@@ -59,7 +59,7 @@ function setOverallResult(val) {
 
 function goRequirement() {
   if (!props.row?.requirementId) return
-  router.push('/project/requirement')
+  router.push('/workspace/requirement')
 }
 
 function setStepResult(step, val) {

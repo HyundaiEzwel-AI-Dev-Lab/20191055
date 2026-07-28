@@ -122,7 +122,7 @@ function openEdit(row) {
 
 function goRequirement(row) {
   if (!row.reqId) return
-  router.push('/project/requirement')
+  router.push('/workspace/requirement')
 }
 
 function openNote(row) {

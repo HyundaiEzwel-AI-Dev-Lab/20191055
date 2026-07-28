@@ -41,7 +41,7 @@ function avatarColor(i) {
   return avatarPalette[i % avatarPalette.length]
 }
 
-function openProject(project, route = '/project/info', sub) {
+function openProject(project, route = '/workspace/info', sub) {
   const id = project.id || project.projectId
   const name = project.name || project.project || '프로젝트'
   const stage = project.stage || '처리중'
@@ -180,7 +180,7 @@ function onScheduleManage(task) {
 }
 function onWbsDetail(task) {
   closeMore()
-  openProject({ id: task.projectId, name: task.project, stage: '처리중' }, '/project/wbs')
+  openProject({ id: task.projectId, name: task.project, stage: '처리중' }, '/workspace/wbs')
 }
 
 // ---- 대기 롤링 ----
@@ -292,7 +292,7 @@ function nextWaiting() {
             type="button"
             class="pcard"
             :class="p.stageType"
-            @click="openProject(p, '/project/info')"
+            @click="openProject(p, '/workspace/info')"
           >
             <div class="pcard__top">
               <span class="pcard__dday">{{ p.openDate }} ( {{ p.dday }} )</span>
@@ -405,7 +405,7 @@ function nextWaiting() {
             :key="w.id"
             type="button"
             class="wcard click"
-            @click="openProject(w, '/project/info')"
+            @click="openProject(w, '/workspace/info')"
           >
             <div class="wcard__meta">{{ w.owner }} | {{ w.openDate }}</div>
             <div class="wcard__name">{{ w.name }}</div>

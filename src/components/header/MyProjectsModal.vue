@@ -46,10 +46,10 @@ function selectProject(project) {
     projectId: project.id,
     title: project.name,
     projectName: project.name,
-    route: '/project/info',
+    route: '/workspace/info',
   })
   close()
-  router.push('/project/info')
+  router.push('/workspace/info')
 }
 
 function isSelected(project) {

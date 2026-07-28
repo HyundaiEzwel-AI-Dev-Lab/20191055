@@ -130,24 +130,24 @@ const defectConfirmTotals = computed(() => {
 
 function goToTestRun(system, result) {
   router.push({
-    path: `/project/test-run/${mode.value}`,
+    path: `/workspace/test/${mode.value}/perform`,
     query: { system: system ? system.split(' ')[0] : undefined, result: result || undefined },
   })
 }
 
 function goToDefect(system) {
   router.push({
-    path: `/project/defect/${mode.value}`,
+    path: `/workspace/test/${mode.value}/defects`,
     query: { bizCategory: system ? system.split(' ').slice(1).join(' ') : undefined },
   })
 }
 
 function goToTestRunByTester(name) {
-  router.push({ path: `/project/test-run/${mode.value}`, query: { tester: name } })
+  router.push({ path: `/workspace/test/${mode.value}/perform`, query: { tester: name } })
 }
 
 function goToDefectByTester(name) {
-  router.push({ path: `/project/defect/${mode.value}`, query: { tester: name } })
+  router.push({ path: `/workspace/test/${mode.value}/defects`, query: { tester: name } })
 }
 
 function defectConfirmRate(row) {

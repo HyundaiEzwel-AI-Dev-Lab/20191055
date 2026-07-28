@@ -22,7 +22,7 @@ export const useSubTabsStore = defineStore('subTabs', () => {
   function getActiveRoute(projectId) {
     const id = activeByProject.value[projectId]
     const tab = getTabs(projectId).find((t) => t.id === id)
-    return tab?.route || '/project/info'
+    return tab?.route || '/workspace/info'
   }
 
   function openSubTab(projectId, { id, title, route }) {

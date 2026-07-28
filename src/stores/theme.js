@@ -11,11 +11,22 @@ export const conceptOptions = [
   { value: 'dark', label: '다크', desc: 'Claude Desktop 톤 · 따뜻한 near-black과 크림 텍스트' },
 ]
 
+/** 1~5단계 · 단계당 +1px (1=기본 0px … 5=+4px). 구값 small/medium/large → 1/2/3 마이그레이션 */
 export const fontSizeOptions = [
-  { value: 'small', label: '작게', desc: '기본 글자 크기' },
-  { value: 'medium', label: '중간', desc: '기본보다 1px 크게' },
-  { value: 'large', label: '크게', desc: '기본보다 2px 크게' },
+  { value: '1', label: '1', desc: '기본 글자 크기' },
+  { value: '2', label: '2', desc: '기본보다 1px 크게' },
+  { value: '3', label: '3', desc: '기본보다 2px 크게' },
+  { value: '4', label: '4', desc: '기본보다 3px 크게' },
+  { value: '5', label: '5', desc: '기본보다 4px 크게' },
 ]
+
+const FONT_SIZE_LEGACY = { small: '1', medium: '2', large: '3' }
+
+function normalizeFontSize(stored) {
+  if (fontSizeOptions.some((f) => f.value === stored)) return stored
+  if (stored && FONT_SIZE_LEGACY[stored]) return FONT_SIZE_LEGACY[stored]
+  return '1'
+}
 
 /** 프로필 아이콘용 20색 (비비드 + 파스텔 혼합) */
 export const avatarColorOptions = [
@@ -76,9 +87,10 @@ export const useThemeStore = defineStore('theme', () => {
   )
 
   const storedFontSize = localStorage.getItem(FONT_SIZE_KEY)
-  const fontSize = ref(
-    fontSizeOptions.some((f) => f.value === storedFontSize) ? storedFontSize : 'small',
-  )
+  const fontSize = ref(normalizeFontSize(storedFontSize))
+  if (storedFontSize && storedFontSize !== fontSize.value) {
+    localStorage.setItem(FONT_SIZE_KEY, fontSize.value)
+  }
 
   applyConcept(concept.value)
   applyFontSize(fontSize.value)

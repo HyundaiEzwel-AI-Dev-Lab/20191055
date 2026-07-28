@@ -42,18 +42,18 @@ export function useProjectRegister() {
     subTabsStore.openSubTab(id, {
       id: 'project-info',
       title: '프로젝트 정보',
-      route: '/project/info',
+      route: '/workspace/info',
     })
 
     tabsStore.openProjectTab({
       projectId: id,
       title: name,
       projectName: name,
-      route: '/project/info',
+      route: '/workspace/info',
     })
 
     closeRegisterModal()
-    router.push('/project/info')
+    router.push('/workspace/info')
     return true
   }
 

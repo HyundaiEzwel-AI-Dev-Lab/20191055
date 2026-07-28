@@ -70,7 +70,7 @@ function close() {
       <section class="settings__sec">
         <div class="settings__head">
           <h3 class="settings__title">폰트 사이즈</h3>
-          <p class="settings__hint">화면 전체 글자 크기를 조정합니다</p>
+          <p class="settings__hint">1~5단계 · 단계마다 1px씩 커집니다</p>
         </div>
         <div class="concept-seg">
           <button

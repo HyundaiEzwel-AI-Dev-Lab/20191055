@@ -104,7 +104,7 @@ function toggleExpand(id) {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-function openProject(project, routePath = '/project/info') {
+function openProject(project, routePath = '/workspace/info') {
   const id = project.id || project.projectId || project.projectKey
   const name = project.name || project.projectName || project.project || '프로젝트'
   const stage = project.stage || '처리중'

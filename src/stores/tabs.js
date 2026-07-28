@@ -6,16 +6,16 @@ import { truncateProjectName } from '@/utils/text'
 export const useTabsStore = defineStore('tabs', () => {
   const tabs = ref([
     {
-      id: 'inbox',
+      id: 'my-work',
       title: '내업무',
-      route: '/inbox',
+      route: '/integrated/my-work',
       badge: 'tong',
       projectId: null,
       projectName: null,
       closable: false,
     },
   ])
-  const activeTabId = ref('inbox')
+  const activeTabId = ref('my-work')
 
   const activeTab = computed(() => tabs.value.find((t) => t.id === activeTabId.value))
 
@@ -85,7 +85,7 @@ export const useTabsStore = defineStore('tabs', () => {
 
     if (activeTabId.value === id) {
       const next = tabs.value[Math.min(index, tabs.value.length - 1)]
-      activeTabId.value = next?.id ?? 'inbox'
+      activeTabId.value = next?.id ?? 'my-work'
     }
     return closed
   }

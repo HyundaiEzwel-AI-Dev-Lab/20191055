@@ -155,7 +155,7 @@ function onExcelDownload() {
 }
 
 function onProjectClick(row) {
-  router.push('/project/info')
+  router.push('/workspace/info')
 }
 
 function onDeptClick(row) {

@@ -41,15 +41,15 @@ function goRequirement() {
     projectId: id,
     title: name,
     projectName: name,
-    route: '/project/requirement',
+    route: '/workspace/requirement',
   })
   subTabsStore.openSubTab(id, {
     id: 'requirement',
     title: '요구사항',
-    route: '/project/requirement',
+    route: '/workspace/requirement',
   })
   close()
-  router.push('/project/requirement')
+  router.push('/workspace/requirement')
 }
 </script>
 

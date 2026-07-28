@@ -87,7 +87,7 @@ function openProjectFrom(id, name, stage) {
     projectId: id,
     title: name,
     projectName: name,
-    route: '/project/info',
+    route: '/workspace/info',
   })
 }
 

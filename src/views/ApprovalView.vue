@@ -138,7 +138,7 @@ function applyStatus(status) {
 function goProject() {
   if (!selectedRow.value) return
   const row = selectedRow.value
-  const route = row.type === '요구사항' ? '/project/requirement' : '/project/wbs'
+  const route = row.type === '요구사항' ? '/workspace/requirement' : '/workspace/wbs'
   const id = row.projectId || 'p1'
   const name = String(row.projectName || '프로젝트').replace(/\s*외\s*\d+건$/, '')
   projectStore.setCurrentProject({ id, name, stage: '처리중' })

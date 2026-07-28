@@ -279,10 +279,10 @@ export function getInboxBundle(userId) {
 
 /** 업무유형 → 랜딩 경로 */
 export function routeForTaskType(taskType) {
-  if (taskType === '기획') return '/project/requirement'
-  if (taskType === '단위테스트') return '/project/unit-test'
-  if (taskType === 'DEV테스트' || taskType === 'dev테스트') return '/project/test-run/dev'
-  if (taskType === '운영테스트') return '/project/test-run/uat'
+  if (taskType === '기획') return '/workspace/requirement'
+  if (taskType === '단위테스트') return '/workspace/unit-test'
+  if (taskType === 'DEV테스트' || taskType === 'dev테스트') return '/workspace/test/dev/perform'
+  if (taskType === '운영테스트') return '/workspace/test/uat/perform'
   // 디자인, 퍼블리싱, 개발
-  return '/project/wbs'
+  return '/workspace/wbs'
 }

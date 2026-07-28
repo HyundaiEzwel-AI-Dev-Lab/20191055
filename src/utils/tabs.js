@@ -34,5 +34,5 @@ export function integratedTabIdFromRoute(route) {
 }
 
 export function isProjectPath(path) {
-  return path.startsWith('/project')
+  return path.startsWith('/workspace')
 }

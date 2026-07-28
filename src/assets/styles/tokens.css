@@ -108,17 +108,22 @@
   --transition-normal: 200ms ease;
 }
 
-/* ===== 폰트 사이즈: 작게/중간/크게 (내 정보 > 설정 > 폰트 사이즈에서 선택) =====
-   전체 화면의 font-size 선언은 calc(원래값 + var(--font-size-offset, 0px))
-   형태로 변환되어 있어, 이 오프셋 하나로 전 화면 글자 크기가 함께 조정된다. */
-:root[data-font-size="small"] {
+/* ===== 폰트 사이즈: 1~5단계 (내 정보 > 설정 > 폰트 사이즈)
+   단계당 +1px 오프셋. 전체 화면 font-size는 calc(원래값 + var(--font-size-offset)) */
+:root[data-font-size="1"] {
   --font-size-offset: 0px;
 }
-:root[data-font-size="medium"] {
+:root[data-font-size="2"] {
   --font-size-offset: 1px;
 }
-:root[data-font-size="large"] {
+:root[data-font-size="3"] {
   --font-size-offset: 2px;
+}
+:root[data-font-size="4"] {
+  --font-size-offset: 3px;
+}
+:root[data-font-size="5"] {
+  --font-size-offset: 4px;
 }
 
 /* ===== 화면 컨셉: 프리미엄 (내 정보 > 컨셉 변경에서 선택) =====

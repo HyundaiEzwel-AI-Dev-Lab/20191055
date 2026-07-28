@@ -75,6 +75,8 @@ function register() {
     caseId: props.caseRow.caseId,
     caseName: props.caseRow.caseName,
     screenName: props.caseRow.screenName,
+    systemPath: props.caseRow.systemPath,
+    bizCategory: props.caseRow.bizCategory,
     round: props.caseRow.round,
     stepNo: props.step.no,
     stepProcedure: props.step.procedure,

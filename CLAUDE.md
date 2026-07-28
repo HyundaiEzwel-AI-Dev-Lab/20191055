@@ -14,6 +14,10 @@ Before implementing:
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
+Once the user approves proceeding on a batch of items (a checklist, a set of open questions, a list of proposed fixes), that approval covers the whole batch — don't ask again item-by-item. Work through every item, and if verification surfaces an additional related bug/decision along the way, resolve it too without pausing to ask. Only raise confirmation-type questions again after the full batch is done, when reporting results or proposing further work.
+
+When asking the user to confirm a change, don't just name the code/file - explain in plain, non-technical terms what will actually change and how it will behave differently, so someone without a coding background can follow along.
+
 ## 2. Simplicity First
 
 **Minimum code that solves the problem. Nothing speculative.**

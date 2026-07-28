@@ -91,14 +91,14 @@ function goTo(item) {
   item.read = true
   emitUnread()
 
-  if (item.route?.startsWith('/project/')) {
+  if (item.route?.startsWith('/workspace/')) {
     openProjectContext(item)
   }
 
   const id = item.id
   removeItem(id)
   emit('update:modelValue', false)
-  router.push(item.route || '/inbox')
+  router.push(item.route || '/integrated/my-work')
 }
 
 function dismiss(item) {
