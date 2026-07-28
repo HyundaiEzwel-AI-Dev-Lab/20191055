@@ -37,10 +37,10 @@
 
 | 구분 | 기획서 | 현재 구현 |
 |------|--------|-----------|
-| 화면 | `PAG-M-PRJ-01` 등록 전용 페이지 + `PAG-S-INF-01` 정보(수정) | **등록·수정 모두** `ProjectInfoView.vue` (`/project/info`) |
+| 화면 | `PAG-M-PRJ-01` 등록 전용 페이지 + `PAG-S-INF-01` 정보(수정) | **등록·수정 모두** `ProjectInfoView.vue` (`/workspace/info`) |
 | 등록 진입 | 통합관리 > 프로젝트 등록 풀페이지 | LNB/메뉴 → **프로젝트명 모달** (`ProjectNameRegisterModal`) → 정보 화면(등록 모드) |
 | 삭제된 껍데기 | — | `ProjectRegisterView.vue` 제거 (미사용 플레이스홀더) |
-| 라우트 | `/integrated/project/register` | 모달 오픈 후 `/inbox` 등으로 redirect (본문은 info) |
+| 라우트 | `/integrated/project/register` | 모달 오픈 후 `/integrated/my-work` 등으로 redirect (본문은 info) |
 
 **이유:** 필드·검증·레이아웃이 등록/수정과 거의 동일해 이중 유지보수 비용이 큼.  
 `isRegistering`(draft)로 등록 전용 규칙(완료·반려 비활성, 필수값, 버튼「등록」 등)만 분기.
@@ -50,7 +50,7 @@
 | 구분 | 기획서 | 현재 구현 |
 |------|--------|-----------|
 | 통합 | `PAG-M-PST-03` 전체 프로젝트 변경이력 | `ProjectHistoryView.vue` + `/integrated/project/history` |
-| 개별 | `PAG-S-INF-05` 현재 프로젝트 변경이력 | **같은** `ProjectHistoryView.vue` + `/project/history` |
+| 개별 | `PAG-S-INF-05` 현재 프로젝트 변경이력 | **같은** `ProjectHistoryView.vue` + `/workspace/history` |
 | 상세 템플릿 | 기획서도 “동일 템플릿” 명시 | 공용 UI, row 펼침·상세보기 공유 |
 | 분기 | 화면 2개 | `route.name === 'project-history'` → 전체(+프로젝트/부서 필터·컬럼), 아니면 현재 프로젝트만 |
 
@@ -71,6 +71,21 @@
 ### 그 외 (참고, 기획과 동일 취지)
 - DEV/운영 테스트 하위 메뉴: View 공용 + `route.params.mode` (`dev` \| `uat`)
 - 시스템관리·대시보드 등은 화면 1파일 원칙 유지
+
+### 4) URL 경로 — h-pms frontend 정렬
+
+프론트 라우트 prefix는 **h-pms** (`sidebarMenu` / `router`)와 동일하다. 정의: `src/data/sidebarMenu.js`, `src/router/index.js`
+
+| 영역 | prefix | 예시 |
+|------|--------|------|
+| 내업무 | `/integrated/my-work` | 로그인 후 기본 진입 |
+| 대시보드(통합) | `/integrated/dashboard/*` | `/integrated/dashboard/main` |
+| 통합관리 | `/integrated/*` | `/integrated/project/status`, `/integrated/test-library` |
+| 시스템관리 | `/system/*` | `/system/users`, `/system/approval` |
+| 프로젝트(개별) | `/workspace/*` | `/workspace/info`, `/workspace/wbs` |
+| DEV/운영 테스트 | `/workspace/test/:mode/*` | `/workspace/test/dev/scenario`, `/workspace/test/uat/perform` |
+
+> 예전 목업 경로(`/inbox`, `/dashboard/*`, `/admin/*`, `/project/*`)는 쓰지 않는다.
 
 ---
 

@@ -116,9 +116,9 @@
 
 ```js
 {
-  id: 'inbox' | 'project-{projectId}',
+  id: 'my-work' | 'project-{projectId}',
   title: '내업무' | 'DL이앤씨 바우처…',
-  route: '/inbox' | '/project/info',  // 통합: 화면 route / 개별: 프로젝트 진입 route
+  route: '/integrated/my-work' | '/workspace/info',  // 통합: 화면 route / 개별: 프로젝트 진입 route
   badge: 'tong' | 'gae',              // 통합 | 개별
   projectId: null | 'p2',             // 개별 탭만
   closable: false | true,
@@ -142,7 +142,7 @@
 
 | 상황 | 2단 Tab |
 |---|---|
-| 통합 1단 탭 활성 (`/inbox`, `/dashboard`, `/integrated`, `/admin` 등) | **숨김** |
+| 통합 1단 탭 활성 (`/integrated/*`, `/system/*` 등) | **숨김** |
 | 개별 1단 탭 활성 + LNB 프로젝트 하위 메뉴 이동 | **표시** |
 
 ### 생성 규칙
@@ -160,19 +160,20 @@
 
 | LNB 메뉴 | 2단 Tab 제목 | route 예시 |
 |---|---|---|
-| 프로젝트 정보 | 프로젝트정보 | `/project/info` |
-| 프로젝트 변경이력 | 프로젝트변경이력 | `/project/history` |
-| 요구사항 관리 | 요구사항관리 | `/project/requirement` |
-| WBS 관리 | WBS관리 | `/project/wbs` |
-| 단위테스트 | 단위테스트 | `/project/unit-test` |
-| DEV테스트 > 시나리오 관리 | 시나리오관리 (DEV) | `/project/scenario/dev` |
-| DEV테스트 > 테스트 수행 | 테스트수행 | `/project/test-run` |
-| DEV테스트 > 결함 관리 | 결함관리 (DEV) | `/project/defect/dev` |
-| DEV테스트 > 진척 관리 | 진척관리 (DEV) | `/project/progress/dev` |
-| 운영테스트 > 시나리오 관리 | 시나리오관리 (운영) | `/project/scenario/uat` |
-| 운영테스트 > 결함 관리 | 결함관리 (운영) | `/project/defect/uat` |
-| 운영테스트 > 진척 관리 | 진척관리 (운영) | `/project/progress/uat` |
-| 대시보드 | 대시보드 | `/project/dashboard` |
+| 프로젝트 정보 | 프로젝트정보 | `/workspace/info` |
+| 프로젝트 변경이력 | 프로젝트변경이력 | `/workspace/history` |
+| 요구사항 관리 | 요구사항관리 | `/workspace/requirement` |
+| WBS 관리 | WBS관리 | `/workspace/wbs` |
+| 단위테스트 | 단위테스트 | `/workspace/unit-test` |
+| DEV테스트 > 시나리오 관리 | 시나리오관리 (DEV) | `/workspace/test/dev/scenario` |
+| DEV테스트 > 테스트 수행 | 테스트수행 | `/workspace/test/dev/perform` |
+| DEV테스트 > 결함 관리 | 결함관리 (DEV) | `/workspace/test/dev/defects` |
+| DEV테스트 > 진척 관리 | 진척관리 (DEV) | `/workspace/test/dev/progress` |
+| 운영테스트 > 시나리오 관리 | 시나리오관리 (운영) | `/workspace/test/uat/scenario` |
+| 운영테스트 > 테스트 수행 | 테스트수행 | `/workspace/test/uat/perform` |
+| 운영테스트 > 결함 관리 | 결함관리 (운영) | `/workspace/test/uat/defects` |
+| 운영테스트 > 진척 관리 | 진척관리 (운영) | `/workspace/test/uat/progress` |
+| 대시보드 | 대시보드 | `/workspace/dashboard` |
 
 ### 2단 Tab 데이터 구조 (`subTabs.js`)
 
@@ -180,8 +181,8 @@
 // projectId → tabs[]
 {
   'p2': [
-    { id: 'wbs', title: 'WBS관리', route: '/project/wbs', closable: true },
-    { id: 'requirement', title: '요구사항관리', route: '/project/requirement', closable: true },
+    { id: 'wbs', title: 'WBS관리', route: '/workspace/wbs', closable: true },
+    { id: 'requirement', title: '요구사항관리', route: '/workspace/requirement', closable: true },
   ],
 }
 ```
@@ -212,20 +213,24 @@ WBS 관리                    ← 페이지 타이틀 (app-subbar)
 
 ## 5. LNB (좌측 네비게이션)
 
+경로 정의: `src/data/sidebarMenu.js` (h-pms와 동일 prefix)
+
 ```
+• 내업무                         → /integrated/my-work
 • 대시보드
-  ㄴ 메인 대시보드 / 실적관리 / 테크 리소스관리
-• 내업무
-• 통합관리
-  ㄴ 프로젝트 등록 / 프로젝트 현황 / 프로젝트 변경이력 / 테스트 라이브러리
-  ㄴ 시스템 관리
-     ㄴ 사용자관리 / 신청승인관리 / 화면(메뉴)관리 / 공통코드관리 / 휴무일관리
+  ㄴ 메인 / 실적 / 테크 리소스   → /integrated/dashboard/*
+• 프로젝트 현황
+  ㄴ 현황 / 변경이력             → /integrated/project/*
+• 시스템관리
+  ㄴ 승인 / 메뉴 / 공통코드 / 테스트라이브러리 / 사용자 / 휴무일
+     → /system/* (+ 라이브러리만 /integrated/test-library)
 • 프로젝트 관리  ← 프로젝트 선택 후 열림
-  ㄴ 프로젝트정보 / 프로젝트변경이력
-  ㄴ 요구사항 관리 / WBS 관리 / 단위테스트
-  ㄴ DEV테스트 (시나리오관리 / 테스트수행 / 결함관리 / 진척관리)
-  ㄴ 운영테스트 (시나리오관리 / 결함관리 / 진척관리)
-  ㄴ 대시보드
+  ㄴ 대시보드                    → /workspace/dashboard
+  ㄴ 프로젝트정보 / 변경이력     → /workspace/info · /workspace/history
+  ㄴ 요구사항 / WBS / 단위테스트 → /workspace/*
+  ㄴ DEV테스트 (시나리오 / 수행 / 결함 / 진척)
+  ㄴ 운영테스트 (시나리오 / 수행 / 결함 / 진척)
+     → /workspace/test/{dev|uat}/{scenario|perform|defects|progress}
 ```
 
 | 항목 | 규칙 |

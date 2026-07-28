@@ -14,7 +14,7 @@
 HPMS/
 ├─ public/logo.png
 ├─ index.html · package.json · vite.config.js
-├─ SOURCE_TREE.md              ← 파일 카탈로그 · 기획 차이 (Wiki용)
+├─ SOURCE_TREE.md              ← 파일 카탈로그 · 기획 차이 · URL 경로 (Wiki용)
 ├─ PROJECT_STRUCTURE.md        ← 본 문서 (원칙·결정)
 ├─ DESIGN_GUIDE.md
 ├─ HPMS_공통레이아웃_정의.md
@@ -25,6 +25,21 @@ HPMS/
    ├─ components/layout|ui|header|…
    └─ views/                   ← 화면 (등록·변경이력·DEV/운영은 공용 View 허용)
 ```
+
+### 1.1 URL 경로 prefix (h-pms 정렬)
+
+라우트는 h-pms frontend와 동일한 prefix를 쓴다. (`src/data/sidebarMenu.js` · `src/router/index.js`)
+
+| 영역 | prefix |
+|------|--------|
+| 내업무 | `/integrated/my-work` |
+| 통합 대시보드 | `/integrated/dashboard/*` |
+| 통합관리 | `/integrated/project/*`, `/integrated/test-library` |
+| 시스템관리 | `/system/*` |
+| 프로젝트(개별) | `/workspace/*` |
+| DEV/운영 테스트 | `/workspace/test/:mode(dev\|uat)/{scenario\|perform\|defects\|progress}` |
+
+상세·기획 대비 합침: `SOURCE_TREE.md` §「URL 경로 — h-pms frontend 정렬」
 
 ---
 

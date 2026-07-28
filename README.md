@@ -30,8 +30,8 @@ npm run preview
 ## 프로젝트 구조
 
 기준 문서:
-- `SOURCE_TREE.md` — 소스 트리·파일별 설명·기획서 대비 합침 내역 (Wiki용)
-- `PROJECT_STRUCTURE.md` — 구조 원칙·확정 결정
+- `SOURCE_TREE.md` — 소스 트리·파일별 설명·기획서 대비 합침·**URL 경로(h-pms 정렬)**
+- `PROJECT_STRUCTURE.md` — 구조 원칙·확정 결정·경로 prefix 요약
 - `HPMS_공통레이아웃_정의.md` — 레이아웃, Tab, LNB, 공통 UX
 - `DESIGN_GUIDE.md` — 색상·폰트·간격
 
@@ -40,5 +40,10 @@ HPMS/
 ├─ public/logo.png          ← 로고 (교체만)
 ├─ index.html
 ├─ src/                     ← 애플리케이션
+│  ├─ router/               ← URL: /integrated · /system · /workspace
+│  └─ …
 └─ …                        ← 상세는 SOURCE_TREE.md
 ```
+
+**경로 prefix (h-pms와 동일)**  
+내업무 `/integrated/my-work` · 대시보드 `/integrated/dashboard/*` · 시스템 `/system/*` · 프로젝트 `/workspace/*` · 테스트 `/workspace/test/:mode/*`
