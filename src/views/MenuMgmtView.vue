@@ -62,7 +62,7 @@ function toggleSelect(id) {
 }
 
 function toggleSelectAll(e) {
-  selectedIds.value = e.target.checked ? rows.value.map((r) => r.id) : []
+  selectedIds.value = e.target.checked ? rows.value.filter((r) => !r.linked).map((r) => r.id) : []
 }
 
 function addRow() {
@@ -86,8 +86,13 @@ function removeRows() {
     window.alert('삭제할 화면을 선택해 주세요.')
     return
   }
+  const linkedIds = new Set(allRows.value.filter((r) => r.linked).map((r) => r.id))
+  const deletable = selectedIds.value.filter((id) => !linkedIds.has(id))
+  if (deletable.length < selectedIds.value.length) {
+    window.alert('BO/FO 연동 화면은 삭제할 수 없습니다.')
+  }
   const next = new Set(markedForDelete.value)
-  selectedIds.value.forEach((id) => next.add(id))
+  deletable.forEach((id) => next.add(id))
   markedForDelete.value = [...next]
   selectedIds.value = []
 }
@@ -205,11 +210,15 @@ function onExcelDownload() {
               <td>
                 <input
                   type="checkbox"
+                  :disabled="row.linked"
                   :checked="selectedIds.includes(row.id)"
                   @change="toggleSelect(row.id)"
                 />
               </td>
-              <td><span class="tbl__name">{{ row.id }}</span></td>
+              <td>
+                <span class="tbl__name">{{ row.id }}</span>
+                <span v-if="row.linked" class="linked-badge" title="BO/FO 연동 화면 — 사용여부 변경/삭제 불가">연동</span>
+              </td>
               <td>
                 <input v-model="row.name" class="cell-input" type="text" />
               </td>
@@ -228,6 +237,7 @@ function onExcelDownload() {
                   v-model="row.useYn"
                   class="cell-select"
                   :class="{ 'is-off': row.useYn === 'N' }"
+                  :disabled="row.linked"
                 >
                   <option value="Y">Y</option>
                   <option value="N">N</option>
@@ -254,5 +264,15 @@ function onExcelDownload() {
 .is-marked-delete {
   opacity: 0.45;
   text-decoration: line-through;
+}
+
+.linked-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--teal-50);
+  color: var(--teal-600);
+  font-size: calc(10px + var(--font-size-offset, 0px));
+  font-weight: 700;
 }
 </style>

@@ -212,3 +212,51 @@ export function matchUnitFilters(row, filters, myTasksOnly, currentUser = CURREN
 }
 
 export const unitTestResultSegments = ['대기', '정상', '오류', '테스트불가', '개선필요']
+
+/** PAG-S-UAT-16 단위테스트 전용 진척관리 (A11) */
+export function getUnitTestProgressData(userId) {
+  const rows = getUnitTestList(userId)
+  const total = rows.length
+  const done = rows.filter((r) => r.testResult && r.testResult !== '대기').length
+  const progressRate = total ? Math.round((done / total) * 100) : 0
+  const allDefects = rows.flatMap((r) => r.defects)
+  const defectTotal = allDefects.length
+  const defectFixed = allDefects.filter((d) => d.status === '처리완료').length
+  const defectFixRate = defectTotal ? Math.round((defectFixed / defectTotal) * 100) : 0
+
+  const systemMap = new Map()
+  rows.forEach((r) => {
+    if (!systemMap.has(r.system)) {
+      systemMap.set(r.system, { system: r.system, total: 0, done: 0, defects: 0 })
+    }
+    const entry = systemMap.get(r.system)
+    entry.total += 1
+    if (r.testResult && r.testResult !== '대기') entry.done += 1
+    entry.defects += r.defects.length
+  })
+  const systemDetail = [...systemMap.values()].map((e) => ({
+    ...e,
+    progressRate: e.total ? Math.round((e.done / e.total) * 100) : 0,
+  }))
+
+  const testerMap = new Map()
+  rows.forEach((r) => {
+    if (!testerMap.has(r.assignee)) {
+      testerMap.set(r.assignee, { name: r.assignee, assigned: 0, done: 0 })
+    }
+    const entry = testerMap.get(r.assignee)
+    entry.assigned += 1
+    if (r.testResult && r.testResult !== '대기') entry.done += 1
+  })
+  const byTester = [...testerMap.values()].map((e) => ({
+    ...e,
+    rate: e.assigned ? Math.round((e.done / e.assigned) * 100) : 0,
+  }))
+
+  return {
+    updatedAt: '2026-04-17 08:00',
+    kpi: { total, done, progressRate, defectTotal, defectFixed, defectFixRate },
+    systemDetail,
+    byTester,
+  }
+}

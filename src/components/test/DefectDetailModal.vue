@@ -21,12 +21,14 @@ const form = ref({
 })
 
 const confirmStatus = ref('')
-const confirmDevChecked = ref(false)
-const confirmStgChecked = ref(false)
-const confirmOpsChecked = ref(false)
 const confirmComment = ref('')
 
 const retryHistory = computed(() => (props.row?.history || []).filter((h) => h.action === '재처리요청'))
+
+/** 운영확인은 DEV확인이 이미 완료되고, 배포상태가 '운영배포'일 때만 활성화 (SB p.173) */
+const canConfirmOps = computed(
+  () => props.row?.result === 'DEV확인' && form.value.deployStatus === '운영배포',
+)
 
 watch(
   () => props.row,
@@ -40,9 +42,6 @@ watch(
       attachments: [],
     }
     confirmStatus.value = ''
-    confirmDevChecked.value = false
-    confirmStgChecked.value = false
-    confirmOpsChecked.value = false
     confirmComment.value = ''
   },
   { immediate: true },
@@ -98,12 +97,12 @@ function saveConfirm() {
     window.alert('확인상태를 선택해 주세요.')
     return
   }
+  if (confirmStatus.value === '운영확인' && !canConfirmOps.value) {
+    window.alert('운영확인은 DEV확인 완료 후 배포상태가 "운영배포"일 때만 처리할 수 있습니다.')
+    return
+  }
   if (!window.confirm(`${confirmStatus.value}(으)로 확인 처리하시겠습니까?`)) return
-  appendHistory(
-    confirmStatus.value,
-    confirmComment.value ||
-      `DEV확인:${confirmDevChecked.value ? 'Y' : 'N'} STG확인:${confirmStgChecked.value ? 'Y' : 'N'} 운영확인:${confirmOpsChecked.value ? 'Y' : 'N'}`,
-  )
+  appendHistory(confirmStatus.value, confirmComment.value || `${confirmStatus.value} 처리`)
   emit('save', { result: confirmStatus.value })
 }
 </script>
@@ -178,7 +177,7 @@ function saveConfirm() {
 
       <div class="confirm-block">
         <h4>조치 확인 (테스터 입력)</h4>
-        <div class="confirm-radios">
+        <div v-if="!config.showDeployStatus" class="confirm-radios">
           <label class="radio-item">
             <input v-model="confirmStatus" type="radio" value="수정완료" />
             수정완료
@@ -188,10 +187,19 @@ function saveConfirm() {
             재처리요청
           </label>
         </div>
-        <div class="confirm-checks">
-          <label class="chk-item"><input v-model="confirmDevChecked" type="checkbox" />DEV확인</label>
-          <label class="chk-item"><input v-model="confirmStgChecked" type="checkbox" />STG확인</label>
-          <label class="chk-item"><input v-model="confirmOpsChecked" type="checkbox" />운영확인</label>
+        <div v-else class="confirm-radios">
+          <label class="radio-item">
+            <input v-model="confirmStatus" type="radio" value="DEV확인" />
+            DEV확인
+          </label>
+          <label class="radio-item" :title="!canConfirmOps ? 'DEV확인 완료 + 배포상태 운영배포일 때만 선택 가능' : undefined">
+            <input v-model="confirmStatus" type="radio" value="운영확인" :disabled="!canConfirmOps" />
+            운영확인
+          </label>
+          <label class="radio-item">
+            <input v-model="confirmStatus" type="radio" value="재처리요청" />
+            재처리요청
+          </label>
         </div>
         <div class="form-row">
           <div class="field">
@@ -434,15 +442,13 @@ function saveConfirm() {
   font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
-.confirm-radios,
-.confirm-checks {
+.confirm-radios {
   display: flex;
   gap: 16px;
   margin-bottom: 10px;
 }
 
-.radio-item,
-.chk-item {
+.radio-item {
   display: flex;
   align-items: center;
   gap: 6px;

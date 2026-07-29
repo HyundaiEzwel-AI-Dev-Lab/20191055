@@ -158,7 +158,7 @@ function onProjectClick(row) {
   router.push('/workspace/info')
 }
 
-function onDeptClick(row) {
+function onRequirementClick(row) {
   requirementContext.value = {
     id: row.id,
     name: row.name,
@@ -388,6 +388,7 @@ function onOverdueClick(row) {
               <th>오픈일</th>
               <th>요청부서</th>
               <th>담당개발부서</th>
+              <th>요구사항</th>
             </tr>
           </thead>
           <tbody>
@@ -434,12 +435,18 @@ function onOverdueClick(row) {
                 </template>
                 <span v-else class="tbl__date--empty">-</span>
               </td>
+              <td>{{ row.requestDept }}</td>
+              <td>{{ row.devDept }}</td>
               <td>
-                <button type="button" class="tbl__link" @click.stop="onDeptClick(row)">
-                  {{ row.requestDept }}
+                <button
+                  type="button"
+                  class="req-icon-btn"
+                  title="요구사항 목록 보기"
+                  @click.stop="onRequirementClick(row)"
+                >
+                  📋
                 </button>
               </td>
-              <td>{{ row.devDept }}</td>
             </tr>
           </tbody>
         </table>
@@ -987,6 +994,20 @@ function onOverdueClick(row) {
   text-underline-offset: 2px;
   cursor: pointer;
   text-align: left;
+}
+
+.req-icon-btn {
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.req-icon-btn:hover {
+  background: var(--teal-50);
 }
 
 .tbl__date--over {

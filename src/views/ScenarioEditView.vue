@@ -250,12 +250,15 @@ function onLibraryConfirm(cases) {
   const execType = config.value.editExecutionTypeOptions?.[0] || '오픈 전'
   for (const c of cases) {
     const pathParts = (c.systemPath || '').split('>').map((s) => s.trim())
-    const group = findOrCreateGroup({
-      reqId: `REQ-LIB-${c.libId}`,
-      screenName: c.screenName,
-      systemPath: pathParts.slice(0, 2).join('>') || c.systemPath || '-',
-      screenPath: pathParts.slice(2).join('>') || '-',
-    })
+    // WBS에 이미 등록된 화면이면 그 행에 합류, 없을 때만 합성 요구사항ID로 새 행 생성 (SB p.155)
+    const group =
+      groups.value.find((g) => g.screenName === c.screenName) ||
+      findOrCreateGroup({
+        reqId: `REQ-LIB-${c.libId}`,
+        screenName: c.screenName,
+        systemPath: pathParts.slice(0, 2).join('>') || c.systemPath || '-',
+        screenPath: pathParts.slice(2).join('>') || '-',
+      })
     group.cases.push({
       id: `sc-lib-${Date.now()}-${caseSeq}`,
       caseId: nextCaseId('TC-L'),
@@ -394,7 +397,7 @@ function onLibraryConfirm(cases) {
     </div>
   </div>
 
-  <ScenarioLoadFromWbsModal v-model="showWbsLoad" @confirm="onWbsConfirm" />
+  <ScenarioLoadFromWbsModal v-model="showWbsLoad" :mode="mode" @confirm="onWbsConfirm" />
   <ScenarioCopyFromLibraryModal v-model="showLibCopy" @confirm="onLibraryConfirm" />
   <ScenarioScreenSearchModal v-model="showScreenSearch" @select="onScreenSearchSelect" />
   <ScenarioRequirementSearchModal v-model="showReqSearch" @select="onReqSearchSelect" />

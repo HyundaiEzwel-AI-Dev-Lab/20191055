@@ -1,6 +1,6 @@
 <script setup>
 // POP-M-COM-05 알림
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useProjectStore } from '@/stores/project'
@@ -13,7 +13,7 @@ import {
   getMyProjects,
 } from '@/data/headerPopups'
 
-defineProps({
+const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'unread-change'])
@@ -26,6 +26,23 @@ const authStore = useAuthStore()
 const myProjects = computed(() => getMyProjects(authStore.user?.id))
 const items = ref(getNotifications(authStore.user?.id).map((n) => ({ ...n })))
 const activeTab = ref('project')
+const PAGE_SIZE = 5
+const currentPage = ref(1)
+
+// 팝업을 다시 열 때, 그 사이 새로 생성된 알림(예: 이슈 @멘션)만 기존 읽음상태를 보존한 채 병합한다.
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (!open) return
+    const latest = getNotifications(authStore.user?.id)
+    const existingIds = new Set(items.value.map((n) => n.id))
+    const fresh = latest.filter((n) => !existingIds.has(n.id)).map((n) => ({ ...n }))
+    if (fresh.length) {
+      items.value = [...fresh, ...items.value]
+      emitUnread()
+    }
+  },
+)
 
 const unreadCount = computed(() => items.value.filter((n) => !n.read).length)
 
@@ -41,10 +58,21 @@ const filteredItems = computed(() =>
   items.value.filter((n) => n.tab === activeTab.value),
 )
 
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / PAGE_SIZE)))
+
+const pagedItems = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return filteredItems.value.slice(start, start + PAGE_SIZE)
+})
+
+const pageNumbers = computed(() =>
+  Array.from({ length: totalPages.value }, (_, i) => i + 1),
+)
+
 const groupedItems = computed(() => {
   const groups = []
   const map = new Map()
-  filteredItems.value.forEach((item) => {
+  pagedItems.value.forEach((item) => {
     const key = item.dateGroup || item.datetime
     if (!map.has(key)) {
       const group = { key, items: [] }
@@ -62,11 +90,18 @@ function emitUnread() {
 
 function setTab(tabId) {
   activeTab.value = tabId
+  currentPage.value = 1
+}
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
 }
 
 function removeItem(id) {
   items.value = items.value.filter((n) => n.id !== id)
   emitUnread()
+  if (currentPage.value > totalPages.value) currentPage.value = totalPages.value
 }
 
 function openProjectContext(item) {
@@ -196,6 +231,35 @@ function tagClass(tag) {
             </li>
           </ul>
         </section>
+      </div>
+
+      <div v-if="totalPages > 1" class="hdr-pagination">
+        <button
+          type="button"
+          class="hdr-pagination__nav"
+          :disabled="currentPage === 1"
+          @click="goToPage(currentPage - 1)"
+        >
+          ◀
+        </button>
+        <button
+          v-for="page in pageNumbers"
+          :key="page"
+          type="button"
+          class="hdr-pagination__num"
+          :class="{ 'is-on': currentPage === page }"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          type="button"
+          class="hdr-pagination__nav"
+          :disabled="currentPage === totalPages"
+          @click="goToPage(currentPage + 1)"
+        >
+          ▶
+        </button>
       </div>
     </div>
   </HeaderLayerModal>

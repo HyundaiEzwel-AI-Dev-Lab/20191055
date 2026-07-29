@@ -1,6 +1,6 @@
 <script setup>
 // PAG-S-REQ-04/06 요구사항 등록·상세
-// 상세 수정 가능: 접수·수용 & 미확정 / 불가: 반려·양측 확정 (화면없음 예외)
+// v1.0: 상세 수정 가능: 접수·수용(확정여부 무관) / 불가: 반려만 (SB p.98~101)
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
@@ -58,12 +58,11 @@ const bothConfirmed = computed(() => {
   return props.data.confirmRequester === '확정' && props.data.confirmTech === '확정'
 })
 
-/** 반려 또는 양측 확정 → 본문 수정 불가 (SB 98·100) */
+/** 반려 상태만 본문 수정 불가 — v1.0에서 "확정 후 수정 불가" 정책이 폐지되고,
+ * 확정 이후에도 요구사항 분석 등 상세 내용을 최신화할 수 있도록 변경됨 (SB 98~101) */
 const isReadOnly = computed(() => {
   if (!isEdit.value) return false
-  if (props.data?.status === '반려') return true
-  if (props.data?.confirmLocked) return true
-  return bothConfirmed.value
+  return props.data?.status === '반려'
 })
 
 /** 기본 정보·업무범주·추가정보 편집 가능 */
@@ -119,7 +118,7 @@ const showChangeReasonModal = ref(false)
 const confirmTipOpen = ref(false)
 
 const confirmTooltip =
-  '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 최종 개발 요구사항 확인 완료 (확정 후 요건 수정 불가)\n- 미확정 : 최종 개발 요구사항 확정 전 (요건 수정 가능)'
+  '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 최종 개발 요구사항 확인 완료 (확정 후에도 요구사항은 계속 수정 가능하며, 확정 자체는 되돌릴 수 없음)\n- 미확정 : 최종 개발 요구사항 확정 전'
 
 function screenDisplayFor(block) {
   if (block.screenName && block.screenPath) return `${block.screenName} (${block.screenPath})`

@@ -1062,6 +1062,47 @@
   color: var(--lnb-muted);
 }
 
+.hdr-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lnb-line);
+}
+
+.hdr-pagination__nav,
+.hdr-pagination__num {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  color: var(--lnb-txt);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.hdr-pagination__nav:hover,
+.hdr-pagination__num:hover {
+  background: var(--lnb-hover);
+}
+
+.hdr-pagination__nav:disabled {
+  color: var(--lnb-muted);
+  cursor: default;
+  background: transparent;
+}
+
+.hdr-pagination__num.is-on {
+  background: var(--teal);
+  color: #fff;
+  font-weight: 700;
+}
+
 /* 통합 검색 */
 .hdr-search__bar {
   display: flex;

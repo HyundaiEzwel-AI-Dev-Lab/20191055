@@ -25,7 +25,25 @@
       "Bash(node shot.mjs ./inbox-cards-v2.png)",
       "Bash(node shot.mjs ./inbox-avatars.png)",
       "Bash(node shot.mjs ./inbox-summary-v2.png)",
-      "Bash(node shot.mjs ./inbox-summary-equal.png)"
+      "Bash(node shot.mjs ./inbox-summary-equal.png)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(npm ls *)",
+      "Bash(node -e \"const {chromium} = require\\('playwright'\\); \\(async\\(\\)=>{try{const b = await chromium.launch\\(\\); console.log\\('launch ok'\\); await b.close\\(\\);}catch\\(e\\){console.error\\('ERR', e.message\\)}}\\)\\(\\)\")",
+      "Bash(timeout 60 npx --yes -p playwright node /private/tmp/claude-501/-Users-parkyoungmin-Desktop-HPMS/f71c0523-b1e9-428c-a02d-b5677cfd496b/scratchpad/check.mjs)",
+      "Bash(npx --yes -p playwright node /private/tmp/claude-501/-Users-parkyoungmin-Desktop-HPMS/f71c0523-b1e9-428c-a02d-b5677cfd496b/scratchpad/check.mjs)",
+      "Bash(npx --yes playwright --help)",
+      "Bash(npx --yes playwright install chromium)",
+      "Bash(ls ~/Library/Caches/ms-playwright/ 2>/dev/null; echo \"---\"; npx --yes playwright install chromium 2>&1 | tail -5)",
+      "Read(//Users/parkyoungmin/Library/Caches/ms-playwright/**)",
+      "Bash(find ~/.npm/_npx -maxdepth 3 -iname \"playwright\" -type d 2>/dev/null)",
+      "Read(//Users/parkyoungmin/.npm/_npx/**)",
+      "Bash(NODE_PATH=/Users/parkyoungmin/.npm/_npx/705bc6b22212b352/node_modules node /private/tmp/claude-501/-Users-parkyoungmin-Desktop-HPMS/f71c0523-b1e9-428c-a02d-b5677cfd496b/scratchpad/verify_css.cjs)",
+      "Bash(lsof -ti:5173,5183)",
+      "Bash(xargs -r kill)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npx vue-tsc *)",
+      "Bash(npm run *)",
+      "Bash(chromium-cli --help)"
     ]
   }
 }

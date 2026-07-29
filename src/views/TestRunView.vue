@@ -189,6 +189,16 @@ function onErrorDetailSave(updates) {
   const row = rows.value.find((r) => r.caseId === refreshed.caseId)
   const step = row?.steps.find((s) => s.no === refreshed.stepNo)
   if (step) step.fixStatus = refreshed.status
+  // 결함 "조치확인(테스터 입력)" 결과(수정완료/재처리요청)를 원래 오류를 등록한
+  // 테스터의 결과 셀에 자동 동기화한다 (SB p.165 테스트결과 자동변경정책).
+  if (step && refreshed.tester && ['수정완료', '재처리요청', 'DEV확인', '운영확인'].includes(refreshed.result)) {
+    const cell = step.byTester[refreshed.tester]
+    if (cell) {
+      cell.result = refreshed.result
+      cell.executedAt = (refreshed.updatedAt || '').slice(0, 10) || cell.executedAt
+    }
+    recalcRow(row)
+  }
 }
 
 function openErrorRegister(row, step, testerName) {
@@ -472,7 +482,7 @@ function onExcelDownload() {
                       class="result-sel"
                       :class="resultClass(step.byTester[name]?.result)"
                       :value="step.byTester[name]?.result"
-                      :disabled="!isMyColumn(name) || ['수정완료', '재처리요청'].includes(step.byTester[name]?.result)"
+                      :disabled="!isMyColumn(name) || ['수정완료', '재처리요청', 'DEV확인', '운영확인'].includes(step.byTester[name]?.result)"
                       @change="setStepResult(row, step, name, $event.target.value)"
                     >
                       <option value="대기">대기</option>
@@ -481,6 +491,8 @@ function onExcelDownload() {
                       <option value="기타">기타</option>
                       <option v-if="step.byTester[name]?.result === '수정완료'" value="수정완료">수정완료</option>
                       <option v-if="step.byTester[name]?.result === '재처리요청'" value="재처리요청">재처리요청</option>
+                      <option v-if="step.byTester[name]?.result === 'DEV확인'" value="DEV확인">DEV확인</option>
+                      <option v-if="step.byTester[name]?.result === '운영확인'" value="운영확인">운영확인</option>
                     </select>
                   </td>
                   <td class="center" :title="`최종수정일: ${step.byTester[name]?.executedAt || '-'}`">

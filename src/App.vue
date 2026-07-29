@@ -6,12 +6,23 @@ import LoadingOverlay from '@/components/ui/LoadingOverlay.vue'
 import { useLoading } from '@/composables/useLoading'
 import { useThemeStore } from '@/stores/theme'
 
-useThemeStore()
+const themeStore = useThemeStore()
 
 const route = useRoute()
 const router = useRouter()
 const isLoginPage = computed(() => route.name === 'login')
 const { visible: loadingVisible, message: loadingMessage, withLoading } = useLoading()
+
+watch(
+  [isLoginPage, () => themeStore.concept],
+  ([loginPage, concept]) => {
+    document.documentElement.setAttribute(
+      'data-concept',
+      loginPage && concept === 'dark' ? 'default' : concept,
+    )
+  },
+  { immediate: true },
+)
 
 /** 미리보기: /?demoLoading=1 또는 아무 경로에 ?demoLoading=1 */
 watch(

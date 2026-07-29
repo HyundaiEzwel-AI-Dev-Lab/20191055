@@ -12,6 +12,7 @@ import { unitTestResultSegments } from '@/data/unitTest'
 
 const ATTACH_MAX_COUNT = 3
 const ATTACH_MAX_SIZE = 10 * 1024 * 1024
+const ATTACH_ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -92,6 +93,11 @@ function onAttachmentChange(event) {
     }
     if (file.size > ATTACH_MAX_SIZE) {
       window.alert(`${file.name}: 파일 용량은 최대 10MB까지 첨부 가능합니다.`)
+      continue
+    }
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (!ATTACH_ALLOWED_EXT.includes(ext)) {
+      window.alert(`${file.name}: jpg, png, word, excel, ppt 형식만 첨부 가능합니다.`)
       continue
     }
     attachments.value.push({
@@ -284,7 +290,7 @@ function save() {
           <h4>첨부파일</h4>
           <label v-if="attachments.length < ATTACH_MAX_COUNT" class="btn btn--ghost btn--sm attach-add">
             + 파일 추가
-            <input type="file" multiple class="attach-add__input" @change="onAttachmentChange" />
+            <input type="file" multiple accept=".jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.ppt,.pptx" class="attach-add__input" @change="onAttachmentChange" />
           </label>
         </div>
         <p class="file-hint">등록 가능 확장자: jpg, png, word, excel, ppt, pptx · 최대 {{ ATTACH_MAX_COUNT }}개, 개당 10MB 이하</p>

@@ -26,6 +26,7 @@ const summary = [
   { key: 'recv', label: '접수', value: 6 },
   { key: 'prog', label: '진행', value: 14, tooltip: true },
   { key: 'done', label: '완료', value: 6 },
+  { key: 'reject', label: '반려', value: 1 },
 ]
 
 onMounted(() => {
@@ -69,7 +70,7 @@ function login() {
 
     // 4. 비밀번호 오류 횟수 (5회 초과)
     if (user.failCount >= MAX_FAIL) {
-      errorMessage.value = '로그인 가능 횟수를 초과했습니다. 비밀번호 재설정 후 이용하세요'
+      errorMessage.value = '로그인 가능 횟수를 초과했습니다. 담당자에게 문의하세요.'
       return
     }
 

@@ -15,6 +15,8 @@ import {
   statusClass,
   matchWbsFilters,
   wbsMockToday,
+  calcExecProgress,
+  calcTotalProgress,
 } from '@/data/wbs'
 import { bizCategoryMap } from '@/data/requirement'
 import WbsScheduleModal from '@/components/wbs/WbsScheduleModal.vue'
@@ -85,9 +87,13 @@ const filteredTasks = computed(() =>
 )
 
 const selectedRows = computed(() => tasks.value.filter((t) => selectedIds.value.has(t.id)))
+const totalProgress = computed(() => calcTotalProgress(tasks.value))
 
 onMounted(() => {
   tasks.value = getWbsTasks(authStore.user?.id)
+  tasks.value.forEach((t) => {
+    if (t.status === '진행중') t.execProgress = calcExecProgress(t)
+  })
   const action = route.query.action
   const taskName = String(route.query.task || '')
   if ((action === 'schedule' || action === 'register') && taskName) {
@@ -201,6 +207,9 @@ function onScheduleSave(payload) {
   if (payload.status === '완료' && payload.scheduleStatus === 'delay' && payload.scheduleReason) {
     scheduleTarget.value.scheduleReason = payload.scheduleReason
   }
+  if (scheduleTarget.value.status === '진행중') {
+    scheduleTarget.value.execProgress = calcExecProgress(scheduleTarget.value)
+  }
   scheduleTarget.value.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
   scheduleTarget.value.changedBy = '김현대'
 }
@@ -225,6 +234,7 @@ function onScheduleChangeRequest(payload) {
       if (!live) return
       if (t.newPlanStart) live.planStart = t.newPlanStart
       if (t.newPlanEnd) live.planEnd = t.newPlanEnd
+      if (live.status === '진행중') live.execProgress = calcExecProgress(live)
       live.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
       live.changedBy = '김현대'
     })
@@ -255,6 +265,7 @@ function onRestart(row) {
 function onRestartConfirm(row) {
   row.status = '진행중'
   if (row.correctedPlanEnd) row.planEnd = row.correctedPlanEnd
+  row.execProgress = calcExecProgress(row)
   row.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
   row.changedBy = '김현대'
 }
@@ -394,7 +405,7 @@ function onCalendarSelect(task) {
         >
           캘린더형
         </button>
-        <span class="wbs__progress">총 공정률 <b>{{ wbsMeta.totalProgress }}%</b></span>
+        <span class="wbs__progress">총 공정률 <b>{{ totalProgress }}%</b></span>
       </div>
     </div>
 

@@ -2,7 +2,7 @@
 // POP-S-WBS-02 일정관리 (SB 119~121) — 일정변경은 다중 일정 변경 UI(POP-S-WBS-05)로 위임
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import { priorityOptions, difficultyOptions, wbsMockToday } from '@/data/wbs'
+import { priorityOptions, difficultyOptions, wbsMockToday, calcExecProgress } from '@/data/wbs'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -130,6 +130,11 @@ function save() {
   if (execEnd.value) {
     extra.status = '완료'
     extra.execProgress = 100
+  } else if (execStart.value) {
+    extra.execProgress = calcExecProgress(
+      { ...props.task, execStart: execStart.value, execEnd: null, planEnd: planEnd.value, status: '진행중', excluded: false },
+      wbsMockToday,
+    )
   }
   emit('save', buildPayload(extra))
   close()
@@ -160,7 +165,11 @@ function applyStart() {
   const today = wbsMockToday
   execStart.value = today
   showStartAlert.value = false
-  emit('save', buildPayload({ status: '진행중', execStart: today }))
+  const execProgress = calcExecProgress(
+    { ...props.task, execStart: today, execEnd: null, planEnd: planEnd.value, status: '진행중', excluded: false },
+    today,
+  )
+  emit('save', buildPayload({ status: '진행중', execStart: today, execProgress }))
 }
 
 function onCompleteClick() {

@@ -154,6 +154,20 @@ function defectConfirmRate(row) {
   return row.defectRegistered ? Math.round((row.defectConfirmed / row.defectRegistered) * 100) : 0
 }
 
+// 발의주체가 '테크'인 요청자는 요청자 수행현황 집계에서 제외한다 (B11, SB p.181)
+const visibleRequesterProgress = computed(() =>
+  (data.value?.requesterProgress || []).filter((r) => r.type !== 'tech'),
+)
+
+function requesterTotal(row) {
+  return row.progress + row.wait + row.delay + row.done
+}
+
+function requesterRate(row) {
+  const total = requesterTotal(row)
+  return total ? Math.round((row.done / total) * 100) : 0
+}
+
 function search() {
   applied.value = { ...filters.value }
 }
@@ -503,16 +517,18 @@ function onExcelDownload() {
     </div>
 
     <section class="panel card">
-      <h3>요청자 수행·결함확인 현황</h3>
+      <h3>요청자 수행·결함확인 현황 <span class="hint-sm">(테크담당 제외)</span></h3>
       <table class="inner-table">
         <thead>
           <tr>
             <th rowspan="2">요청자</th>
-            <th colspan="3" class="group-head">테스트 수행</th>
+            <th colspan="5" class="group-head">테스트 수행</th>
             <th colspan="3" class="group-head">결함확인</th>
           </tr>
           <tr>
-            <th>전체</th>
+            <th>진행</th>
+            <th>대기</th>
+            <th>지연</th>
             <th>완료</th>
             <th>진척률</th>
             <th>등록</th>
@@ -521,14 +537,16 @@ function onExcelDownload() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in data.requesterProgress" :key="row.requester">
+          <tr v-for="row in visibleRequesterProgress" :key="row.requester">
             <td>{{ row.requester }}</td>
-            <td>{{ row.total }}</td>
+            <td>{{ row.progress }}</td>
+            <td>{{ row.wait }}</td>
+            <td>{{ row.delay }}</td>
             <td>{{ row.done }}</td>
             <td>
               <div class="prog">
-                <i :style="{ width: `${row.rate}%` }" />
-                <span>{{ row.rate }}%</span>
+                <i :style="{ width: `${requesterRate(row)}%` }" />
+                <span>{{ requesterRate(row) }}%</span>
               </div>
             </td>
             <td>{{ row.defectRegistered }}</td>
@@ -540,8 +558,8 @@ function onExcelDownload() {
               </div>
             </td>
           </tr>
-          <tr v-if="!data.requesterProgress?.length">
-            <td colspan="7" class="empty-row">조회 결과가 없습니다.</td>
+          <tr v-if="!visibleRequesterProgress.length">
+            <td colspan="9" class="empty-row">조회 결과가 없습니다.</td>
           </tr>
         </tbody>
       </table>
@@ -650,6 +668,17 @@ function onExcelDownload() {
           <span class="phase-bar__lab">{{ row.phase }}</span>
           <div class="hbar hbar--err"><i :style="{ width: `${row.rate * 3}%` }" /></div>
           <span class="phase-bar__num">{{ row.count }}건 ({{ row.rate }}%)</span>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="data.threeStageDefectRate?.length" class="panel card">
+      <h3>단위/DEV/운영 결함발생률 비교</h3>
+      <div class="phase-bars">
+        <div v-for="row in data.threeStageDefectRate" :key="row.stage" class="phase-bar">
+          <span class="phase-bar__lab">{{ row.stage }}</span>
+          <div class="hbar hbar--err"><i :style="{ width: `${row.rate * 3}%` }" /></div>
+          <span class="phase-bar__num">{{ row.defects }}건 ({{ row.rate }}%)</span>
         </div>
       </div>
     </section>
@@ -822,6 +851,12 @@ function onExcelDownload() {
   margin: 0 0 12px;
   font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
+}
+
+.hint-sm {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .panel__head {

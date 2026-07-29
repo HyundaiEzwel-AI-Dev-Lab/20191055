@@ -78,8 +78,10 @@ export const projectMenus = [
     id: 'unit-test',
     label: '단위테스트',
     icon: 'check',
-    route: '/workspace/unit-test',
-    name: 'unit-test',
+    children: [
+      { label: '단위테스트', route: '/workspace/unit-test', name: 'unit-test' },
+      { label: '진척 관리', route: '/workspace/unit-test/progress', name: 'unit-test-progress' },
+    ],
   },
   {
     id: 'dev-test',

@@ -432,6 +432,72 @@ function defaultHistory(projectId) {
   return buildHistoryCases(`ph-${projectId}`)
 }
 
+/**
+ * 요구사항 화면에서 발생한 우선순위/상태 변경·이슈등록·상세변경을
+ * 해당 프로젝트의 변경이력에 즉시 반영한다 (SB p.47~54, p.81~83).
+ */
+export function addRequirementHistory(projectId, kind, data = {}) {
+  if (!projectId) return
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  const changedBy = data.changedBy || '김현대'
+  const changedByDept = data.changedByDept || '웹기획팀'
+  const idBase = `ph-${projectId}-req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  let row
+  if (kind === 'priority') {
+    row = {
+      id: idBase,
+      category: '요구사항',
+      item: data.fieldLabel,
+      template: 'reqPriority',
+      changedAt: now,
+      changedBy,
+      changedByDept,
+      changeLines: [{ label: data.fieldLabel, before: data.before, after: data.after }],
+      reqName: data.reqName,
+      reqId: data.reqId,
+      fieldLabel: data.fieldLabel,
+      before: data.before,
+      after: data.after,
+      priority: { before: data.before, after: data.after },
+    }
+  } else if (kind === 'issue') {
+    row = {
+      id: idBase,
+      category: '요구사항',
+      item: '이슈등록',
+      template: 'reqIssue',
+      changedAt: now,
+      changedBy,
+      changedByDept,
+      changeLines: [{ label: '이슈', before: '-', after: data.issueBody }],
+      reqName: data.reqName,
+      reqId: data.reqId,
+      issueBody: data.issueBody,
+    }
+  } else if (kind === 'detail') {
+    row = {
+      id: idBase,
+      category: '요구사항',
+      item: '상세변경',
+      template: 'reqDetail',
+      changedAt: now,
+      changedBy,
+      changedByDept,
+      changeLines: [{ label: '상세내용', before: data.beforeBody, after: data.afterBody }],
+      reqName: data.reqName,
+      reqId: data.reqId,
+      reason: data.reason || '',
+      beforeBody: data.beforeBody,
+      afterBody: data.afterBody,
+      reqDetail: { reason: data.reason || '', before: data.beforeBody, after: data.afterBody },
+    }
+  } else {
+    return
+  }
+  if (!historyByProject[projectId]) historyByProject[projectId] = defaultHistory(projectId)
+  historyByProject[projectId].unshift(row)
+}
+
 export function getProjectHistory(projectId, projectName = '', userId) {
   if (userId === EMPTY_DATA_USER_ID) return []
   const raw = historyByProject[projectId] || defaultHistory(projectId)

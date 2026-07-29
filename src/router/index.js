@@ -140,6 +140,12 @@ const routes = [
     meta: { title: '단위테스트', requiresProject: true },
   },
   {
+    path: '/workspace/unit-test/progress',
+    name: 'unit-test-progress',
+    component: () => import('@/views/UnitTestProgressView.vue'),
+    meta: { title: '진척관리', requiresProject: true },
+  },
+  {
     path: '/workspace/test/:mode(dev|uat)/scenario',
     name: 'scenario',
     component: () => import('@/views/ScenarioView.vue'),

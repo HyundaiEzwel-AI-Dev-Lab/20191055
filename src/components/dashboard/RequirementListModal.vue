@@ -1,6 +1,6 @@
 <script setup>
 // POP-M-DAS-02 요구사항 목록 (조회 전용)
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { useProjectStore } from '@/stores/project'
@@ -25,6 +25,27 @@ const rows = computed(() => {
   if (!props.context) return []
   return getDashboardRequirements(props.context.id || props.context.projectId)
 })
+
+const expandedIds = ref(new Set())
+const allExpanded = computed(() => rows.value.length > 0 && expandedIds.value.size === rows.value.length)
+
+watch(
+  () => props.context,
+  () => {
+    expandedIds.value = new Set()
+  },
+)
+
+function toggleRow(reqId) {
+  const next = new Set(expandedIds.value)
+  if (next.has(reqId)) next.delete(reqId)
+  else next.add(reqId)
+  expandedIds.value = next
+}
+
+function toggleAll() {
+  expandedIds.value = allExpanded.value ? new Set() : new Set(rows.value.map((r) => r.reqId))
+}
 
 function close() {
   emit('update:modelValue', false)
@@ -69,15 +90,26 @@ function goRequirement() {
             요청부서 {{ context.requestDept || '—' }}
           </p>
         </div>
-        <button type="button" class="btn btn--primary btn--sm" @click="goRequirement">
-          요구사항 관리
-        </button>
+        <div class="toolbar__actions">
+          <button
+            v-if="rows.length"
+            type="button"
+            class="btn btn--ghost btn--sm"
+            @click="toggleAll"
+          >
+            {{ allExpanded ? '전체 닫기' : '전체 열기' }}
+          </button>
+          <button type="button" class="btn btn--primary btn--sm" @click="goRequirement">
+            요구사항 관리
+          </button>
+        </div>
       </div>
 
       <div class="table-wrap">
         <table class="tbl">
           <thead>
             <tr>
+              <th class="col-toggle"></th>
               <th>No.</th>
               <th>요구사항ID</th>
               <th>요구사항명</th>
@@ -87,16 +119,35 @@ function goRequirement() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.reqId">
-              <td>{{ row.no }}</td>
-              <td>{{ row.reqId }}</td>
-              <td class="tbl__name">{{ row.name }}</td>
-              <td>{{ row.status }}</td>
-              <td>{{ row.priority }}</td>
-              <td>{{ row.registeredAt }}</td>
-            </tr>
+            <template v-for="row in rows" :key="row.reqId">
+              <tr class="tbl__row" @click="toggleRow(row.reqId)">
+                <td class="col-toggle">
+                  <span class="toggle-ico" :class="{ 'is-open': expandedIds.has(row.reqId) }">▸</span>
+                </td>
+                <td>{{ row.no }}</td>
+                <td>{{ row.reqId }}</td>
+                <td class="tbl__name">{{ row.name }}</td>
+                <td>{{ row.status }}</td>
+                <td>{{ row.priority }}</td>
+                <td>{{ row.registeredAt }}</td>
+              </tr>
+              <tr v-if="expandedIds.has(row.reqId)" class="detail-row">
+                <td colspan="7">
+                  <div class="detail-block">
+                    <div class="detail-block__item">
+                      <span class="detail-block__lab">요구사항원안</span>
+                      <p>{{ row.original || '-' }}</p>
+                    </div>
+                    <div class="detail-block__item">
+                      <span class="detail-block__lab">요구사항분석</span>
+                      <p>{{ row.analysis || '-' }}</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
             <tr v-if="!rows.length">
-              <td colspan="6" class="empty">등록된 요구사항이 없습니다.</td>
+              <td colspan="7" class="empty">등록된 요구사항이 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -169,5 +220,59 @@ function goRequirement() {
   text-align: center;
   color: var(--lnb-muted);
   padding: 28px 12px !important;
+}
+
+.toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tbl__row {
+  cursor: pointer;
+}
+
+.tbl__row:hover {
+  background: var(--lnb-hover);
+}
+
+.col-toggle {
+  width: 24px;
+}
+
+.toggle-ico {
+  display: inline-block;
+  color: var(--lnb-muted);
+  transition: transform 0.15s ease;
+}
+
+.toggle-ico.is-open {
+  transform: rotate(90deg);
+  color: var(--teal-600);
+}
+
+.detail-row td {
+  background: var(--teal-50);
+  padding: 0 !important;
+}
+
+.detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.detail-block__item p {
+  margin: 4px 0 0;
+  color: var(--lnb-txt);
+  line-height: 1.5;
+}
+
+.detail-block__lab {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: var(--teal-600);
 }
 </style>

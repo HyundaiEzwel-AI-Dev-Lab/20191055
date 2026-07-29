@@ -10,6 +10,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'confirm'])
 
+const STAGED_MAX = 20
+
 const filters = ref({ system: '전체', bizCategory: '전체', screenName: '', sourceProject: '', caseName: '' })
 const searched = ref(false)
 const staged = ref([])
@@ -83,6 +85,10 @@ function showDetail(row) {
 function addToStaged(row) {
   if (staged.value.some((s) => s.key === row.key)) {
     window.alert('이미 담긴 케이스입니다.')
+    return
+  }
+  if (staged.value.length >= STAGED_MAX) {
+    window.alert(`케이스는 최대 ${STAGED_MAX}개까지 담을 수 있습니다.`)
     return
   }
   staged.value.push(row)
@@ -199,7 +205,7 @@ function confirm() {
     </div>
 
     <div class="staged">
-      <h4 class="staged__title">선택된 케이스 ({{ staged.length }}건)</h4>
+      <h4 class="staged__title">선택된 케이스 ({{ staged.length }}/{{ STAGED_MAX }}건)</h4>
       <div v-if="!staged.length" class="empty staged__empty">담은 케이스가 없습니다.</div>
       <table v-else class="tbl staged__table">
         <thead>

@@ -8,7 +8,7 @@ export const systemOptions = ['전체', 'FO', 'HIMS', 'HPAS', 'HCAS']
 
 export const unitTaskTypeOptions = ['전체', '퍼블리싱', '개발']
 
-export const testResultOptions = ['전체', '대기', '정상', '오류', '기타', '수정완료', '재처리요청']
+export const testResultOptions = ['전체', '대기', '정상', '오류', '기타', '수정완료', '재처리요청', 'DEV확인', '운영확인']
 
 /** SB 조치상태 — 결함·단위테스트 공통 */
 export const actionStatusOptions = ['전체', '접수', '처리예정', '처리완료', '오류아님', '수정제외']
@@ -47,7 +47,7 @@ export function getModeConfig(mode = 'dev') {
 }
 
 export function testResultClass(result) {
-  if (result === '정상' || result === '처리완료') return 'ok'
+  if (result === '정상' || result === '처리완료' || result === '수정완료' || result === 'DEV확인' || result === '운영확인') return 'ok'
   if (result === '오류' || result === '재처리요청') return 'err'
   if (result === '대기' || result === '접수') return 'wait'
   if (result === '테스트불가' || result === '개선필요' || result === '기타') return 'warn'

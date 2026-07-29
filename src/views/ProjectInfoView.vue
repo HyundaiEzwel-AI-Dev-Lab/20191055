@@ -14,11 +14,12 @@ import {
   searchStaff,
   searchMentions,
 } from '@/data/projectInfo'
-import { systemOptions, bizCategoryMap } from '@/data/requirement'
+import { systemOptions, bizCategoryMap, getRequirementList } from '@/data/requirement'
 import { getWbsTasks } from '@/data/wbs'
 import ScheduleReasonInputModal from '@/components/project/ScheduleReasonInputModal.vue'
 import TesterChangeModal from '@/components/project/TesterChangeModal.vue'
 import { isJiraAlreadyRegistered, lookupJira } from '@/data/projectRegister'
+import { notifyMentionsInBody } from '@/data/headerPopups'
 
 const projectStore = useProjectStore()
 const ASSIGNEE_MAX = 20
@@ -122,6 +123,7 @@ function loadForm() {
     assigneeSearch[role] = ''
     assigneeSearchOpen[role] = false
   })
+  if (!isRegistering.value) syncAutoStage()
   snapshot.value = JSON.stringify(form)
   savedStage.value = form.stage
 }
@@ -304,6 +306,32 @@ function closeAssigneeSearch(role) {
   assigneeSearchOpen[role] = false
 }
 
+/** 처리단계 자동판정 (SB p.42, p.73)
+ * - 접수: 요구사항 미등록
+ * - 협의중: 요구사항 1건 이상 등록
+ * - 처리중: 요건분석 외 WBS 업무단위 1건 이상 착수
+ * - 테스트: 단위/DEV/운영 테스트 업무단위 1건 이상 착수
+ * - 완료/반려는 시스템이 관여하지 않는 수기 관리 상태
+ */
+function computeAutoStage() {
+  const wbsTasks = getWbsTasks()
+  const hasTestStarted = wbsTasks.some(
+    (t) => t.taskType === '테스트' && t.status !== '대기' && !t.excluded,
+  )
+  if (hasTestStarted) return '테스트'
+  const hasWorkStarted = wbsTasks.some(
+    (t) => t.taskType !== '기획' && t.taskType !== '테스트' && t.status !== '대기' && !t.excluded,
+  )
+  if (hasWorkStarted) return '처리중'
+  if (getRequirementList().length > 0) return '협의중'
+  return '접수'
+}
+
+function syncAutoStage() {
+  if (form.stage === '완료' || form.stage === '반려') return
+  form.stage = computeAutoStage()
+}
+
 function autoAddWbsCategories() {
   const used = new Set()
   getWbsTasks().forEach((task) => {
@@ -316,6 +344,7 @@ function autoAddWbsCategories() {
 
 function onStageClick(stage) {
   if (isReadOnly.value) return
+  if (stage !== '완료' && stage !== '반려') return // 접수/협의중/처리중/테스트는 시스템이 자동 판정
   if (isRegistering.value && (stage === '완료' || stage === '반려')) return
   form.stage = stage
   if (stage !== '완료') form.actualOpenDate = ''
@@ -403,14 +432,21 @@ function addIssue() {
     }
     editingIssueId.value = null
   } else {
+    const body = issueDraft.value.trim()
     form.issues.unshift({
       id: `iss-${Date.now()}`,
       author: CURRENT_USER_NAME,
       dept: '웹기획팀',
       createdAt: now,
       updatedAt: null,
-      body: issueDraft.value.trim(),
+      body,
       replies: [],
+    })
+    notifyMentionsInBody(body, {
+      projectName: form.name || projectStore.currentProject?.name,
+      projectId: projectStore.currentProject?.id,
+      route: '/workspace/info',
+      scope: 'project',
     })
   }
   showIssueForm.value = false
@@ -471,12 +507,19 @@ function selectMention(user) {
 function addReply(issue) {
   if (!replyDraft.value.trim()) return
   if (!issue.replies) issue.replies = []
+  const body = replyDraft.value.trim()
   issue.replies.push({
     id: `rep-${Date.now()}`,
     author: CURRENT_USER_NAME,
     dept: '웹기획팀',
     createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    body: replyDraft.value.trim(),
+    body,
+  })
+  notifyMentionsInBody(body, {
+    projectName: form.name || projectStore.currentProject?.name,
+    projectId: projectStore.currentProject?.id,
+    route: '/workspace/info',
+    scope: 'project',
   })
   replyTargetId.value = null
   replyDraft.value = ''
@@ -565,7 +608,7 @@ function openIssueForm() {
       </div>
 
       <div class="stage-block">
-        <label>처리단계 (착수 시 자동 진행중)</label>
+        <label>처리단계 (접수/협의중/처리중/테스트는 시스템 자동판정, 완료/반려만 수기 설정)</label>
         <div class="pill-group">
           <button
             v-for="stage in stageOptions"
@@ -574,12 +617,16 @@ function openIssueForm() {
             class="pill"
             :class="{ 'pill--on': form.stage === stage }"
             :disabled="
-              isReadOnly || (isRegistering && (stage === '완료' || stage === '반려'))
+              isReadOnly ||
+              (stage !== '완료' && stage !== '반려') ||
+              (isRegistering && (stage === '완료' || stage === '반려'))
             "
             :title="
-              isRegistering && (stage === '완료' || stage === '반려')
-                ? '프로젝트 등록 중에는 선택할 수 없습니다.'
-                : undefined
+              stage !== '완료' && stage !== '반려'
+                ? '요구사항 등록/WBS 착수/테스트 착수 여부에 따라 시스템이 자동으로 전환합니다.'
+                : isRegistering
+                  ? '프로젝트 등록 중에는 선택할 수 없습니다.'
+                  : undefined
             "
             @click="onStageClick(stage)"
           >

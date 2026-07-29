@@ -1,6 +1,6 @@
 <script setup>
 // POP-M-COM-06 내 프로젝트
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useProjectStore } from '@/stores/project'
@@ -20,6 +20,8 @@ const tabsStore = useTabsStore()
 const authStore = useAuthStore()
 const { openRegisterModal } = useProjectRegister()
 const keyword = ref('')
+const PAGE_SIZE = 8
+const currentPage = ref(1)
 
 const myProjects = computed(() => getMyProjects(authStore.user?.id))
 
@@ -30,6 +32,26 @@ const filtered = computed(() => {
     [p.name, p.stage, p.role].join(' ').toLowerCase().includes(q),
   )
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
+
+const paged = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return filtered.value.slice(start, start + PAGE_SIZE)
+})
+
+const pageNumbers = computed(() =>
+  Array.from({ length: totalPages.value }, (_, i) => i + 1),
+)
+
+watch(keyword, () => {
+  currentPage.value = 1
+})
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
 
 function close() {
   emit('update:modelValue', false)
@@ -101,7 +123,7 @@ function goAllProjects() {
         {{ keyword.trim() ? '검색 결과가 없습니다.' : '배정된 프로젝트가 없습니다.' }}
       </div>
       <ul v-else class="hdr-scroll hdr-scroll--proj">
-        <li v-for="project in filtered" :key="project.id">
+        <li v-for="project in paged" :key="project.id">
           <button
             class="hdr-proj__item"
             :class="{ 'is-selected': isSelected(project) }"
@@ -118,6 +140,35 @@ function goAllProjects() {
           </button>
         </li>
       </ul>
+
+      <div v-if="totalPages > 1" class="hdr-pagination">
+        <button
+          type="button"
+          class="hdr-pagination__nav"
+          :disabled="currentPage === 1"
+          @click="goToPage(currentPage - 1)"
+        >
+          ◀
+        </button>
+        <button
+          v-for="page in pageNumbers"
+          :key="page"
+          type="button"
+          class="hdr-pagination__num"
+          :class="{ 'is-on': currentPage === page }"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          type="button"
+          class="hdr-pagination__nav"
+          :disabled="currentPage === totalPages"
+          @click="goToPage(currentPage + 1)"
+        >
+          ▶
+        </button>
+      </div>
     </div>
   </HeaderLayerModal>
 </template>

@@ -596,3 +596,33 @@ export function calcRestartRange(task, holdStart, holdEnd) {
   const restartEnd = addBusinessDays(restartStart, remain - 1)
   return { start: restartStart, end: restartEnd }
 }
+
+/**
+ * 공정률 자동계산 (SB p.107~111)
+ * - 착수 시 첫 영업일은 일일공정률의 50%만 반영, 이후 매 영업일 100%씩 누적
+ * - 실행시작일~계획종료일 사이 영업일수로 일일공정률을 재산정(선착수/후착수 모두 동일 산식 — 계획일과 무관하게 항상 "실행시작일~현재 계획종료일" 구간 기준)
+ * - 계획종료일 경과 후에는 값을 유지(지연 상태), 완료 처리 시에만 100%로 강제 보정
+ */
+export function calcExecProgress(task, todayStr = wbsMockToday) {
+  if (!task) return 0
+  if (task.excluded || task.status === '취소') return task.execProgress ?? 0
+  if (task.status === '완료') return 100
+  if (task.status === '홀딩') return task.execProgress ?? 0
+  if (!task.execStart || !task.planEnd) return task.execProgress ?? 0
+  const totalMd = countBusinessDays(task.execStart, task.planEnd)
+  if (totalMd <= 0) return task.execProgress ?? 0
+  const dailyRate = 100 / totalMd
+  const capToday = todayStr > task.planEnd ? task.planEnd : todayStr
+  const elapsedMd = countBusinessDays(task.execStart, capToday)
+  if (elapsedMd <= 0) return 0
+  const progress = dailyRate * 0.5 + dailyRate * (elapsedMd - 1)
+  return Math.min(99, Math.round(progress * 10) / 10)
+}
+
+/** 총 공정률 자동 재계산 (SB p.111) — 반려/미사용(작업제외) 업무는 산정 대상 제외 */
+export function calcTotalProgress(tasks) {
+  const target = (tasks || []).filter((t) => !t.excluded && t.status !== '취소')
+  if (!target.length) return 0
+  const sum = target.reduce((acc, t) => acc + (t.execProgress ?? 0), 0)
+  return Math.round((sum / target.length) * 10) / 10
+}

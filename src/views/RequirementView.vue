@@ -23,9 +23,12 @@ import RequirementBulkRegisterModal from '@/components/requirement/RequirementBu
 import RequirementScreenSearchModal from '@/components/requirement/RequirementScreenSearchModal.vue'
 import ExcelDownloadButton from '@/components/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/utils/excelDownload'
+import { addRequirementHistory } from '@/data/projectHistory'
+import { useProjectStore } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const projectStore = useProjectStore()
 const requirements = ref([])
 const filterExpanded = ref(false)
 const filters = ref({
@@ -190,6 +193,16 @@ function onIssueClick(row) {
   showIssueModal.value = true
 }
 
+function onIssueAdded({ requirement, body }) {
+  const historyProjectId = projectStore.currentProject?.id
+  if (!historyProjectId || !requirement) return
+  addRequirementHistory(historyProjectId, 'issue', {
+    reqName: requirement.name,
+    reqId: requirement.reqId,
+    issueBody: body,
+  })
+}
+
 function openRegister() {
   showRegisterMenu.value = false
   formMode.value = 'register'
@@ -326,29 +339,62 @@ function onFormSave(payload) {
         formTarget.value.confirmTechAt = now
       }
       if (!formTarget.value.changeHistory) formTarget.value.changeHistory = []
+      const changeBefore = {
+        name: formTarget.value.name,
+        analysis: formTarget.value.analysis,
+        status: formTarget.value.status,
+        priority: formTarget.value.priority,
+        taskTypes: [...formTarget.value.taskTypes],
+        memo: formTarget.value.memo,
+      }
+      const changeAfter = {
+        name: form.name,
+        analysis: form.analysis,
+        status: form.status,
+        priority: form.priority,
+        taskTypes: [...form.taskTypes],
+        memo: form.memo,
+      }
       formTarget.value.changeHistory.push({
         id: `ch-${Date.now()}`,
         round: formTarget.value.changeHistory.length + 1,
         reason: form.changeReason || '',
         changedBy: '김현대',
         changedAt: now,
-        before: {
-          name: formTarget.value.name,
-          analysis: formTarget.value.analysis,
-          status: formTarget.value.status,
-          priority: formTarget.value.priority,
-          taskTypes: [...formTarget.value.taskTypes],
-          memo: formTarget.value.memo,
-        },
-        after: {
-          name: form.name,
-          analysis: form.analysis,
-          status: form.status,
-          priority: form.priority,
-          taskTypes: [...form.taskTypes],
-          memo: form.memo,
-        },
+        before: changeBefore,
+        after: changeAfter,
       })
+      // 프로젝트 변경이력(통합/개별)에도 즉시 반영 (SB p.47~54, p.81~83)
+      const historyProjectId = projectStore.currentProject?.id
+      if (historyProjectId) {
+        if (changeBefore.priority !== changeAfter.priority) {
+          addRequirementHistory(historyProjectId, 'priority', {
+            reqName: changeAfter.name,
+            reqId: formTarget.value.reqId,
+            fieldLabel: '우선순위',
+            before: changeBefore.priority,
+            after: changeAfter.priority,
+          })
+        }
+        if (changeBefore.status !== changeAfter.status) {
+          addRequirementHistory(historyProjectId, 'priority', {
+            reqName: changeAfter.name,
+            reqId: formTarget.value.reqId,
+            fieldLabel: '상태',
+            before: changeBefore.status,
+            after: changeAfter.status,
+          })
+        }
+        if (changeBefore.analysis !== changeAfter.analysis || changeBefore.name !== changeAfter.name) {
+          addRequirementHistory(historyProjectId, 'detail', {
+            reqName: changeAfter.name,
+            reqId: formTarget.value.reqId,
+            reason: form.changeReason || '',
+            beforeBody: changeBefore.analysis || changeBefore.name,
+            afterBody: changeAfter.analysis || changeAfter.name,
+          })
+        }
+      }
       Object.assign(formTarget.value, {
         name: form.name,
         analysis: form.analysis,
@@ -797,7 +843,7 @@ function onPageSizeChange() {
       </div>
     </div>
 
-    <RequirementIssueModal v-model="showIssueModal" :requirement="issueTarget" />
+    <RequirementIssueModal v-model="showIssueModal" :requirement="issueTarget" @issue-added="onIssueAdded" />
     <RequirementFormModal
       v-model="showFormModal"
       :mode="formMode"

@@ -21,6 +21,20 @@ const defaultTesterText = computed(() =>
   [...new Set(selectedCases.value.flatMap((c) => c.testers))].join(', ') || '-',
 )
 
+const previewRows = computed(() =>
+  selectedCases.value.map((c) => ({
+    id: c.id,
+    caseName: c.caseName,
+    beforeTester: c.testers.join(', '),
+    afterTester: testerMode.value === 'individual' ? individualTester[c.id] || '' : c.testers.join(', '),
+    beforeSchedule: `${c.planStart} ~ ${c.planEnd}`,
+    afterSchedule:
+      scheduleMode.value === 'individual'
+        ? `${individualSchedule[c.id]?.planStart} ~ ${individualSchedule[c.id]?.planEnd}`
+        : `${c.planStart} ~ ${c.planEnd}`,
+  })),
+)
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -133,6 +147,32 @@ function save() {
           <span>~</span>
           <input v-model="individualSchedule[c.id].planEnd" class="inp inp--date" type="date" />
         </div>
+      </div>
+    </div>
+
+    <div v-if="selectedCases.length" class="section">
+      <h4 class="section__title">변경 전 → 후 미리보기</h4>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>케이스</th>
+              <th>테스터 (전)</th>
+              <th>테스터 (후)</th>
+              <th>계획일정 (전)</th>
+              <th>계획일정 (후)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in previewRows" :key="row.id">
+              <td class="name">{{ row.caseName }}</td>
+              <td>{{ row.beforeTester }}</td>
+              <td class="after">{{ row.afterTester }}</td>
+              <td>{{ row.beforeSchedule }}</td>
+              <td class="after">{{ row.afterSchedule }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -251,5 +291,10 @@ function save() {
 .inp--date {
   flex: none;
   width: 130px;
+}
+
+.after {
+  color: var(--teal-600);
+  font-weight: 600;
 }
 </style>

@@ -2,6 +2,11 @@
 // POP-S-REQ-02 이슈관리 (요구사항 관련 이슈 등록 및 처리 현황)
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { computed, ref, watch } from 'vue'
+import { searchMentions } from '@/data/projectInfo'
+import { notifyMentionsInBody } from '@/data/headerPopups'
+import { useProjectStore } from '@/stores/project'
+
+const projectStore = useProjectStore()
 
 const CURRENT_USER_NAME = '김현대'
 const CURRENT_USER_DEPT = '웹기획팀'
@@ -11,7 +16,7 @@ const props = defineProps({
   requirement: { type: Object, default: null },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'issue-added'])
 
 const rootIssues = computed(() => props.requirement?.issues || [])
 const totalCount = computed(() => rootIssues.value.length)
@@ -21,6 +26,10 @@ const issueDraft = ref('')
 const editingIssueId = ref(null)
 const replyTargetId = ref(null)
 const replyDraft = ref('')
+
+const mentionTarget = ref(null) // 'issue' | 'reply'
+const mentionQuery = ref('')
+const mentionResults = computed(() => (mentionTarget.value ? searchMentions(mentionQuery.value) : []))
 
 const title = computed(() => {
   if (!props.requirement) return '이슈관리'
@@ -36,8 +45,38 @@ watch(
     editingIssueId.value = null
     replyTargetId.value = null
     replyDraft.value = ''
+    mentionTarget.value = null
+    mentionQuery.value = ''
   },
 )
+
+function extractMentionQuery(text, cursorPos) {
+  const upToCursor = text.slice(0, cursorPos)
+  const match = upToCursor.match(/@([^\s@]*)$/)
+  return match ? match[1] : null
+}
+
+function onIssueDraftInput(e) {
+  const query = extractMentionQuery(issueDraft.value, e.target.selectionStart)
+  mentionTarget.value = query !== null ? 'issue' : null
+  mentionQuery.value = query || ''
+}
+
+function onReplyDraftInput(e) {
+  const query = extractMentionQuery(replyDraft.value, e.target.selectionStart)
+  mentionTarget.value = query !== null ? 'reply' : null
+  mentionQuery.value = query || ''
+}
+
+function closeMentionList() {
+  mentionTarget.value = null
+}
+
+function selectMention(user) {
+  const draftRef = mentionTarget.value === 'reply' ? replyDraft : issueDraft
+  draftRef.value = draftRef.value.replace(/@([^\s@]*)$/, `@${user.name} `)
+  mentionTarget.value = null
+}
 
 function close() {
   emit('update:modelValue', false)
@@ -84,13 +123,20 @@ function saveIssue() {
     }
   } else {
     if (!props.requirement.issues) props.requirement.issues = []
+    const body = issueDraft.value.trim()
     props.requirement.issues.unshift({
       id: `iss-${Date.now()}`,
       author: CURRENT_USER_NAME,
       dept: CURRENT_USER_DEPT,
       createdAt: nowStamp(),
-      body: issueDraft.value.trim(),
+      body,
       replies: [],
+    })
+    emit('issue-added', { requirement: props.requirement, body })
+    notifyMentionsInBody(body, {
+      projectName: projectStore.currentProject?.name || props.requirement.reqId,
+      route: '/workspace/requirement',
+      scope: 'requirement',
     })
   }
   cancelIssueForm()
@@ -111,12 +157,18 @@ function cancelReply() {
 function saveReply(issue) {
   if (!replyDraft.value.trim()) return
   if (!issue.replies) issue.replies = []
+  const body = replyDraft.value.trim()
   issue.replies.push({
     id: `rep-${Date.now()}`,
     author: CURRENT_USER_NAME,
     dept: CURRENT_USER_DEPT,
     createdAt: nowStamp(),
-    body: replyDraft.value.trim(),
+    body,
+  })
+  notifyMentionsInBody(body, {
+    projectName: projectStore.currentProject?.name || props.requirement?.reqId,
+    route: '/workspace/requirement',
+    scope: 'requirement',
   })
   cancelReply()
 }
@@ -131,6 +183,10 @@ function saveReply(issue) {
   >
     <template v-if="requirement">
       <p class="issue-guide">요구사항 관련 이슈 등록 및 처리 현황 관리</p>
+      <ul class="issue-guide__notes">
+        <li>정책 협의 단계에서의 협의/변경 이슈는 처리정보 입력 대상이 아닙니다.</li>
+        <li>요건 확정 상태 이후 개발 또는 테스트 중 발생한 요건 관련 이슈/협의 사항만 입력하세요.</li>
+      </ul>
       <div class="issue-summary">
         총 <b>{{ totalCount }}</b>건
         <button
@@ -144,13 +200,29 @@ function saveReply(issue) {
       </div>
 
       <div v-if="showIssueForm" class="issue-form">
-        <textarea
-          v-model="issueDraft"
-          class="issue-form__input"
-          rows="3"
-          maxlength="2000"
-          :placeholder="editingIssueId ? '이슈 내용을 수정하세요' : '이슈 내용을 입력하세요'"
-        />
+        <div class="mention-wrap">
+          <textarea
+            v-model="issueDraft"
+            class="issue-form__input"
+            rows="3"
+            maxlength="2000"
+            :placeholder="
+              editingIssueId
+                ? '이슈 내용을 수정하세요'
+                : '이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대'
+            "
+            @input="onIssueDraftInput"
+            @blur="closeMentionList"
+          />
+          <ul v-if="mentionTarget === 'issue'" class="mention-list">
+            <li v-if="!mentionResults.length" class="mention-list__empty">일치하는 사용자가 없습니다.</li>
+            <li v-for="user in mentionResults" :key="user.name">
+              <button type="button" class="mention-list__item" @mousedown.prevent="selectMention(user)">
+                {{ user.name }} / {{ user.dept }}
+              </button>
+            </li>
+          </ul>
+        </div>
         <div class="issue-form__actions">
           <button type="button" class="btn btn--ghost btn--sm" @click="cancelIssueForm">취소</button>
           <button
@@ -203,13 +275,25 @@ function saveReply(issue) {
           </div>
 
           <div v-if="replyTargetId === issue.id" class="issue-form issue-form--reply">
-            <textarea
-              v-model="replyDraft"
-              class="issue-form__input"
-              rows="2"
-              maxlength="2000"
-              placeholder="답글 내용을 입력하세요"
-            />
+            <div class="mention-wrap">
+              <textarea
+                v-model="replyDraft"
+                class="issue-form__input"
+                rows="2"
+                maxlength="2000"
+                placeholder="답글 내용을 입력하세요. (@이름 으로 태그 가능)"
+                @input="onReplyDraftInput"
+                @blur="closeMentionList"
+              />
+              <ul v-if="mentionTarget === 'reply'" class="mention-list">
+                <li v-if="!mentionResults.length" class="mention-list__empty">일치하는 사용자가 없습니다.</li>
+                <li v-for="user in mentionResults" :key="user.name">
+                  <button type="button" class="mention-list__item" @mousedown.prevent="selectMention(user)">
+                    {{ user.name }} / {{ user.dept }}
+                  </button>
+                </li>
+              </ul>
+            </div>
             <div class="issue-form__actions">
               <button type="button" class="btn btn--ghost btn--sm" @click="cancelReply">취소</button>
               <button
@@ -251,6 +335,57 @@ function saveReply(issue) {
   margin: 0 0 8px;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
+}
+
+.issue-guide__notes {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
+  line-height: 1.6;
+}
+
+.mention-wrap {
+  position: relative;
+}
+
+.mention-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--lnb-side);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.mention-list__item {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mention-list__item:hover {
+  background: var(--teal-50);
+  color: var(--teal-600);
+}
+
+.mention-list__empty {
+  padding: 8px 10px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--muted);
 }
 
 .issue-summary {

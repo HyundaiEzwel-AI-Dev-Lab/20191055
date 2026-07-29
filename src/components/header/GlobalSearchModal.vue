@@ -1,16 +1,11 @@
 <script setup>
-// POP-M-COM-04 통합 검색
+// POP-M-COM-04 프로젝트 검색 (프로젝트명/프로젝트ID/요청자명 전용 검색)
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderLayerModal from './HeaderLayerModal.vue'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
-import {
-  searchItems,
-  searchTypeLabel,
-  recentProjects as recentProjectsSeed,
-  searchResultExamples,
-} from '@/data/headerPopups'
+import { recentProjects as recentProjectsSeed, searchableProjects } from '@/data/headerPopups'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -21,34 +16,15 @@ const router = useRouter()
 const projectStore = useProjectStore()
 const tabsStore = useTabsStore()
 const keyword = ref('')
-const activeTab = ref('all')
 const searched = ref(false)
 const recentProjects = ref(recentProjectsSeed.map((p) => ({ ...p })))
 
-const tabs = [
-  { id: 'all', label: '전체' },
-  { id: 'menu', label: '메뉴' },
-  { id: 'project', label: '프로젝트' },
-  { id: 'task', label: '업무' },
-]
-
-function filterByTab(list) {
-  if (activeTab.value === 'all') return list
-  return list.filter((item) => item.type === activeTab.value)
-}
-
 const results = computed(() => {
   if (!searched.value) return []
-
   const q = keyword.value.trim().toLowerCase()
-  const pool = q ? searchItems : searchResultExamples
-
-  return filterByTab(pool).filter((item) => {
-    if (!q) return true
-    const hay = [item.label, item.group, item.project, item.stage]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
+  if (!q) return []
+  return searchableProjects.filter((item) => {
+    const hay = [item.name, item.projectId, item.requester].filter(Boolean).join(' ').toLowerCase()
     return hay.includes(q)
   })
 })
@@ -63,7 +39,6 @@ function resetSearch() {
   clearTimeout(autoSearchTimer)
   keyword.value = ''
   searched.value = false
-  activeTab.value = 'all'
 }
 
 watch(keyword, (val) => {
@@ -91,15 +66,7 @@ function openProjectFrom(id, name, stage) {
   })
 }
 
-function selectItem(item) {
-  if (item.type === 'project') {
-    openProjectFrom(item.id, item.label, item.stage)
-  }
-  close()
-  router.push(item.route)
-}
-
-function selectRecent(project) {
+function selectProject(project) {
   openProjectFrom(project.id, project.name, project.stage)
   close()
   router.push(project.route)
@@ -138,7 +105,7 @@ onBeforeUnmount(() => {
 <template>
   <HeaderLayerModal
     :model-value="modelValue"
-    title="통합 검색"
+    title="프로젝트 검색"
     width="560px"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -148,7 +115,7 @@ onBeforeUnmount(() => {
           v-model="keyword"
           class="hdr-search__input"
           type="text"
-          placeholder="메뉴, 프로젝트, 업무를 검색하세요"
+          placeholder="프로젝트명 (프로젝트ID), 요청자명을 입력하세요."
           @keydown.enter="runSearch"
         />
         <button class="hdr-search__btn" type="button" @click="runSearch">검색</button>
@@ -165,12 +132,14 @@ onBeforeUnmount(() => {
             @click="clearRecentProjects"
           >전체 삭제</button>
         </div>
-        <div v-if="!recentProjects.length" class="hdr-empty hdr-empty--sm">최근 조회 프로젝트가 없습니다.</div>
+        <div v-if="!recentProjects.length" class="hdr-empty hdr-empty--sm">최근 조회한 프로젝트가 없습니다.</div>
         <ul v-else class="hdr-scroll hdr-scroll--search">
           <li v-for="project in recentProjects" :key="project.id" class="hdr-recent-row">
-            <button class="hdr-recent__item" type="button" @click="selectRecent(project)">
-              <span class="hdr-recent__stage" :class="project.stageType">{{ project.stage }}</span>
-              <span class="hdr-recent__name">{{ project.name }}</span>
+            <button class="hdr-recent__item" type="button" @click="selectProject(project)">
+              <div class="hdr-result__text">
+                <div class="hdr-result__label">{{ project.projectId }} ({{ project.openMonth }}) {{ project.name }}</div>
+                <div class="hdr-result__meta">{{ project.requester }}</div>
+              </div>
             </button>
             <button
               class="hdr-recent__del"
@@ -187,33 +156,18 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else>
-        <div class="hdr-tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            class="hdr-tabs__item"
-            :class="{ 'is-active': activeTab === tab.id }"
-            type="button"
-            @click="activeTab = tab.id"
-          >{{ tab.label }}</button>
-        </div>
-
         <div class="hdr-section-title">
           검색 결과 <span class="hdr-section-title__cnt">({{ results.length }}건)</span>
         </div>
 
-        <div v-if="keyword.trim() && !results.length" class="hdr-empty">검색 결과가 없습니다.</div>
+        <div v-if="!keyword.trim()" class="hdr-empty">프로젝트명을 한 글자 이상 입력하세요.</div>
+        <div v-else-if="!results.length" class="hdr-empty">검색 결과가 없습니다.</div>
         <ul v-else class="hdr-scroll hdr-scroll--search">
           <li v-for="item in results" :key="item.id">
-            <button class="hdr-result__item" type="button" @click="selectItem(item)">
-              <span class="hdr-result__type">{{ searchTypeLabel[item.type] }}</span>
+            <button class="hdr-result__item" type="button" @click="selectProject(item)">
               <div class="hdr-result__text">
-                <div class="hdr-result__label">{{ item.label }}</div>
-                <div class="hdr-result__meta">
-                  {{ item.group }}
-                  <template v-if="item.project"> · {{ item.project }}</template>
-                  <template v-if="item.stage"> · {{ item.stage }}</template>
-                </div>
+                <div class="hdr-result__label">{{ item.projectId }} ({{ item.openMonth }}) {{ item.name }}</div>
+                <div class="hdr-result__meta">{{ item.requester }}</div>
               </div>
             </button>
           </li>

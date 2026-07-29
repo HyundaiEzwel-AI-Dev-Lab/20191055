@@ -1,15 +1,21 @@
 <script setup>
-// POP-S-UAT-05 시나리오 불러오기 — 단위/DEV/STG/운영 차수별 시나리오를 단일선택 → 덮어쓰기
-import { ref, watch } from 'vue'
+// POP-S-UAT-05 시나리오 불러오기 — DEV모드는 단위테스트만, 운영(UAT)모드는 DEV+운영 차수만 단일선택 → 덮어쓰기
+import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  mode: { type: String, default: 'dev' },
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm'])
 
-const availableRounds = ['단위테스트', 'DEV1차', 'DEV2차', 'DEV3차', 'STG1차', '운영1차', '운영2차']
+const ALL_ROUNDS = ['단위테스트', 'DEV1차', 'DEV2차', 'DEV3차', '운영1차', '운영2차']
+const availableRounds = computed(() =>
+  props.mode === 'uat'
+    ? ALL_ROUNDS.filter((r) => r !== '단위테스트')
+    : ALL_ROUNDS.filter((r) => r === '단위테스트'),
+)
 const selected = ref('')
 
 watch(

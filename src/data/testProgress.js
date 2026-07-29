@@ -1,5 +1,26 @@
 // PAG-S-UAT-16 진척관리 목업
 import { EMPTY_DATA_USER_ID } from './mockUsers'
+import { getUnitTestProgressData } from './unitTest'
+
+/** 단위/DEV/운영 결함발생률 3단 비교 (v0.9 추가분, A12) */
+function buildThreeStageDefectRate(userId) {
+  const unit = getUnitTestProgressData(userId)
+  const devTotal = 240
+  const devDefects = 25
+  const uatTotal = 120
+  const uatDefects = 20
+  const rate = (defects, total) => (total ? Math.round((defects / total) * 100) : 0)
+  return [
+    {
+      stage: '단위테스트',
+      total: unit.kpi.total,
+      defects: unit.kpi.defectTotal,
+      rate: rate(unit.kpi.defectTotal, unit.kpi.total),
+    },
+    { stage: 'DEV테스트', total: devTotal, defects: devDefects, rate: rate(devDefects, devTotal) },
+    { stage: '운영테스트', total: uatTotal, defects: uatDefects, rate: rate(uatDefects, uatTotal) },
+  ]
+}
 
 function emptyProgressData(isUat) {
   return {
@@ -26,6 +47,7 @@ function emptyProgressData(isUat) {
     systemCompare: isUat ? [] : null,
     unitCompare: isUat ? null : [],
     unitDevSystemCompare: isUat ? null : [],
+    threeStageDefectRate: [],
   }
 }
 
@@ -79,10 +101,12 @@ export function getProgressData(mode = 'dev', userId) {
       { name: '이테스트', registered: 4, confirmed: 3, rate: 75 },
     ],
     confirmLabel: '처리완료',
+    // 발의주체(발의주체 = 테크)는 요청자 수행현황 집계에서 제외한다 (SB p.181)
     requesterProgress: [
-      { requester: '마케팅팀', total: 40, done: 30, rate: 75, defectRegistered: 6, defectConfirmed: 4 },
-      { requester: '복지서비스기획팀', total: 25, done: 16, rate: 64, defectRegistered: 3, defectConfirmed: 3 },
-      { requester: 'IT기획팀', total: 18, done: 15, rate: 83, defectRegistered: 2, defectConfirmed: 1 },
+      { requester: '마케팅팀', type: 'biz', progress: 6, wait: 2, delay: 2, done: 30, defectRegistered: 6, defectConfirmed: 4 },
+      { requester: '복지서비스기획팀', type: 'biz', progress: 4, wait: 3, delay: 2, done: 16, defectRegistered: 3, defectConfirmed: 3 },
+      { requester: 'IT기획팀', type: 'biz', progress: 2, wait: 1, delay: 0, done: 15, defectRegistered: 2, defectConfirmed: 1 },
+      { requester: '테크부문', type: 'tech', progress: 3, wait: 1, delay: 1, done: 10, defectRegistered: 2, defectConfirmed: 2 },
     ],
   }
 
@@ -101,6 +125,7 @@ export function getProgressData(mode = 'dev', userId) {
       ],
       unitCompare: null,
       unitDevSystemCompare: null,
+      threeStageDefectRate: buildThreeStageDefectRate(userId),
     }
   }
 
@@ -122,6 +147,7 @@ export function getProgressData(mode = 'dev', userId) {
       { phase: '3차', count: 3, rate: 5 },
     ],
     systemCompare: null,
+    threeStageDefectRate: buildThreeStageDefectRate(userId),
   }
 }
 
