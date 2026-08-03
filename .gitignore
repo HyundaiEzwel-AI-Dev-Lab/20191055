@@ -1,3 +1,11 @@
+# Dependencies
+node_modules
+
+# Build output
+# docs/ 는 GitHub Pages 서빙 경로이므로 추적 유지(build:pages 산출물).
+# dist/ 는 build 산출물로 docs/ 와 내용이 중복이고 배포에 쓰이지 않아 제외한다.
+dist
+
 # Logs
 logs
 *.log
