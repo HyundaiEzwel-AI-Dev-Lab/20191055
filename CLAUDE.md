@@ -72,6 +72,30 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## Project-Specific: HPMS
 
+### H-PMS 연계 — 단방향 반영 (등록 절차 필수)
+
+이 저장소의 변경은 H-PMS 운영 프로젝트(`HyundaiEzwel-AI-Dev-Lab/H-PMS`) frontend로
+**단방향** 반영된다. 목업 → H-PMS. 반대 방향은 없다.
+
+목업에 커밋한 뒤 **H-PMS 저장소에 변경 건을 등록한다.** 등록하지 않으면 그 변경은 아무
+기록 없이 지나가고, H-PMS 반영 대상에서 누락된다(과거 18커밋 111파일이 이렇게 누적됐다).
+
+절차: H-PMS `docs/mock-sync/README.md` §5-1
+
+- 템플릿: H-PMS `docs/mock-sync/templates/change-template.md`
+- **`[등록자]` 표시된 절만 작성한다.** H-PMS 경로 체계(`pages`/`features`/`entities`/`shared`)나
+  담당자 지도는 알 필요 없다 — 목업 관점의 사실만 적는다. 반영 대상 경로·담당자·영향도는
+  H-PMS 코디네이터가 채운다.
+- 상태는 `PENDING`으로 두고, H-PMS `docs/mock-sync/index.md`에 행을 추가한다.
+
+**파일을 삭제하거나 대량 리네임할 때는 의도를 반드시 남긴다** — 내부 리팩터링인지 기능
+폐기인지, 대체 파일이 있는지. H-PMS는 "목업에서 삭제됐다"는 이유만으로 파일을 지우지
+않고, 이 의도를 근거로 반영 여부를 판정한다. 의도가 없으면 판정이 막혀 작업이 멈춘다.
+(예: `components/ui/*` 8개 삭제 시 내부 통합인지 기능 폐기인지 불명확해 H-PMS 측이
+추정해야 했다.)
+
+빌드 산출물(`dist/`, `docs/`)은 동기화 대상이 아니다 — H-PMS가 경로 필터로 제외한다.
+
 ### Theme concepts (색상/화면 컨셉)
 
 This app has a live concept switcher (**내 정보 → 설정 → 색상 모드**) backed by `src/stores/theme.js` and `:root[data-concept="..."]` blocks in `src/assets/styles/tokens.css`. Concepts: `default` / `premium` / `dark` (Claude Desktop warm near-black). They share layout/markup and only override design tokens (`--radius-*`, `--shadow-*`, `--transition-*`, `--teal*` etc.) — never component structure. Profile avatar color (20 swatches) is also in Settings via `avatarColor` in the same store.
