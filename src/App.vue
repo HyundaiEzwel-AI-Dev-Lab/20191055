@@ -1,10 +1,10 @@
 <script setup>
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppShell from '@/components/layout/AppShell.vue'
-import LoadingOverlay from '@/components/ui/LoadingOverlay.vue'
-import { useLoading } from '@/composables/useLoading'
-import { useThemeStore } from '@/stores/theme'
+import AppShell from '@/app/layouts/AppShell.vue'
+import LoadingOverlay from '@/shared/ui/LoadingOverlay.vue'
+import { useLoading } from '@/app/composables/useLoading'
+import { useThemeStore } from '@/app/stores/theme'
 
 const themeStore = useThemeStore()
 
