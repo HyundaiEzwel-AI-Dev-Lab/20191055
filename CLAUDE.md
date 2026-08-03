@@ -96,6 +96,22 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 빌드 산출물(`dist/`, `docs/`)은 동기화 대상이 아니다 — H-PMS가 경로 필터로 제외한다.
 
+### 로컬 저장소 구조 및 작업 순서 (HPMS / h-pms / H-PMS)
+
+이 흐름에 로컬 저장소가 3개 얽혀 있다 — 이름이 비슷하니 혼동 주의:
+
+- **HPMS** (이 저장소, 목업) — 화면/기능을 먼저 만드는 곳.
+- **h-pms** — 위 등록 절차대로 실제 반영 브랜치를 만들고 push하는 클론(`origin`: `HyundaiEzwel-AI-Dev-Lab/H-PMS`).
+- **H-PMS** — 다른 담당자 작업까지 PR로 합쳐진 최종본을 보는 참고용 클론. 여기서 직접 작업하지 않는다.
+
+순서:
+1. **작업**: HPMS(목업)에서 구현·커밋 → h-pms에서 새 브랜치 생성 후 위 등록 절차대로 반영 → push.
+2. **최신화**: PR 머지 후 → h-pms에서 먼저 pull(작업하던 main 갱신) → 그다음 H-PMS에서 pull(남들 작업까지 합쳐진 최종 상태 확인). 두 클론은 독립적이라 한쪽을 pull해도 다른 쪽엔 반영되지 않으므로 둘 다 각자 pull해야 한다.
+
+h-pms에서 새 브랜치를 파기 전에는 반드시 `main`을 pull해 origin과 맞춘 뒤 그 위에서 분기한다 — 뒤처진 base에서 분기하면 이후 PR에서 불필요한 충돌이 생긴다.
+
+**push·PR 생성처럼 외부에 보이는 동작은 실행 직전에 매번 확인을 받는다** — "동기화까지 해달라"는 요청이 있어도 실제 push 전엔 한 번 더 확인한다.
+
 ### Theme concepts (색상/화면 컨셉)
 
 This app has a live concept switcher (**내 정보 → 설정 → 색상 모드**) backed by `src/stores/theme.js` and `:root[data-concept="..."]` blocks in `src/assets/styles/tokens.css`. Concepts: `default` / `premium` / `dark` (Claude Desktop warm near-black). They share layout/markup and only override design tokens (`--radius-*`, `--shadow-*`, `--transition-*`, `--teal*` etc.) — never component structure. Profile avatar color (20 swatches) is also in Settings via `avatarColor` in the same store.
