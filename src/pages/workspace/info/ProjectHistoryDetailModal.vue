@@ -96,7 +96,7 @@ defineEmits(['close'])
 .detail-table th {
   width: 120px;
   background: var(--lnb-hover);
-  color: var(--ink-2);
+  color: var(--ink);
   font-weight: 600;
 }
 

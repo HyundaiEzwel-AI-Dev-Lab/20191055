@@ -428,7 +428,7 @@ function onConfirm() {
 
 .fail-table th {
   background: var(--lnb-side);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   white-space: nowrap;
   position: sticky;

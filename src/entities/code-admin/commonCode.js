@@ -1,7 +1,7 @@
 // PAG-M-SYS-06 공통코드 관리
 
 export const commonCodeMeta = {
-  hint: 'H-PMS 공통코드 · 분류 → 코드상세',
+  hint: '공통코드 변경 시 기존 데이터의 코드값은 변경되지 않으며, 변경 이후 데이터부터 변경된 코드명이 적용됩니다.',
 }
 
 export const codeCategoryGroups = [

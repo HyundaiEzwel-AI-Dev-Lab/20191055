@@ -392,7 +392,7 @@ function onDetailSave(payload) {
 .data-table th {
   background: var(--field);
   font-weight: 600;
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
 .col-no {

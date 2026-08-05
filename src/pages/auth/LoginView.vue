@@ -256,14 +256,16 @@ function login() {
   left: 50%;
   transform: translateX(-50%);
   background: var(--lnb-side);
-  color: var(--ink-2);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border: 1px solid var(--lnb-line);
+  color: var(--lnb-txt);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
   font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 500;
   line-height: 1.5;
   white-space: nowrap;
-  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.18);
-  z-index: 5;
+  box-shadow: var(--shadow-md);
+  z-index: 20;
 }
 
 .right {

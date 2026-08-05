@@ -14,7 +14,7 @@ function close() {
 
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="hdr-layer" @mousedown.self="close">
+    <div v-if="modelValue" class="hdr-layer">
       <div class="hdr-layer__box" :style="{ width }">
         <div class="hdr-layer__head">
           <span class="hdr-layer__title">{{ title }}</span>

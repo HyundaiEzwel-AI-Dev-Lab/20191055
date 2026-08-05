@@ -106,7 +106,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 순서:
 1. **작업**: HPMS(목업)에서 구현·커밋 → h-pms에서 새 브랜치 생성 후 위 등록 절차대로 반영 → push.
-2. **최신화**: PR 머지 후 → h-pms에서 먼저 pull(작업하던 main 갱신) → 그다음 H-PMS에서 pull(남들 작업까지 합쳐진 최종 상태 확인). 두 클론은 독립적이라 한쪽을 pull해도 다른 쪽엔 반영되지 않으므로 둘 다 각자 pull해야 한다.
+2. **최신화**: 새 작업을 시작하기 전엔 h-pms에서 `main`만 pull하면 충분하다 — h-pms와 H-PMS는 같은 origin을 보고 있어서, h-pms의 main을 pull하면 다른 담당자가 머지한 내용까지 이미 들어와 있다. H-PMS는 참고·확인용이라 필요할 때만 가끔 pull하면 된다(매 작업마다 pull할 필요 없음).
 
 h-pms에서 새 브랜치를 파기 전에는 반드시 `main`을 pull해 origin과 맞춘 뒤 그 위에서 분기한다 — 뒤처진 base에서 분기하면 이후 PR에서 불필요한 충돌이 생긴다.
 

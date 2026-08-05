@@ -305,7 +305,7 @@ function confirm() {
   position: sticky;
   top: 0;
   background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
 }
 

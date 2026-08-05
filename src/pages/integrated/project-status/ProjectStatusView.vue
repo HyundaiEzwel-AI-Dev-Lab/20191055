@@ -22,10 +22,10 @@ import ScheduleChangeModal from '@/pages/integrated/dashboard/ScheduleChangeModa
 import RequirementListModal from '@/pages/integrated/dashboard/RequirementListModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
-import { useProjectRegister } from '@/app/composables/useProjectRegister'
+import { useProjectStore } from '@/app/stores/project'
 
 const router = useRouter()
-const { openRegisterModal } = useProjectRegister()
+const projectStore = useProjectStore()
 
 const bizCategoryOptions = [...new Set(Object.values(bizCategoryMap).flat())]
 
@@ -124,12 +124,9 @@ function onKpiClick(key) {
   currentPage.value = 1
 }
 
-function onProjectClick() {
+function onProjectClick(row) {
+  projectStore.setCurrentProject({ id: row.projectId, name: row.name, stage: row.stage })
   router.push('/workspace/info')
-}
-
-function onRegisterClick() {
-  openRegisterModal()
 }
 
 function onDeptClick(row) {
@@ -177,7 +174,62 @@ function onPageSizeChange() {
 
 <template>
   <div class="project-status">
-    <p class="project-status__hint">{{ projectStatusMeta.hint }}</p>
+    <p class="notice">{{ projectStatusMeta.hint }}</p>
+
+    <!-- 연간 현황 KPI -->
+    <section class="kpi-row">
+      <button
+        type="button"
+        class="kpi card"
+        :class="{ 'kpi--active': activeKpi === 'total' }"
+        @click="onKpiClick('total')"
+      >
+        <span class="kpi__lab">전체 프로젝트</span>
+        <span class="kpi__num">{{ statusKpi.total }}<small>건</small></span>
+      </button>
+      <button
+        type="button"
+        class="kpi card"
+        :class="{ 'kpi--active': activeKpi === 'received' }"
+        @click="onKpiClick('received')"
+      >
+        <span class="kpi__lab">접수</span>
+        <span class="kpi__num kpi__num--gray">{{ statusKpi.received }}<small>건</small></span>
+      </button>
+      <button
+        type="button"
+        class="kpi card kpi--tip"
+        :class="{ 'kpi--active': activeKpi === 'inProgress' }"
+        @click="onKpiClick('inProgress')"
+        @mouseenter="showInProgressTip = true"
+        @mouseleave="showInProgressTip = false"
+      >
+        <span class="kpi__lab">
+          진행중
+          <span class="kpi__info" title="진행중 안내">!</span>
+        </span>
+        <span class="kpi__num kpi__num--blue">{{ statusKpi.inProgress }}<small>건</small></span>
+        <span v-if="showInProgressTip" class="kpi__tooltip">{{ projectStatusMeta.inProgressTooltip }}</span>
+      </button>
+      <button
+        type="button"
+        class="kpi card"
+        :class="{ 'kpi--active': activeKpi === 'completed' }"
+        @click="onKpiClick('completed')"
+      >
+        <span class="kpi__lab">완료</span>
+        <span class="kpi__num kpi__num--green">{{ statusKpi.completed }}<small>건</small></span>
+      </button>
+      <button
+        type="button"
+        class="kpi card"
+        :class="{ 'kpi--active': activeKpi === 'rejected' }"
+        @click="onKpiClick('rejected')"
+      >
+        <span class="kpi__lab">반려</span>
+        <span class="kpi__num kpi__num--red">{{ statusKpi.rejected }}<small>건</small></span>
+      </button>
+    </section>
 
     <!-- 검색조건 -->
     <section class="filter card">
@@ -315,68 +367,14 @@ function onPageSizeChange() {
       </div>
 
       <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        {{ filterExpanded ? '－ 검색조건 접기' : '＋ 검색조건 확장' }}
+        검색조건
+        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
       </button>
 
       <div class="filter__actions">
         <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
         <button type="button" class="btn btn--primary" @click="search">조회</button>
       </div>
-    </section>
-
-    <!-- 연간 현황 KPI -->
-    <section class="kpi-row">
-      <button
-        type="button"
-        class="kpi card"
-        :class="{ 'kpi--active': activeKpi === 'total' }"
-        @click="onKpiClick('total')"
-      >
-        <span class="kpi__lab">전체 프로젝트</span>
-        <span class="kpi__num">{{ statusKpi.total }}<small>건</small></span>
-      </button>
-      <button
-        type="button"
-        class="kpi card"
-        :class="{ 'kpi--active': activeKpi === 'received' }"
-        @click="onKpiClick('received')"
-      >
-        <span class="kpi__lab">접수</span>
-        <span class="kpi__num kpi__num--gray">{{ statusKpi.received }}<small>건</small></span>
-      </button>
-      <button
-        type="button"
-        class="kpi card kpi--tip"
-        :class="{ 'kpi--active': activeKpi === 'inProgress' }"
-        @click="onKpiClick('inProgress')"
-        @mouseenter="showInProgressTip = true"
-        @mouseleave="showInProgressTip = false"
-      >
-        <span class="kpi__lab">
-          진행중
-          <span class="kpi__info" title="진행중 안내">!</span>
-        </span>
-        <span class="kpi__num kpi__num--blue">{{ statusKpi.inProgress }}<small>건</small></span>
-        <span v-if="showInProgressTip" class="kpi__tooltip">{{ projectStatusMeta.inProgressTooltip }}</span>
-      </button>
-      <button
-        type="button"
-        class="kpi card"
-        :class="{ 'kpi--active': activeKpi === 'completed' }"
-        @click="onKpiClick('completed')"
-      >
-        <span class="kpi__lab">완료</span>
-        <span class="kpi__num kpi__num--green">{{ statusKpi.completed }}<small>건</small></span>
-      </button>
-      <button
-        type="button"
-        class="kpi card"
-        :class="{ 'kpi--active': activeKpi === 'rejected' }"
-        @click="onKpiClick('rejected')"
-      >
-        <span class="kpi__lab">반려</span>
-        <span class="kpi__num kpi__num--red">{{ statusKpi.rejected }}<small>건</small></span>
-      </button>
     </section>
 
     <!-- 프로젝트 목록 -->
@@ -387,7 +385,6 @@ function onPageSizeChange() {
           <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
             <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
           </select>
-          <button type="button" class="btn btn--primary" @click="onRegisterClick">프로젝트 등록</button>
           <ExcelDownloadButton @click="onExcelDownload" />
         </div>
       </div>
@@ -410,11 +407,11 @@ function onPageSizeChange() {
           </thead>
           <tbody>
             <tr
-              v-for="row in pagedProjects"
+              v-for="(row, idx) in pagedProjects"
               :key="row.id"
               class="tbl__row"
             >
-              <td>{{ row.no }}</td>
+              <td>{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td>{{ row.projectId }}</td>
               <td>
                 <button type="button" class="tbl__link" @click="onProjectClick(row)">
@@ -509,18 +506,6 @@ function onPageSizeChange() {
   padding: 0 24px 28px;
 }
 
-.project-status__hint {
-  margin: 0 0 14px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 500;
-  color: var(--lnb-muted);
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: var(--r-pill);
-}
-
 .card {
   background: var(--lnb-side);
   border: 1px solid var(--lnb-line);
@@ -612,6 +597,9 @@ function onPageSizeChange() {
 }
 
 .filter__expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 8px;
   border: none;
   background: none;
@@ -620,6 +608,15 @@ function onPageSizeChange() {
   cursor: pointer;
   font-family: inherit;
   padding: 0;
+}
+
+.filter__expand-icon {
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.filter__expand-icon.is-open {
+  transform: rotate(180deg);
 }
 
 .filter__actions {
@@ -697,11 +694,11 @@ function onPageSizeChange() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--orange-bg);
-  color: var(--orange);
+  background: var(--lnb-hover);
+  color: var(--lnb-muted);
   font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
 }
@@ -730,13 +727,16 @@ function onPageSizeChange() {
   left: 12px;
   right: 12px;
   top: calc(100% + 6px);
-  background: var(--lnb-logo);
-  color: var(--color-text-inverse);
-  font-size: calc(10.5px + var(--font-size-offset, 0px));
-  padding: 8px 10px;
-  border-radius: 8px;
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
+  color: var(--lnb-txt);
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   line-height: 1.5;
-  z-index: 5;
+  z-index: 20;
   pointer-events: none;
 }
 
@@ -853,7 +853,7 @@ function onPageSizeChange() {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 100px;
+  min-width: 50px;
 }
 
 .bar {
@@ -862,7 +862,7 @@ function onPageSizeChange() {
   background: var(--line-2);
   border-radius: 6px;
   overflow: hidden;
-  min-width: 50px;
+  min-width: 25px;
 }
 
 .bar i {

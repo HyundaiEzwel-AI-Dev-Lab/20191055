@@ -225,7 +225,7 @@ function onExcelDownload() {
 }
 
 .tbl th {
-  color: var(--muted);
+  color: var(--ink);
   font-weight: 600;
   background: var(--field);
 }

@@ -88,12 +88,18 @@ const filteredTasks = computed(() =>
 
 const selectedRows = computed(() => tasks.value.filter((t) => selectedIds.value.has(t.id)))
 const totalProgress = computed(() => calcTotalProgress(tasks.value))
+const canManageSchedule = computed(() => authStore.user?.role !== '사용자')
 
 onMounted(() => {
   tasks.value = getWbsTasks(authStore.user?.id)
   tasks.value.forEach((t) => {
     if (t.status === '진행중') t.execProgress = calcExecProgress(t)
   })
+  const assigneeQuery = String(route.query.assignee || '')
+  if (assigneeQuery) {
+    filters.value.keyword = assigneeQuery
+    search()
+  }
   const action = route.query.action
   const taskName = String(route.query.task || '')
   if ((action === 'schedule' || action === 'register') && taskName) {
@@ -171,7 +177,7 @@ function toggleSelect(id, disabled) {
 function toggleSelectAll(checked) {
   if (checked) {
     selectedIds.value = new Set(
-      filteredTasks.value.filter((t) => !t.excluded).map((t) => t.id),
+      filteredTasks.value.filter((t) => !t.excluded && isMine(t)).map((t) => t.id),
     )
   } else {
     selectedIds.value = new Set()
@@ -179,8 +185,12 @@ function toggleSelectAll(checked) {
 }
 
 function isAllSelected() {
-  const selectable = filteredTasks.value.filter((t) => !t.excluded)
+  const selectable = filteredTasks.value.filter((t) => !t.excluded && isMine(t))
   return selectable.length > 0 && selectable.every((t) => selectedIds.value.has(t.id))
+}
+
+function isMine(row) {
+  return row.assignee === authStore.displayName
 }
 
 function onAssigneeChange(row, assignee) {
@@ -279,6 +289,10 @@ function onOpenMultiChangeFromSchedule(task) {
 function onScheduleChange() {
   if (!selectedRows.value.length) {
     window.alert('일정변경할 업무를 선택하세요.')
+    return
+  }
+  if (selectedRows.value.some((row) => row.status === '완료')) {
+    window.alert('완료한 업무의 일정은 변경할 수 없습니다.')
     return
   }
   bulkTargets.value = [...selectedRows.value]
@@ -497,7 +511,7 @@ function onCalendarSelect(task) {
       >
         내 업무만
       </button>
-      <button type="button" class="btn btn--ghost btn--sm" @click="onScheduleChange">일정변경</button>
+      <button type="button" class="btn btn--ghost btn--sm" :disabled="!canManageSchedule" @click="onScheduleChange">일정변경</button>
       <button type="button" class="btn btn--ghost btn--sm" @click="onCopy">복사</button>
       <button type="button" class="btn btn--primary btn--sm" @click="onSave">저장</button>
       <ExcelDownloadButton @click="onExcelDownload" />
@@ -537,8 +551,8 @@ function onCalendarSelect(task) {
                 <input
                   type="checkbox"
                   :checked="selectedIds.has(row.id)"
-                  :disabled="row.excluded"
-                  @change="toggleSelect(row.id, row.excluded)"
+                  :disabled="row.excluded || !isMine(row)"
+                  @change="toggleSelect(row.id, row.excluded || !isMine(row))"
                 />
               </td>
               <td>{{ row.systemPath }}</td>
@@ -623,7 +637,9 @@ function onCalendarSelect(task) {
               <td>{{ row.confirmed }}</td>
             </tr>
             <tr v-if="!filteredTasks.length">
-              <td colspan="13" class="empty-row">조회 결과가 없습니다.</td>
+              <td colspan="13" class="empty-row">
+                {{ tasks.length ? '조회 결과가 없습니다.' : '등록된 WBS 업무가 없습니다.' }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -902,7 +918,7 @@ function onCalendarSelect(task) {
 
 .wbs-table thead th {
   background: var(--lnb-hover);
-  color: var(--muted);
+  color: var(--ink);
   font-weight: 600;
   text-align: left;
   padding: 9px 10px;

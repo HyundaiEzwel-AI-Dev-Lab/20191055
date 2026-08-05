@@ -18,6 +18,7 @@ import { pageSizeOptions } from '@/shared/lib/commonOptions'
 import { getScheduleChange } from '@/entities/dashboard/mock/scheduleChange'
 import ScheduleChangeModal from '@/pages/integrated/dashboard/ScheduleChangeModal.vue'
 import RequirementListModal from '@/pages/integrated/dashboard/RequirementListModal.vue'
+import SearchableSelect from '@/shared/ui/SearchableSelect.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
@@ -178,7 +179,7 @@ function onOverdueClick(row) {
 
 <template>
   <div class="dashboard">
-    <p class="dashboard__hint">
+    <p class="notice">
       {{ dashboardMeta.yearScope }} (조회시점 {{ dashboardMeta.queryTime }})
     </p>
 
@@ -197,10 +198,7 @@ function onOverdueClick(row) {
         </div>
         <div class="filter__field">
           <label>요청부서</label>
-          <select v-model="filters.requestDept" class="filter__select">
-            <option value="">선택</option>
-            <option v-for="d in requestDepts" :key="d" :value="d">{{ d }}</option>
-          </select>
+          <SearchableSelect v-model="filters.requestDept" :options="requestDepts" />
         </div>
         <div class="filter__field">
           <label>담당개발부서</label>
@@ -497,18 +495,6 @@ function onOverdueClick(row) {
   font-family: var(--font-family);
   color: var(--lnb-txt);
   padding: 0 24px 28px;
-}
-
-.dashboard__hint {
-  margin: 0 0 14px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 500;
-  color: var(--lnb-muted);
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: var(--r-pill);
 }
 
 .card {

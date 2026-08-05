@@ -561,3 +561,15 @@ export function splitDateTime(value) {
   const [date, time = ''] = String(value).split(' ')
   return { date, time }
 }
+
+const changerIdByName = {
+  김현대: '2024001',
+  권선희: '2199981',
+  이현대: '2199982',
+}
+
+export function formatChangedBy(name) {
+  if (!name) return '-'
+  const id = changerIdByName[name]
+  return id ? `${name}(${id})` : name
+}

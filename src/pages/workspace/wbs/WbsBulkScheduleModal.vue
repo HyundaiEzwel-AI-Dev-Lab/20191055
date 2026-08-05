@@ -439,7 +439,7 @@ function submit() {
   z-index: 1;
   background: var(--lnb-hover);
   font-weight: 600;
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
 }
 
 .tbl__sub th {

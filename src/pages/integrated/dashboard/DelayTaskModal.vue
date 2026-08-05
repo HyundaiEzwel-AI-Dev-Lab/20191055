@@ -1,6 +1,5 @@
 <script setup>
 // POP-M-DAS-05 경과 업무 상세 팝업
-import { computed } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 
 const props = defineProps({
@@ -10,11 +9,6 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const title = computed(() => {
-  if (!props.data) return '경과 업무 상세'
-  return `경과 업무 상세 (총 ${props.data.total}건)`
-})
-
 function close() {
   emit('update:modelValue', false)
 }
@@ -22,15 +16,16 @@ function close() {
 
 <template>
   <BaseModal
-    :title="title"
+    title="경과 업무 상세"
     :visible="modelValue && !!data"
-    wide
+    side
     @close="close"
   >
     <template v-if="data">
       <p class="sub">
-        {{ data.personName }} · {{ data.projectName }}
+        프로젝트명 : {{ data.projectName }} | 담당자 : {{ data.personName }}({{ data.personEmpId }})
       </p>
+      <p class="total">총 <b>{{ data.total }}</b>건</p>
       <div class="delay-list">
         <article v-for="task in data.tasks" :key="task.id" class="delay-item">
           <div class="delay-item__grid">
@@ -39,8 +34,12 @@ function close() {
               <span>{{ task.workType }}</span>
             </div>
             <div class="delay-item__field delay-item__field--wide">
-              <span class="delay-item__lab">요구사항명</span>
-              <span>{{ task.requirement }}</span>
+              <span class="delay-item__lab">업무명</span>
+              <span>{{ task.taskName }}</span>
+            </div>
+            <div class="delay-item__field delay-item__field--wide">
+              <span class="delay-item__lab">업무상세</span>
+              <span>{{ task.taskDetail }}</span>
             </div>
             <div class="delay-item__field">
               <span class="delay-item__lab">경과일정</span>
@@ -66,9 +65,21 @@ function close() {
 
 <style scoped>
 .sub {
-  margin: 0 0 12px;
+  margin: 0 0 6px;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
+}
+
+.total {
+  margin: 0 0 14px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  color: var(--lnb-txt);
+}
+
+.total b {
+  font-size: calc(15px + var(--font-size-offset, 0px));
+  color: var(--teal-600);
 }
 
 .delay-list {
@@ -101,7 +112,7 @@ function close() {
 }
 
 .delay-item__lab {
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
 }
 

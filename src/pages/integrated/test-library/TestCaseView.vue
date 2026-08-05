@@ -362,7 +362,7 @@ function onExcelDownload() {
 
 <template>
   <div class="admin-page tlb-page">
-    <div class="notice notice--warn">
+    <div class="notice">
       <span class="notice__icon">!</span>
       <span>{{ testLibraryMeta.notice }}</span>
     </div>
@@ -756,7 +756,7 @@ function onExcelDownload() {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--orange);
+  background: var(--teal);
   color: var(--color-text-inverse);
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 800;
@@ -1008,12 +1008,12 @@ function onExcelDownload() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   border: none;
   border-radius: 50%;
-  background: var(--lnb-muted);
-  color: var(--color-text-inverse);
+  background: var(--lnb-hover);
+  color: var(--lnb-muted);
   font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   font-family: inherit;
@@ -1026,6 +1026,7 @@ function onExcelDownload() {
 .tlb-tip:hover,
 .tlb-tip.is-on {
   background: var(--teal);
+  color: #fff;
 }
 
 .tlb-tip__bubble {
@@ -1034,15 +1035,16 @@ function onExcelDownload() {
   top: calc(100% + 6px);
   z-index: 20;
   min-width: 220px;
-  max-width: 280px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm, 8px);
-  background: var(--lnb-logo);
-  color: var(--color-text-inverse);
+  max-width: 320px;
+  padding: 8px 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md);
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   line-height: 1.5;
-  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.12));
+  box-shadow: var(--shadow-md);
   white-space: normal;
   pointer-events: none;
 }
@@ -1054,7 +1056,9 @@ function onExcelDownload() {
   top: -5px;
   width: 8px;
   height: 8px;
-  background: var(--lnb-logo);
+  background: var(--lnb-side);
+  border-left: 1px solid var(--lnb-line);
+  border-top: 1px solid var(--lnb-line);
   transform: rotate(45deg);
 }
 

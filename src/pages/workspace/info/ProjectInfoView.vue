@@ -18,7 +18,7 @@ import { systemOptions, bizCategoryMap, getRequirementList } from '@/entities/re
 import { getWbsTasks } from '@/entities/wbs/mock/wbs'
 import ScheduleReasonInputModal from '@/pages/workspace/info/ScheduleReasonInputModal.vue'
 import TesterChangeModal from '@/features/tester-change/TesterChangeModal.vue'
-import { isJiraAlreadyRegistered, lookupJira } from '@/entities/project/mock/projectRegister'
+import { isJiraAlreadyRegistered } from '@/entities/project/mock/projectRegister'
 import { notifyMentionsInBody } from '@/app/layouts/headerPopups'
 
 const projectStore = useProjectStore()
@@ -77,7 +77,6 @@ const showOpenDate = computed(() => form.stage === '완료')
 const memoCount = computed(() => form.memo.length)
 const issueDraftCount = computed(() => issueDraft.value.length)
 const isDevRoundEnabled = computed(() => form.testUsage.includes('DEV테스트'))
-const isStgRoundEnabled = computed(() => form.testUsage.includes('STG테스트'))
 const isUatRoundEnabled = computed(() => form.testUsage.includes('운영테스트'))
 const testUsageLocked = computed(() => isReadOnly.value || form.hasRegisteredTestCases)
 const canEditJira = computed(() => !isReadOnly.value && (isRegistering.value || form.stage === '접수'))
@@ -135,6 +134,16 @@ watch(
   () => loadForm(),
 )
 
+watch(() => form.jira, (val) => {
+  const cleaned = String(val || '').replace(/[^a-zA-Z0-9-]/g, '')
+  if (cleaned !== val) form.jira = cleaned
+})
+
+watch(() => form.itVoc, (val) => {
+  const cleaned = String(val || '').replace(/[^a-zA-Z0-9-]/g, '')
+  if (cleaned !== val) form.itVoc = cleaned
+})
+
 const isRegistering = computed(() => {
   const id = projectStore.currentProject?.id
   return Boolean(id && projectStore.isRegistering(id))
@@ -157,6 +166,7 @@ function resetForm() {
 }
 
 function toggleTestUsage(option) {
+  if (option === '단위테스트') return
   if (isReadOnly.value || form.hasRegisteredTestCases) return
   const idx = form.testUsage.indexOf(option)
   if (idx >= 0) form.testUsage.splice(idx, 1)
@@ -169,26 +179,6 @@ function totalAssigneeCount() {
 
 function findAssigneeRole(staffId) {
   return assigneeRoles.find((role) => (form.assignees[role] || []).some((p) => p.id === staffId))
-}
-
-function searchJira() {
-  const jira = String(form.jira || '').trim()
-  if (!jira) {
-    window.alert('JIRA 번호를 입력해 주세요.')
-    return
-  }
-  if (isJiraAlreadyRegistered(jira)) {
-    window.alert('이미 등록된 JIRA 번호입니다.')
-    return
-  }
-  const result = lookupJira(jira)
-  if (!result) {
-    window.alert('조회된 정보가 없습니다.')
-    return
-  }
-  form.itVoc = result.itVoc
-  form.scheduledOpenDate = result.scheduledOpenDate
-  window.alert('JIRA 정보를 조회하여 반영했습니다.')
 }
 
 /** 저장/등록 전 필수·예외 검증. 실패 시 메시지 반환 */
@@ -571,15 +561,13 @@ function openIssueForm() {
       <div class="frow frow--2">
         <div class="fld" :class="{ 'fld--req': isRegistering }">
           <label>{{ canEditJira ? 'JIRA' : 'JIRA (수정불가)' }}</label>
-          <div v-if="canEditJira" class="fld__row">
-            <input
-              v-model="form.jira"
-              class="inp inp--edit"
-              type="text"
-              placeholder="JIRA 번호 입력"
-            />
-            <button type="button" class="btn btn--ghost btn--sm" @click="searchJira">조회</button>
-          </div>
+          <input
+            v-if="canEditJira"
+            v-model="form.jira"
+            class="inp inp--edit"
+            type="text"
+            placeholder="JIRA 번호 입력"
+          />
           <div v-else class="inp inp--ro">{{ form.jira }}</div>
         </div>
         <div class="fld" :class="{ 'fld--req': isRegistering }">
@@ -681,7 +669,7 @@ function openIssueForm() {
           <label>오픈예정일</label>
           <input
             v-model="form.scheduledOpenDate"
-            class="inp inp--edit"
+            class="inp inp--edit inp--date"
             type="date"
             :disabled="isReadOnly"
           />
@@ -690,7 +678,7 @@ function openIssueForm() {
           <label>오픈일</label>
           <input
             v-model="form.actualOpenDate"
-            class="inp inp--edit"
+            class="inp inp--edit inp--date"
             type="date"
             :disabled="isReadOnly"
           />
@@ -724,26 +712,26 @@ function openIssueForm() {
 
     <!-- 2. 담당자 정보 -->
     <section class="card">
-      <div class="card__toolbar">
-        <h2 class="sec-h"><span class="sec-h__n">2</span>담당자 정보</h2>
-        <button
-          v-if="!isReadOnly && !isRegistering"
-          type="button"
-          class="btn btn--ghost btn--sm"
-          @click="showTesterModal = true"
-        >
-          ⇄ 테스터 변경
-        </button>
-      </div>
+      <h2 class="sec-h"><span class="sec-h__n">2</span>담당자 정보</h2>
 
       <div class="frow frow--2">
         <div class="fld">
-          <label>요청부서 (수정불가)</label>
-          <div class="inp inp--ro">{{ form.requestDept }}</div>
+          <label>요청부서</label>
+          <input
+            v-model="form.requestDept"
+            class="inp inp--edit"
+            type="text"
+            :disabled="isReadOnly"
+          />
         </div>
         <div class="fld">
-          <label>요청자 (수정불가)</label>
-          <div class="inp inp--ro">{{ form.requester }}</div>
+          <label>요청자</label>
+          <input
+            v-model="form.requester"
+            class="inp inp--edit"
+            type="text"
+            :disabled="isReadOnly"
+          />
         </div>
       </div>
 
@@ -755,6 +743,14 @@ function openIssueForm() {
           <div class="assignee-card__head">
             <span class="assignee-card__title">{{ role }}</span>
             <span class="assignee-card__count">{{ assigneeCount(role) }}</span>
+            <button
+              v-if="role === '테스트' && !isReadOnly && !isRegistering"
+              type="button"
+              class="btn btn--ghost btn--sm assignee-card__tester-btn"
+              @click="showTesterModal = true"
+            >
+              ⇄ 테스터 변경
+            </button>
           </div>
           <div class="chips">
             <span
@@ -818,7 +814,7 @@ function openIssueForm() {
               type="button"
               class="pill"
               :class="{ 'pill--on': form.testUsage.includes(opt) }"
-              :disabled="testUsageLocked"
+              :disabled="opt === '단위테스트' || testUsageLocked"
               @click="toggleTestUsage(opt)"
             >
               <span class="pill__mark">✓</span>{{ opt }}
@@ -843,18 +839,6 @@ function openIssueForm() {
                 :disabled="testUsageLocked"
               >
                 <option v-for="r in testRoundOptions" :key="`uat-${r}`" :value="r">
-                  {{ r }}
-                </option>
-              </select>
-            </div>
-            <div v-if="opt === 'STG테스트' && isStgRoundEnabled" class="test-round">
-              <span class="test-round__label">STG 차수</span>
-              <select
-                v-model="form.testRoundStg"
-                class="inp inp--edit test-round__select"
-                :disabled="testUsageLocked"
-              >
-                <option v-for="r in testRoundOptions" :key="`stg-${r}`" :value="r">
                   {{ r }}
                 </option>
               </select>
@@ -1312,6 +1296,11 @@ function openIssueForm() {
   cursor: not-allowed;
 }
 
+.inp--date {
+  max-width: 160px;
+  align-self: flex-start;
+}
+
 select.inp--edit {
   appearance: auto;
 }
@@ -1482,7 +1471,7 @@ select.inp--edit {
 
 .assignee-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -1509,6 +1498,10 @@ select.inp--edit {
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
+}
+
+.assignee-card__tester-btn {
+  margin-left: auto;
 }
 
 .assignee-search {

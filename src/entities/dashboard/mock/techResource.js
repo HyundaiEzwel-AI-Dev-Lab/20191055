@@ -3,15 +3,7 @@
 
 export const techResourceMeta = {
   notice: '테크 리소스 관리는 현재 접수 및 진행중(협의중, 처리중, 테스트) 프로젝트를 조회 대상으로 합니다.',
-  chartNotice: '현황분석 차트는 전체 및 부서 단위 조회 결과에 대해서만 제공합니다.',
   queryTime: '2026-06-23 09:00',
-}
-
-export const techResourceSummary = {
-  queryCount: 86,
-  assignedCount: 76,
-  assignmentRate: 22,
-  projectCount: 27,
 }
 
 export const deptOptions = ['전체', '플랫폼팀', 'E커머스팀', '백오피스팀', '고객사운영팀', '웹기획팀']
@@ -220,12 +212,14 @@ export const delayTasksByKey = {
   'tr1:p-hpms': {
     projectName: '전사 프로젝트 관리 시스템 구축',
     personName: '홍길동',
+    personEmpId: '2199999',
     total: 3,
     tasks: [
       {
         id: 'd1',
         workType: '개발',
-        requirement: '고객사 맞춤페이지 신설',
+        taskName: '고객사 맞춤페이지 신설',
+        taskDetail: '고객사별 랜딩페이지 레이아웃 및 배너 영역 신설',
         planEnd: '2026-06-10',
         actualEnd: '2026-06-15',
         delayDays: 5,
@@ -234,7 +228,8 @@ export const delayTasksByKey = {
       {
         id: 'd2',
         workType: '개발',
-        requirement: '고객사 및 임직원 정보 조회',
+        taskName: '고객사 및 임직원 정보 조회',
+        taskDetail: '임직원 조회 API 연동 및 권한별 노출 항목 처리',
         planEnd: '2026-06-10',
         actualEnd: '2026-06-13',
         delayDays: 3,
@@ -243,7 +238,8 @@ export const delayTasksByKey = {
       {
         id: 'd3',
         workType: '개발',
-        requirement: '바우처 특복 사용 제한',
+        taskName: '바우처 특복 사용 제한',
+        taskDetail: '특별복지 포인트 중복 사용 제한 로직 개발',
         planEnd: '2026-06-10',
         actualEnd: '2026-06-15',
         delayDays: 5,
@@ -254,12 +250,14 @@ export const delayTasksByKey = {
   'tr1:p-order': {
     projectName: '주문/결제페이지 內 특복 개별사용 개선',
     personName: '홍길동',
+    personEmpId: '2199999',
     total: 1,
     tasks: [
       {
         id: 'd4',
         workType: '개발',
-        requirement: '바우처 조회',
+        taskName: '바우처 조회',
+        taskDetail: '결제페이지 내 보유 바우처 목록 조회 화면 개발',
         planEnd: '2026-06-10',
         actualEnd: '2026-06-17',
         delayDays: 2,

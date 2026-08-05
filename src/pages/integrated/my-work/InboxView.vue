@@ -11,7 +11,7 @@ import {
   getInboxBundle,
   routeForTaskType,
 } from '@/entities/inbox/mock/inbox'
-import { calcDday } from '@/entities/wbs/mock/wbs'
+import { calcDday, formatDateRange } from '@/entities/wbs/mock/wbs'
 import InboxCalendar from '@/pages/integrated/my-work/InboxCalendar.vue'
 import WbsScheduleModal from '@/pages/workspace/wbs/WbsScheduleModal.vue'
 import WbsBulkScheduleModal from '@/pages/workspace/wbs/WbsBulkScheduleModal.vue'
@@ -357,10 +357,13 @@ function nextWaiting() {
           <table class="tbl">
             <thead>
               <tr>
+                <th style="width:22%">프로젝트명</th>
                 <th>업무명</th>
-                <th style="width:220px">마감일 (D-day)</th>
-                <th style="width:110px">공정률</th>
-                <th style="width:34%">프로젝트명</th>
+                <th style="width:150px">마감일 (D-day)</th>
+                <th style="width:130px">계획일정</th>
+                <th style="width:130px">실행일정</th>
+                <th style="width:90px">계획공정률</th>
+                <th style="width:90px">실행공정률</th>
                 <th style="width:44px"></th>
               </tr>
             </thead>
@@ -371,14 +374,17 @@ function nextWaiting() {
                 class="click"
                 @click="onTaskRowClick(t)"
               >
+                <td class="ell">{{ t.project }}</td>
                 <td>{{ t.name }}</td>
                 <td class="due-cell">
                   <span :class="{ delay: t.delayed }">{{ t.dueLabel }}</span>
                   <span v-if="t.dday" class="dday" :class="{ delay: t.delayed }"> ({{ t.dday }})</span>
                   <span v-if="t.delayed" class="stbadge rej ml">지연</span>
                 </td>
+                <td>{{ t.planStart ? formatDateRange(t.planStart, t.planEnd) : '미등록' }}</td>
+                <td>{{ t.execStart ? formatDateRange(t.execStart, t.execEnd) : '-' }}</td>
+                <td>{{ t.planProgress === null ? '-%' : t.planProgress + '%' }}</td>
                 <td>{{ t.progress === null ? '-%' : t.progress + '%' }}</td>
-                <td class="ell">{{ t.project }}</td>
                 <td class="more-cell" @click.stop>
                   <button type="button" class="more-btn" @click="toggleMore($event, t)">⋯</button>
                 </td>
@@ -387,7 +393,6 @@ function nextWaiting() {
           </table>
         </div>
         <div v-else class="empty">• 진행중인 업무가 없습니다.</div>
-        <p class="guide">{{ INBOX_GUIDE }}</p>
       </section>
 
       <section class="block">
@@ -498,7 +503,7 @@ function nextWaiting() {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.85);
 }
 .stat-chip__icon svg {
   width: 16px;
@@ -526,6 +531,16 @@ function nextWaiting() {
 .stat-chip--orange { background: var(--orange-bg); color: var(--orange); }
 .stat-chip--gray { background: var(--gray-bg); color: var(--gray); }
 .stat-chip--red { background: var(--red-bg); color: var(--red); }
+
+/* 다크모드: 아이콘은 항상 흰색 + 배지 배경을 반투명 흰색으로 (밝은 배경 위 흰 아이콘은 안 보이므로 배경도 조정) */
+:root[data-concept='dark'] .stat-chip--brand .stat-chip__icon,
+:root[data-concept='dark'] .stat-chip--blue .stat-chip__icon,
+:root[data-concept='dark'] .stat-chip--orange .stat-chip__icon,
+:root[data-concept='dark'] .stat-chip--gray .stat-chip__icon,
+:root[data-concept='dark'] .stat-chip--red .stat-chip__icon {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+}
 .viewtoggle {
   display: inline-flex;
   border: 1px solid var(--lnb-line);
@@ -787,7 +802,7 @@ function nextWaiting() {
 }
 .tbl thead th {
   background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   text-align: left;
   padding: 9px 12px;

@@ -938,9 +938,9 @@ label.fld--req::after {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid var(--lnb-line);
-  background: var(--lnb-side);
-  color: var(--teal-600);
+  border: none;
+  background: var(--lnb-hover);
+  color: var(--lnb-muted);
   font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   line-height: 1;
@@ -959,7 +959,7 @@ label.fld--req::after {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
   background: var(--lnb-side);
-  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: var(--lnb-txt);
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;

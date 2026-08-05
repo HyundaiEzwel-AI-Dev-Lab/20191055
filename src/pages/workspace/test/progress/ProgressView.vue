@@ -1084,7 +1084,7 @@ function onExcelDownload() {
 .inner-table th {
   background: var(--field);
   font-weight: 600;
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
 .inner-table th.group-head {

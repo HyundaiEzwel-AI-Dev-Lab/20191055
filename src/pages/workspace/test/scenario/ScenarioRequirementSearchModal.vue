@@ -195,7 +195,7 @@ function confirm() {
 
 .tbl th {
   background: var(--lnb-side);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   position: sticky;
   top: 0;

@@ -3,6 +3,7 @@ defineProps({
   title: { type: String, default: '' },
   visible: { type: Boolean, default: false },
   wide: { type: Boolean, default: false },
+  side: { type: Boolean, default: false },
 })
 
 defineEmits(['close', 'confirm'])
@@ -10,8 +11,8 @@ defineEmits(['close', 'confirm'])
 
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
-      <div class="modal" :class="{ 'modal--wide': wide }">
+    <div v-if="visible" class="modal-overlay" :class="{ 'modal-overlay--side': side }">
+      <div class="modal" :class="{ 'modal--wide': wide, 'modal--side': side }">
         <div class="modal__header">
           <span>{{ title }}</span>
           <button class="app-header__icon-btn" @click="$emit('close')">×</button>

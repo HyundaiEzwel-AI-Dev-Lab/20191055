@@ -4,7 +4,6 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   techResourceMeta,
-  techResourceSummary,
   techResourceRecords,
   deptOptions,
   stageOptions,
@@ -14,9 +13,12 @@ import {
 import { pageSizeOptions } from '@/shared/lib/commonOptions'
 import DelayTaskModal from '@/pages/integrated/dashboard/DelayTaskModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload, flattenPersonProjects } from '@/shared/file-excel/excelDownload'
+import { useProjectStore } from '@/app/stores/project'
 
 const router = useRouter()
+const projectStore = useProjectStore()
 
 const filterExpanded = ref(false)
 const pageSize = ref(20)
@@ -89,31 +91,17 @@ const pagedRecords = computed(() => {
   return filteredRecords.value.slice(start, start + pageSize.value)
 })
 
-const deptChartData = computed(() => {
-  const map = new Map()
-  for (const person of filteredRecords.value) {
-    if (!map.has(person.dept)) {
-      map.set(person.dept, { dept: person.dept, count: 0, assignedCount: 0, projectCount: 0 })
-    }
-    const entry = map.get(person.dept)
-    entry.count += 1
-    if (person.projectCount > 0) entry.assignedCount += 1
-    entry.projectCount += person.projectCount
+const summary = computed(() => {
+  const list = filteredRecords.value
+  const assignedCount = list.filter((r) => r.projectCount > 0).length
+  const projectCount = list.reduce((sum, r) => sum + r.projectCount, 0)
+  return {
+    queryCount: list.length,
+    assignedCount,
+    assignmentRate: list.length ? Math.round((assignedCount / list.length) * 100) : 0,
+    projectCount,
   }
-  return [...map.values()].map((e) => ({
-    ...e,
-    rate: e.count ? Math.round((e.assignedCount / e.count) * 100) : 0,
-  }))
 })
-
-const maxDeptProjectCount = computed(() =>
-  Math.max(1, ...deptChartData.value.map((d) => d.projectCount)),
-)
-
-function donutStyle(rate) {
-  const p = Math.min(100, Math.max(0, rate))
-  return { background: `conic-gradient(var(--teal-600) 0 ${p}%, var(--line-2) ${p}% 100%)` }
-}
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredRecords.value.length / pageSize.value)),
@@ -131,8 +119,6 @@ function resetFilters() {
     stage: '전체',
     schedule: '전체',
   }
-  appliedFilters.value = { ...filters.value }
-  currentPage.value = 1
 }
 
 function search() {
@@ -184,8 +170,14 @@ function onDelayClick(personId, project) {
   showDelayModal.value = true
 }
 
-function onTaskCountClick() {
-  router.push('/workspace/wbs')
+function onProjectClick(proj) {
+  projectStore.setCurrentProject({ id: proj.id, name: proj.name, stage: proj.stage })
+  router.push('/workspace/info')
+}
+
+function onTaskCountClick(person, proj) {
+  projectStore.setCurrentProject({ id: proj.id, name: proj.name, stage: proj.stage })
+  router.push({ path: '/workspace/wbs', query: { assignee: person.name } })
 }
 
 function formatPlanMd(md) {
@@ -203,8 +195,6 @@ function formatExecProgress(progress) {
       <span class="tech-resource__hint-icon">ⓘ</span>
       <div class="tech-resource__hint-body">
         <p>{{ techResourceMeta.notice }}</p>
-        <p>{{ techResourceMeta.chartNotice }}</p>
-        <p class="tech-resource__hint-time">조회시점 {{ techResourceMeta.queryTime }}</p>
       </div>
     </div>
 
@@ -224,6 +214,7 @@ function formatExecProgress(progress) {
             class="filter__input"
             type="text"
             placeholder="이름 또는 사번"
+            @keyup.enter="search"
           />
         </div>
         <div class="filter__field">
@@ -233,6 +224,7 @@ function formatExecProgress(progress) {
             class="filter__input"
             type="text"
             placeholder="프로젝트명 또는 ID"
+            @keyup.enter="search"
           />
         </div>
       </div>
@@ -253,7 +245,8 @@ function formatExecProgress(progress) {
       </div>
 
       <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        {{ filterExpanded ? '－ 검색조건 접기' : '＋ 검색조건 확장' }}
+        검색조건
+        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
       </button>
 
       <div class="filter__actions">
@@ -262,55 +255,40 @@ function formatExecProgress(progress) {
       </div>
     </section>
 
+    <p class="tech-resource__query-time">조회시점 {{ techResourceMeta.queryTime }}</p>
+
     <!-- 현황 분석 KPI -->
     <section class="kpi-row card pad">
       <div class="kpi kpi--neutral">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">조회 인원</span>
-        <span class="kpi__num">{{ techResourceSummary.queryCount }}<small>명</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">조회 인원</span>
+          <span class="kpi__num">{{ summary.queryCount }}<small>명</small></span>
+        </span>
       </div>
       <div class="kpi kpi--blue">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">투입 인원</span>
-        <span class="kpi__num">{{ techResourceSummary.assignedCount }}<small>명</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">투입 인원</span>
+          <span class="kpi__num">{{ summary.assignedCount }}<small>명</small></span>
+        </span>
       </div>
       <div class="kpi kpi--teal">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">투입율</span>
-        <span class="kpi__num">{{ techResourceSummary.assignmentRate }}<small>%</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">
+            투입율
+            <BaseTooltip text="투입률 : 투입인원 / 조회인원 x 100" />
+          </span>
+          <span class="kpi__num">{{ summary.assignmentRate }}<small>%</small></span>
+        </span>
       </div>
-      <div class="kpi kpi--orange">
+      <div class="kpi kpi--purple">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">진행 프로젝트</span>
-        <span class="kpi__num">{{ techResourceSummary.projectCount }}<small>건</small></span>
-      </div>
-    </section>
-
-    <!-- 부서별 통계 차트 -->
-    <section class="card pad chart-card">
-      <h3 class="sec-title">부서별 통계</h3>
-      <p v-if="!deptChartData.length" class="chart-empty">조회된 데이터가 없습니다.</p>
-      <div v-else class="chart-row">
-        <div class="chart-donuts">
-          <div v-for="d in deptChartData" :key="d.dept" class="chart-donut-item">
-            <div class="donut" :style="donutStyle(d.rate)">
-              <div class="donut__hole">
-                <span class="donut__v">{{ d.rate }}%</span>
-                <span class="donut__l">투입율</span>
-              </div>
-            </div>
-            <span class="chart-donut-item__lab">{{ d.dept }}</span>
-          </div>
-        </div>
-        <div class="chart-bars">
-          <div v-for="d in deptChartData" :key="d.dept" class="chart-bar-row">
-            <span class="chart-bar-row__lab">{{ d.dept }}</span>
-            <div class="chart-bar-row__track">
-              <i :style="{ width: `${(d.projectCount / maxDeptProjectCount) * 100}%` }" />
-            </div>
-            <span class="chart-bar-row__num">{{ d.projectCount }}건</span>
-          </div>
-        </div>
+        <span class="kpi__body">
+          <span class="kpi__lab">진행 프로젝트</span>
+          <span class="kpi__num">{{ summary.projectCount }}<small>건</small></span>
+        </span>
       </div>
     </section>
 
@@ -319,10 +297,10 @@ function formatExecProgress(progress) {
       <div class="listcard__head">
         <h3 class="sec-title">인력별 투입 현황</h3>
         <span class="listcard__cnt">총 <b>{{ filteredRecords.length }}</b>명</span>
+        <ExcelDownloadButton class="listcard__excel" @click="onExcelDownload" />
         <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
           <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
         </select>
-        <ExcelDownloadButton @click="onExcelDownload" />
       </div>
       <div class="listcard__scroll">
         <table class="tbl tbl--grouped">
@@ -332,7 +310,7 @@ function formatExecProgress(progress) {
               <th colspan="3">인력 정보</th>
               <th colspan="2">투입 프로젝트</th>
               <th colspan="4">프로젝트</th>
-              <th colspan="3">투입 현황</th>
+              <th colspan="4">투입 현황</th>
             </tr>
             <tr class="tbl__subhead">
               <th>부서</th>
@@ -384,7 +362,11 @@ function formatExecProgress(progress) {
                   <td :rowspan="person.projects.length">{{ person.projectCount }}건</td>
                   <td :rowspan="person.projects.length">{{ formatPlanMd(person.totalPlanMd) }}</td>
                 </template>
-                <td class="tbl__proj">{{ proj.name }}</td>
+                <td class="tbl__proj">
+                  <button type="button" class="tbl__link" @click="onProjectClick(proj)">
+                    {{ proj.name }}
+                  </button>
+                </td>
                 <td>
                   <span class="stbadge" :class="proj.stageType">{{ proj.stage }}</span>
                 </td>
@@ -409,7 +391,7 @@ function formatExecProgress(progress) {
                     v-if="proj.taskCount > 0"
                     type="button"
                     class="tbl__link"
-                    @click="onTaskCountClick"
+                    @click="onTaskCountClick(person, proj)"
                   >
                     {{ proj.taskCount }}건
                   </button>
@@ -440,6 +422,9 @@ function formatExecProgress(progress) {
                 </td>
               </tr>
             </template>
+            <tr v-if="!pagedRecords.length">
+              <td colspan="14" class="tbl__empty-all">조회된 데이터가 없습니다.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -517,11 +502,11 @@ function formatExecProgress(progress) {
   color: var(--lnb-txt);
 }
 
-.tech-resource__hint-time {
-  margin-top: 4px !important;
-  font-size: calc(11px + var(--font-size-offset, 0px)) !important;
-  font-weight: 500 !important;
-  color: var(--lnb-muted) !important;
+.tech-resource__query-time {
+  margin: -4px 0 16px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 500;
+  color: var(--lnb-muted);
 }
 
 .card {
@@ -561,20 +546,21 @@ function formatExecProgress(progress) {
 }
 
 .filter__row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 10px 14px;
 }
 
 .filter__row--expand {
   margin-top: 10px;
-  grid-template-columns: repeat(2, 1fr);
 }
 
 .filter__field {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 200px;
 }
 
 .filter__field label {
@@ -600,6 +586,9 @@ function formatExecProgress(progress) {
 }
 
 .filter__expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 8px;
   border: none;
   background: none;
@@ -608,6 +597,15 @@ function formatExecProgress(progress) {
   cursor: pointer;
   font-family: inherit;
   padding: 0;
+}
+
+.filter__expand-icon {
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.filter__expand-icon.is-open {
+  transform: rotate(180deg);
 }
 
 .filter__actions {
@@ -654,118 +652,11 @@ function formatExecProgress(progress) {
   margin-bottom: 16px;
 }
 
-.chart-card {
-  margin-bottom: 16px;
-}
-
-.chart-empty {
-  margin: 0;
-  padding: 24px;
-  text-align: center;
-  color: var(--lnb-muted);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.chart-row {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.chart-donuts {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-}
-
-.chart-donut-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.chart-donut-item__lab {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  font-weight: 600;
-}
-
-.donut {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.donut__hole {
-  position: absolute;
-  inset: 12px;
-  background: var(--lnb-side);
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.donut__v {
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-weight: 800;
-  color: var(--teal-600);
-}
-
-.donut__l {
-  font-size: calc(8px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-}
-
-.chart-bars {
-  flex: 1;
-  min-width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  justify-content: center;
-}
-
-.chart-bar-row {
-  display: grid;
-  grid-template-columns: 90px 1fr 48px;
-  align-items: center;
-  gap: 8px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-}
-
-.chart-bar-row__lab {
-  color: var(--lnb-txt);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chart-bar-row__track {
-  height: 8px;
-  background: var(--line-2);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.chart-bar-row__track i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--teal), var(--teal-600));
-}
-
-.chart-bar-row__num {
-  color: var(--lnb-muted);
-  text-align: right;
-}
-
 .kpi {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border: none;
   border-radius: 14px;
   padding: 16px 16px 14px;
@@ -777,16 +668,24 @@ function formatExecProgress(progress) {
 }
 
 .kpi__dot {
-  display: block;
+  flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: currentColor;
-  margin-bottom: 10px;
+}
+
+.kpi__body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .kpi__lab {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: currentColor;
   opacity: 0.75;
@@ -794,10 +693,9 @@ function formatExecProgress(progress) {
 }
 
 .kpi__num {
-  display: block;
-  font-size: calc(28px + var(--font-size-offset, 0px));
+  display: inline-block;
+  font-size: calc(22px + var(--font-size-offset, 0px));
   font-weight: 800;
-  margin-top: 4px;
   color: currentColor;
 }
 
@@ -810,7 +708,7 @@ function formatExecProgress(progress) {
 .kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
 .kpi--blue { background: var(--blue-bg); color: var(--blue); }
 .kpi--teal { background: var(--teal-50); color: var(--teal-600); }
-.kpi--orange { background: var(--orange-bg); color: var(--orange); }
+.kpi--purple { background: var(--purple-bg); color: var(--purple); }
 
 .listcard {
   overflow: hidden;
@@ -828,8 +726,11 @@ function formatExecProgress(progress) {
 }
 
 .listcard__cnt {
-  margin-left: auto;
   font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
+.listcard__excel {
+  margin-left: auto;
 }
 
 .listcard__cnt b {
@@ -859,7 +760,7 @@ function formatExecProgress(progress) {
 
 .tbl thead th {
   background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   text-align: center;
   padding: 9px 10px;
@@ -889,14 +790,6 @@ function formatExecProgress(progress) {
   background: var(--teal-50);
 }
 
-.tbl__row--highlight {
-  background: var(--teal-50);
-}
-
-.tbl__row--highlight td {
-  border-left: 3px solid var(--teal);
-}
-
 .tbl__person {
   font-weight: 600;
   text-align: left;
@@ -918,6 +811,12 @@ function formatExecProgress(progress) {
 .tbl__empty {
   color: var(--lnb-muted);
   text-align: left;
+}
+
+.tbl__empty-all {
+  padding: 32px 10px;
+  text-align: center;
+  color: var(--lnb-muted);
 }
 
 .tbl__link {
@@ -947,15 +846,18 @@ function formatExecProgress(progress) {
 .tbl__tooltip {
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   transform: translateX(-50%);
-  background: var(--lnb-logo);
-  color: var(--color-text-inverse);
-  font-size: calc(10.5px + var(--font-size-offset, 0px));
-  padding: 4px 8px;
-  border-radius: 6px;
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
+  color: var(--lnb-txt);
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   white-space: nowrap;
-  z-index: 2;
+  z-index: 20;
   pointer-events: none;
 }
 

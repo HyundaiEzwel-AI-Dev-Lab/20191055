@@ -1079,7 +1079,7 @@ function onPageSizeChange() {
 
 .req-table thead th {
   background: var(--lnb-hover);
-  color: var(--muted);
+  color: var(--ink);
   font-weight: 600;
   text-align: left;
   padding: 9px 11px;
@@ -1209,9 +1209,9 @@ function onPageSizeChange() {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid var(--lnb-line);
-  background: var(--lnb-side);
-  color: var(--teal-600);
+  border: none;
+  background: var(--lnb-hover);
+  color: var(--lnb-muted);
   font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
   line-height: 1;
@@ -1231,7 +1231,7 @@ function onPageSizeChange() {
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-md, 8px);
   background: var(--lnb-side);
-  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: var(--lnb-txt);
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
@@ -1360,8 +1360,8 @@ function onPageSizeChange() {
 }
 
 .pager__btn--on {
-  background: var(--teal);
-  border-color: var(--teal);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: var(--color-text-inverse);
   font-weight: 700;
 }

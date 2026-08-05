@@ -900,7 +900,7 @@ function onMonthPresetChange() {
 
 .tbl thead th {
   background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   text-align: center;
   padding: 9px 10px;

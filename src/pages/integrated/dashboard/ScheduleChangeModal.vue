@@ -191,7 +191,7 @@ function close() {
 
 .history__table thead th {
   background: var(--lnb-side);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   text-align: left;
   padding: 9px 11px;

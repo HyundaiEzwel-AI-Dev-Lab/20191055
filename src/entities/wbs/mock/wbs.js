@@ -309,8 +309,8 @@ const baseTasks = [
     requirementId: null,
     requirementPreview: null,
     taskType: '테스트',
-    assignee: '박현대',
-    assigneeDisplay: '박현대 외 N명',
+    assignee: '김현대',
+    assigneeDisplay: '김현대 외 N명',
     difficulty: '중',
     planStart: null,
     planEnd: null,
@@ -338,8 +338,8 @@ const baseTasks = [
     requirementId: null,
     requirementPreview: null,
     taskType: '테스트',
-    assignee: '권현대',
-    assigneeDisplay: '권현대 외 N명',
+    assignee: '김현대',
+    assigneeDisplay: '김현대 외 N명',
     difficulty: '중',
     planStart: null,
     planEnd: null,
@@ -472,7 +472,9 @@ export function matchWbsFilters(row, filters, myTasksOnly, currentUser = '권현
   if (!filters.showExcluded && row.excluded) return false
   if (filters.keyword) {
     const q = filters.keyword.toLowerCase()
-    const hay = [row.taskName, row.wbsId, row.systemPath].join(' ').toLowerCase()
+    const hay = [row.taskName, row.wbsId, row.systemPath, row.assignee, row.assigneeDisplay]
+      .join(' ')
+      .toLowerCase()
     if (!hay.includes(q)) return false
   }
   if (filters.taskType !== '전체' && row.taskType !== filters.taskType) return false

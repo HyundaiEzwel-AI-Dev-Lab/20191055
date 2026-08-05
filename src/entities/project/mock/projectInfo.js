@@ -187,7 +187,7 @@ export function getProjectDetail(projectId, projectName, userId) {
       requestDept: '',
       requester: '',
       assignees: Object.fromEntries(assigneeRoles.map((role) => [role, []])),
-      testUsage: [],
+      testUsage: ['단위테스트'],
       testRoundDev: '1차',
       testRoundStg: '1차',
       testRoundUat: '1차',

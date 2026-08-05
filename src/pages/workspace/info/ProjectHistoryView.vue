@@ -19,11 +19,10 @@ import {
   detailRouteForHistory,
   HISTORY_TEMPLATE,
   formatReqLabel,
+  formatChangedBy,
   createHistoryDefaultFilters,
   getPeriodDateRange,
 } from '@/entities/project/mock/projectHistory'
-import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
-import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,6 +40,7 @@ const appliedFilters = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
 const expandedId = ref(null)
+const hasSearched = ref(false)
 
 const colSpan = computed(() => (isIntegrated.value ? 7 : 5))
 
@@ -59,7 +59,7 @@ const totalPages = computed(() =>
 
 function loadData() {
   if (isIntegrated.value) {
-    rows.value = getAllProjectHistory()
+    rows.value = hasSearched.value ? getAllProjectHistory() : []
   } else {
     const project = projectStore.currentProject
     rows.value = project?.id
@@ -95,6 +95,8 @@ function search() {
     window.alert('시작일은 종료일보다 클 수 없습니다.')
     return
   }
+  hasSearched.value = true
+  loadData()
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   expandedId.value = null
@@ -134,34 +136,6 @@ function openDetail(row) {
       stage: '처리중',
     },
     detailRouteForHistory(row),
-  )
-}
-
-function onExcelDownload() {
-  const cols = [
-    ...(isIntegrated.value
-      ? [
-          { key: 'projectCode', label: '프로젝트ID' },
-          { key: 'projectName', label: '프로젝트명' },
-          { key: 'devDept', label: '담당개발부서' },
-        ]
-      : []),
-    { key: 'category', label: '변경구분' },
-    { key: 'item', label: '변경항목' },
-    { key: 'changedAt', label: '변경일시' },
-    { key: 'changedBy', label: '변경자' },
-    { key: 'changedByDept', label: '부서' },
-    { key: 'changeSummary', label: '변경내용' },
-  ]
-  mockExcelDownload(
-    isIntegrated.value ? '프로젝트 변경이력(전체)' : '프로젝트 변경이력',
-    filteredList.value.map((row) => ({
-      ...row,
-      changeSummary: (row.changeLines || [])
-        .map((line) => `${line.label}: ${line.before || '-'} → ${line.after || '-'}`)
-        .join(' / '),
-    })),
-    cols,
   )
 }
 
@@ -242,7 +216,6 @@ function wbsTaskPath(chg) {
       <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
-      <ExcelDownloadButton @click="onExcelDownload" />
     </div>
 
     <div class="listcard card">
@@ -251,12 +224,12 @@ function wbsTaskPath(chg) {
           <thead>
             <tr>
               <th class="col-no">NO</th>
-              <th>변경구분</th>
+              <th class="col-category">변경구분</th>
               <th>변경항목</th>
-              <th v-if="isIntegrated">프로젝트ID</th>
-              <th v-if="isIntegrated">프로젝트명</th>
-              <th>변경일시</th>
-              <th>변경자</th>
+              <th v-if="isIntegrated" class="col-projid">프로젝트ID</th>
+              <th v-if="isIntegrated" class="col-projname">프로젝트명</th>
+              <th class="col-datetime">변경일시</th>
+              <th class="col-changer">변경자</th>
             </tr>
           </thead>
           <tbody>
@@ -278,7 +251,7 @@ function wbsTaskPath(chg) {
                   <span>{{ splitDateTime(row.changedAt).date }}</span>
                   <span class="datetime__time">{{ splitDateTime(row.changedAt).time }}</span>
                 </td>
-                <td>{{ row.changedBy }}</td>
+                <td>{{ formatChangedBy(row.changedBy) }}</td>
               </tr>
               <tr v-if="expandedId === row.id" class="detail-row">
                 <td :colspan="colSpan">
@@ -442,7 +415,9 @@ function wbsTaskPath(chg) {
               </tr>
             </template>
             <tr v-if="!pagedList.length">
-              <td :colspan="colSpan" class="empty">조회된 변경이력이 없습니다.</td>
+              <td :colspan="colSpan" class="empty">
+                {{ isIntegrated && !hasSearched ? '검색 조건을 입력 후 조회해 주세요.' : '조회된 변경이력이 없습니다.' }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -606,6 +581,7 @@ function wbsTaskPath(chg) {
   width: 100%;
   border-collapse: collapse;
   font-size: calc(12px + var(--font-size-offset, 0px));
+  table-layout: fixed;
 }
 
 .data-table th,
@@ -619,7 +595,7 @@ function wbsTaskPath(chg) {
 .data-table th {
   background: var(--line-2);
   font-weight: 700;
-  color: var(--ink-2);
+  color: var(--ink);
   white-space: nowrap;
 }
 
@@ -628,7 +604,7 @@ function wbsTaskPath(chg) {
 }
 
 .data-table__row:hover {
-  background: var(--lnb-hover);
+  background: var(--teal-50);
 }
 
 .data-table__row.open {
@@ -640,8 +616,31 @@ function wbsTaskPath(chg) {
   white-space: nowrap;
 }
 
+.col-category {
+  width: 110px;
+}
+
+.col-projid {
+  width: 120px;
+}
+
+.col-projname {
+  width: 200px;
+}
+
+.col-datetime {
+  width: 140px;
+}
+
+.col-changer {
+  width: 130px;
+}
+
 .name-cell {
   max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .expand-mark {
@@ -659,14 +658,15 @@ function wbsTaskPath(chg) {
 }
 
 .datetime__time {
-  display: block;
+  display: inline-block;
+  margin-left: 6px;
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
 }
 
 .detail-row td {
   padding: 0;
-  background: var(--line-2);
+  background: var(--teal-50);
 }
 
 .detail-panel {
@@ -689,8 +689,8 @@ function wbsTaskPath(chg) {
 
 .detail-table {
   margin: 0 0 10px;
-  background: var(--bg, #fff);
-  border: 1px solid var(--line);
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
 }
 
 .detail-table th,
@@ -702,6 +702,7 @@ function wbsTaskPath(chg) {
   width: 160px;
   white-space: nowrap;
   vertical-align: top;
+  background: var(--teal-50);
 }
 
 .detail-table td {
@@ -717,21 +718,17 @@ function wbsTaskPath(chg) {
 
 .wbs-block + .wbs-block tr:first-child th,
 .wbs-block + .wbs-block tr:first-child td {
-  border-top: 2px solid var(--teal-600);
+  padding-top: 24px;
 }
 
-.before {
-  color: var(--muted);
-  font-weight: 600;
-}
-
+.before,
 .after {
-  color: var(--teal-600);
-  font-weight: 600;
+  color: inherit;
+  font-weight: 400;
 }
 
 .empty {
-  text-align: center;
+  text-align: center !important;
   padding: 32px 12px !important;
   color: var(--muted);
 }
@@ -741,5 +738,16 @@ function wbsTaskPath(chg) {
   justify-content: center;
   gap: 4px;
   padding: 12px;
+}
+
+.btn--ghost {
+  background: var(--lnb-side);
+  border-color: var(--lnb-line);
+  color: var(--lnb-txt);
+}
+
+.btn--ghost:hover {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
 }
 </style>

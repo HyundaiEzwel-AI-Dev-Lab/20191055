@@ -207,11 +207,11 @@
 .admin-page .data-table th {
   background: var(--lnb-hover);
   font-weight: 600;
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
 }
 
 .admin-page .data-table tbody tr:hover td {
-  background: var(--lnb-hover);
+  background: var(--teal-50);
 }
 
 .admin-page .data-table tbody tr.is-selected td {

@@ -112,10 +112,15 @@ function goRequirement() {
               <th class="col-toggle"></th>
               <th>No.</th>
               <th>요구사항ID</th>
+              <th>시스템/업무구분</th>
+              <th>화면경로</th>
+              <th>화면명</th>
+              <th>구분</th>
               <th>요구사항명</th>
+              <th>업무유형</th>
               <th>상태</th>
               <th>우선순위</th>
-              <th>등록일</th>
+              <th>등록일시/등록자</th>
             </tr>
           </thead>
           <tbody>
@@ -126,13 +131,18 @@ function goRequirement() {
                 </td>
                 <td>{{ row.no }}</td>
                 <td>{{ row.reqId }}</td>
+                <td>{{ row.systemPath }}</td>
+                <td>{{ row.screenPath }}</td>
+                <td>{{ row.screenName }}</td>
+                <td>{{ row.reqType }}</td>
                 <td class="tbl__name">{{ row.name }}</td>
+                <td>{{ row.taskTypes?.join(', ') }}</td>
                 <td>{{ row.status }}</td>
                 <td>{{ row.priority }}</td>
-                <td>{{ row.registeredAt }}</td>
+                <td>{{ row.registeredAt }}<br /><span class="muted">{{ row.registeredBy }}</span></td>
               </tr>
               <tr v-if="expandedIds.has(row.reqId)" class="detail-row">
-                <td colspan="7">
+                <td colspan="11">
                   <div class="detail-block">
                     <div class="detail-block__item">
                       <span class="detail-block__lab">요구사항원안</span>
@@ -147,7 +157,7 @@ function goRequirement() {
               </tr>
             </template>
             <tr v-if="!rows.length">
-              <td colspan="7" class="empty">등록된 요구사항이 없습니다.</td>
+              <td colspan="11" class="empty">등록된 요구사항이 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -181,7 +191,7 @@ function goRequirement() {
 .table-wrap {
   border: 1px solid var(--lnb-line);
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .tbl {
@@ -192,7 +202,7 @@ function goRequirement() {
 
 .tbl thead th {
   background: var(--lnb-side);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
   text-align: left;
   padding: 9px 11px;
@@ -213,7 +223,12 @@ function goRequirement() {
 
 .tbl__name {
   font-weight: 600;
-  max-width: 240px;
+  max-width: 200px;
+}
+
+.muted {
+  color: var(--lnb-muted);
+  font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
 .empty {
@@ -234,7 +249,7 @@ function goRequirement() {
 }
 
 .tbl__row:hover {
-  background: var(--lnb-hover);
+  background: var(--teal-50);
 }
 
 .col-toggle {

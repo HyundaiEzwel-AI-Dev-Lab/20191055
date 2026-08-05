@@ -8,8 +8,11 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'confirm'])
 
+const MAX_BYTES = 150
+
 const projectName = ref('')
 const error = ref('')
+const byteLimitMessage = ref('')
 
 watch(
   () => props.visible,
@@ -17,9 +20,27 @@ watch(
     if (open) {
       projectName.value = ''
       error.value = ''
+      byteLimitMessage.value = ''
     }
   },
 )
+
+function getByteLength(str) {
+  return new TextEncoder().encode(str).length
+}
+
+function onInput(e) {
+  const raw = e.target.value
+  if (getByteLength(raw) > MAX_BYTES) {
+    let trimmed = raw
+    while (getByteLength(trimmed) > MAX_BYTES) trimmed = trimmed.slice(0, -1)
+    projectName.value = trimmed
+    byteLimitMessage.value = `프로젝트명은 ${MAX_BYTES}byte까지 입력 가능합니다.`
+  } else {
+    projectName.value = raw
+    byteLimitMessage.value = ''
+  }
+}
 
 function close() {
   emit('close')
@@ -28,7 +49,7 @@ function close() {
 function submit() {
   const name = projectName.value.trim()
   if (!name) {
-    error.value = '프로젝트 이름을 입력해 주세요.'
+    error.value = '프로젝트명을 입력해 주세요.'
     return
   }
   emit('confirm', name)
@@ -38,20 +59,21 @@ function submit() {
 <template>
   <BaseModal
     :visible="visible"
-    title="프로젝트 이름을 등록해 주세요"
+    title="프로젝트 등록"
     @close="close"
   >
     <div class="register-form">
       <label class="register-form__label" for="project-name-input">프로젝트명</label>
       <input
         id="project-name-input"
-        v-model="projectName"
+        :value="projectName"
         class="register-form__input"
         type="text"
         placeholder="프로젝트명을 입력하세요"
-        maxlength="100"
+        @input="onInput"
         @keyup.enter="submit"
       />
+      <p v-if="byteLimitMessage" class="register-form__error">{{ byteLimitMessage }}</p>
       <p v-if="error" class="register-form__error">{{ error }}</p>
     </div>
 

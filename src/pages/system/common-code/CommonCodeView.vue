@@ -117,7 +117,7 @@ function saveAll() {
 
       <div class="admin-main">
         <div class="toolbar">
-          <span class="toolbar__count">{{ detailTitle }}</span>
+          <span class="toolbar__count">{{ detailTitle }} · 총 <b>{{ rows.length }}</b>개</span>
           <div class="toolbar__actions">
             <button type="button" class="btn btn--ghost btn--sm" @click="openAdd">＋ 추가</button>
             <button type="button" class="btn btn--primary btn--sm" @click="saveAll">저장</button>
@@ -224,5 +224,9 @@ function saveAll() {
 
 .admin-side__item--sub {
   padding-left: 26px;
+}
+
+.link-btn + .link-btn {
+  margin-left: 10px;
 }
 </style>
