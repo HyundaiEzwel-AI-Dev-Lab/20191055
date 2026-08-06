@@ -403,6 +403,7 @@ function onCalendarSelect(task) {
         <BaseTooltip :text="wbsMeta.hint" />
       </h1>
       <div class="view-toggle">
+        <span class="wbs__progress">총 공정률 <b>{{ totalProgress }}%</b></span>
         <button
           type="button"
           class="view-toggle__btn"
@@ -419,12 +420,11 @@ function onCalendarSelect(task) {
         >
           캘린더형
         </button>
-        <span class="wbs__progress">총 공정률 <b>{{ totalProgress }}%</b></span>
       </div>
     </div>
 
     <!-- 검색 -->
-    <section class="filter card">
+    <section v-if="viewMode === 'list'" class="filter card">
       <div class="filter__row">
         <div class="filter__field">
           <label>통합검색</label>
@@ -489,7 +489,7 @@ function onCalendarSelect(task) {
         </div>
         <div class="filter__field">
           <label>공정률 기준날짜</label>
-          <input v-model="filters.progressBaseDate" class="filter__input" type="date" />
+          <input v-model="filters.progressBaseDate" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
         </div>
       </div>
       <div class="filter__actions">
@@ -499,7 +499,7 @@ function onCalendarSelect(task) {
     </section>
 
     <!-- 툴바 (SB 112): 좌측 건수·작업제외 / 우측 엑셀·액션 -->
-    <div class="toolbar">
+    <div v-if="viewMode === 'list'" class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredTasks.length }}</b>건</span>
       <button type="button" class="btn btn--ghost btn--sm" @click="onExclude">작업제외</button>
       <div class="toolbar__spacer" />
@@ -537,7 +537,6 @@ function onCalendarSelect(task) {
               <th>계획공정률</th>
               <th>실행공정률</th>
               <th>상태</th>
-              <th>확정여부</th>
             </tr>
           </thead>
           <tbody>
@@ -555,7 +554,10 @@ function onCalendarSelect(task) {
                   @change="toggleSelect(row.id, row.excluded || !isMine(row))"
                 />
               </td>
-              <td>{{ row.systemPath }}</td>
+              <td class="system-path">
+                <span>{{ row.systemPath.split('>')[0] }}</span>
+                <span class="system-path__biz">{{ row.systemPath.split('>').slice(1).join('>') }}</span>
+              </td>
               <td>
                 <input
                   v-model="row.taskName"
@@ -574,7 +576,18 @@ function onCalendarSelect(task) {
                   @change="onTaskFieldChange(row)"
                 />
               </td>
-              <td>{{ row.taskType }}</td>
+              <td>
+                <select
+                  v-if="['개발', '디자인', '퍼블리싱'].includes(row.taskType)"
+                  v-model="row.taskType"
+                  class="task-type-select"
+                >
+                  <option value="개발">개발</option>
+                  <option value="디자인">디자인</option>
+                  <option value="퍼블리싱">퍼블리싱</option>
+                </select>
+                <span v-else>{{ row.taskType }}</span>
+              </td>
               <td>
                 <select
                   v-if="!row.excluded && row.status !== '취소' && row.taskType !== '테스트'"
@@ -604,16 +617,16 @@ function onCalendarSelect(task) {
                   {{ formatDateRange(row.planStart, row.planEnd) }}
                 </button>
               </td>
-              <td>{{ formatDateRange(row.execStart, row.execEnd) }}</td>
+              <td>{{ formatDateRange(row.execStart, row.execEnd, '미실행') }}</td>
               <td>
-                <div class="prog-wrap">
-                  <div class="prog-bar"><i :style="{ width: `${row.planProgress}%` }" /></div>
+                <div class="prog-bar prog-bar--labeled">
+                  <i :style="{ width: `${row.planProgress}%` }" />
                   <span>{{ row.planProgress }}%</span>
                 </div>
               </td>
               <td>
-                <div class="prog-wrap">
-                  <div class="prog-bar"><i :style="{ width: `${row.execProgress}%` }" /></div>
+                <div class="prog-bar prog-bar--labeled">
+                  <i :style="{ width: `${row.execProgress}%` }" />
                   <span>{{ row.execProgress }}%</span>
                 </div>
               </td>
@@ -634,10 +647,9 @@ function onCalendarSelect(task) {
                   재착수
                 </button>
               </td>
-              <td>{{ row.confirmed }}</td>
             </tr>
             <tr v-if="!filteredTasks.length">
-              <td colspan="13" class="empty-row">
+              <td colspan="12" class="empty-row">
                 {{ tasks.length ? '조회 결과가 없습니다.' : '등록된 WBS 업무가 없습니다.' }}
               </td>
             </tr>
@@ -742,7 +754,10 @@ function onCalendarSelect(task) {
 }
 
 .wbs__progress {
-  margin-left: 4px;
+  margin-right: 4px;
+  padding: 5px 10px;
+  background: var(--teal-50);
+  border-radius: 999px;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   white-space: nowrap;
@@ -920,7 +935,7 @@ function onCalendarSelect(task) {
   background: var(--lnb-hover);
   color: var(--ink);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 10px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -1014,26 +1029,52 @@ function onCalendarSelect(task) {
   text-decoration: none;
 }
 
-.prog-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 80px;
-}
-
 .prog-bar {
-  flex: 1;
-  height: 6px;
+  position: relative;
+  min-width: 80px;
+  height: 16px;
   background: var(--line-2);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
-  min-width: 40px;
 }
 
 .prog-bar i {
   display: block;
   height: 100%;
   background: var(--teal);
+}
+
+.prog-bar--labeled span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.system-path {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+}
+
+.system-path__biz {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--muted);
+}
+
+.task-type-select {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  background: var(--field);
 }
 
 .st {

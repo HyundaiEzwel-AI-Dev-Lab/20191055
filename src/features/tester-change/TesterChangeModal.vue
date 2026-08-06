@@ -36,7 +36,7 @@ watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    targetId.value = props.testers[0]?.id || ''
+    targetId.value = ''
     searchKeyword.value = ''
     selectedStaff.value = null
     applyDate.value = today
@@ -83,7 +83,18 @@ function onAlertConfirm() {
 
 <template>
   <BaseModal title="테스터 변경" :visible="modelValue" @close="close">
-    <div v-if="pendingChange" class="pending-box">
+    <div class="field">
+      <label class="field__label field__label--req">변경 대상</label>
+      <p v-if="!testers.length" class="field__empty">변경 대상이 없습니다.</p>
+      <select v-else v-model="targetId" class="field__select">
+        <option value="" disabled>선택</option>
+        <option v-for="t in testers" :key="t.id" :value="t.id">
+          {{ t.name }} / {{ t.dept }} / {{ t.empId || '—' }}
+        </option>
+      </select>
+    </div>
+
+    <div v-if="pendingChange && targetId" class="pending-box">
       <p class="pending-box__title">현재 변경 예정 건이 존재합니다.</p>
       <p class="pending-box__line">
         {{ pendingChange.from.name }} / {{ pendingChange.from.dept }} / {{ pendingChange.from.empId }}
@@ -91,15 +102,6 @@ function onAlertConfirm() {
       </p>
       <p class="pending-box__meta">변경 적용일 : {{ pendingChange.applyDate }}</p>
       <p class="pending-box__hint">새로운 변경을 저장하면 기존 예약은 변경됩니다.</p>
-    </div>
-
-    <div class="field">
-      <label class="field__label field__label--req">변경 대상</label>
-      <select v-model="targetId" class="field__select">
-        <option v-for="t in testers" :key="t.id" :value="t.id">
-          {{ t.name }} / {{ t.dept }} / {{ t.empId || '—' }}
-        </option>
-      </select>
     </div>
 
     <div class="field">
@@ -139,7 +141,7 @@ function onAlertConfirm() {
 
     <div class="field">
       <label class="field__label field__label--req">변경 적용일</label>
-      <input v-model="applyDate" class="field__input" type="date" :min="today" />
+      <input v-model="applyDate" class="field__input" type="date" :min="today" @click="$event.target.showPicker?.()" />
     </div>
 
     <ul class="info-list">
@@ -166,8 +168,8 @@ function onAlertConfirm() {
 
 <style scoped>
 .pending-box {
-  background: var(--orange-bg);
-  border: 1px solid var(--orange);
+  background: var(--red-bg);
+  border: 1px solid var(--red);
   border-radius: 10px;
   padding: 12px 14px;
   margin-bottom: 16px;
@@ -178,7 +180,7 @@ function onAlertConfirm() {
 .pending-box__title {
   margin: 0 0 6px;
   font-weight: 700;
-  color: var(--orange);
+  color: var(--red);
 }
 
 .pending-box__line,
@@ -209,6 +211,19 @@ function onAlertConfirm() {
 .field__label--req::after {
   content: ' *';
   color: var(--red);
+}
+
+.field__empty {
+  margin: 0;
+  padding: 0 10px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
+  border: 1px solid var(--lnb-line);
+  border-radius: 7px;
+  background: var(--field);
 }
 
 .field__select,

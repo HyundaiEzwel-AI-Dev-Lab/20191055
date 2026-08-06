@@ -101,7 +101,7 @@ function layoutWeekBars(weekCells) {
         label,
         color: getTaskTypeColor(t.taskType),
         done: t.status === '완료',
-        delayed: t.scheduleStatus === 'delay' || t.status === '진행중' && t.scheduleStatus === 'delay',
+        cancelled: t.status === '취소',
         startCol,
         endCol,
         span: endCol - startCol + 1,
@@ -156,12 +156,12 @@ function goToday() {
 }
 
 function onBarClick(bar) {
-  if (bar.done) return
+  if (bar.done || bar.cancelled) return
   emit('select', bar.task)
 }
 
 function blockStyle(bar) {
-  if (bar.done) return {}
+  if (bar.done || bar.cancelled) return {}
   return {
     borderLeftColor: bar.color,
     background: `${bar.color}22`,
@@ -172,10 +172,15 @@ function blockStyle(bar) {
 <template>
   <div class="wbs-cal card">
     <div class="cal__bar">
-      <button type="button" class="cal__nav" @click="prevMonth">‹</button>
-      <span class="cal__label">{{ calendarLabel }}</span>
-      <button type="button" class="cal__nav" @click="nextMonth">›</button>
-      <button type="button" class="cal__today" @click="goToday">오늘</button>
+      <span class="cal__bar__side" />
+      <div class="cal__bar__center">
+        <button type="button" class="cal__nav" @click="prevMonth">‹</button>
+        <span class="cal__label">{{ calendarLabel }}</span>
+        <button type="button" class="cal__nav" @click="nextMonth">›</button>
+      </div>
+      <span class="cal__bar__side cal__bar__side--right">
+        <button type="button" class="cal__today" @click="goToday">오늘</button>
+      </span>
     </div>
 
     <div class="cal__grid cal__head">
@@ -194,7 +199,12 @@ function blockStyle(bar) {
         v-for="cell in week.cells"
         :key="cell.iso"
         class="cal__cell"
-        :class="{ out: !cell.inMonth, today: cell.isToday }"
+        :class="{
+          out: !cell.inMonth,
+          today: cell.isToday,
+          sun: cell.date.getDay() === 0,
+          sat: cell.date.getDay() === 6,
+        }"
       >
         <div class="cal__day">{{ cell.day }}</div>
       </div>
@@ -209,7 +219,7 @@ function blockStyle(bar) {
           class="tblock"
           :class="{
             done: bar.done,
-            delayed: bar.delayed,
+            cancelled: bar.cancelled,
             'continues-prev': bar.continuesPrev,
             'continues-next': bar.continuesNext,
           }"
@@ -243,9 +253,24 @@ function blockStyle(bar) {
 .cal__bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   padding: 12px 14px;
   border-bottom: 1px solid var(--lnb-line);
+}
+
+.cal__bar__side {
+  flex: 1;
+}
+
+.cal__bar__side--right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cal__bar__center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .cal__label {
@@ -333,6 +358,14 @@ function blockStyle(bar) {
   background: var(--lnb-hover);
 }
 
+.cal__cell.sun:not(.today) {
+  background: var(--red-bg);
+}
+
+.cal__cell.sat:not(.today) {
+  background: var(--blue-bg);
+}
+
 .cal__day {
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-txt);
@@ -375,8 +408,11 @@ function blockStyle(bar) {
   cursor: default;
 }
 
-.tblock.delayed {
-  box-shadow: inset 0 0 0 1px var(--red);
+.tblock.cancelled {
+  background: var(--field, var(--line-2));
+  color: var(--lnb-muted);
+  border-left-color: var(--lnb-muted);
+  cursor: default;
 }
 
 .tblock.continues-prev {

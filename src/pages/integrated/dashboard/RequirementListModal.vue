@@ -204,7 +204,7 @@ function goRequirement() {
   background: var(--lnb-side);
   color: var(--lnb-txt);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 11px;
   border-bottom: 1px solid var(--lnb-line);
   white-space: nowrap;

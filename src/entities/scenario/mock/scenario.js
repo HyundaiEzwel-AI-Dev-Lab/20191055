@@ -4,6 +4,17 @@ import { EMPTY_DATA_USER_ID } from '@/entities/auth/mockUsers'
 export const scenarioMeta = {
   notice:
     'WBS 개발 업무 확정 시 테스트 대상 화면 자동 등록 · 케이스/절차는 시나리오 편집(PAG-S-UAT-04)에서 관리',
+  commonNote: { dev: '', uat: '' },
+}
+
+/** POP-S-UAT-05 시나리오 불러오기 팝업의 차수별 등록 케이스 수 표기용 */
+export const roundCaseCounts = {
+  단위테스트: 12,
+  DEV1차: 8,
+  DEV2차: 10,
+  DEV3차: 6,
+  운영1차: 9,
+  운영2차: 4,
 }
 
 const baseCases = [
@@ -116,7 +127,8 @@ export function matchScenarioFilters(row, filters, config) {
   if (filters.dateTo && row.planDate > filters.dateTo) return false
   if (filters.screenKeyword) {
     const q = filters.screenKeyword.toLowerCase()
-    if (!`${row.screenName}${row.screenPath}`.toLowerCase().includes(q)) return false
+    const hay = `${row.screenName}${row.screenPath}${row.reqId}`.toLowerCase()
+    if (!hay.includes(q)) return false
   }
   return true
 }

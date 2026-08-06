@@ -199,16 +199,22 @@ function onExcelDownload() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
 }
 
 .section__title {
   margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
   font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
 .section__head .section__title {
   margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .tbl {
@@ -228,6 +234,7 @@ function onExcelDownload() {
   color: var(--ink);
   font-weight: 600;
   background: var(--field);
+  text-align: center;
 }
 
 .empty {

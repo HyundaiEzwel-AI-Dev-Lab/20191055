@@ -24,13 +24,11 @@ const priority = ref('보통')
 const difficulty = ref('중')
 const remark = ref('')
 
-const showConfirmAlert = ref(false)
 const showStartAlert = ref(false)
 const showCompleteAlert = ref(false)
 const showDelayReason = ref(false)
 const delayReason = ref('')
 const pendingCompleteDate = ref('')
-const showConfirmTip = ref(false)
 
 const hasPlan = computed(() => !!(planStart.value && planEnd.value))
 const isInitial = computed(() => !props.task?.planStart && !props.task?.planEnd)
@@ -41,6 +39,7 @@ const planLocked = computed(() => {
   return planStart.value <= wbsMockToday
 })
 const canRequestChange = computed(() => hasPlan.value && !isCompleted.value)
+const canUncomplete = computed(() => !!(execEnd.value && planEnd.value && execEnd.value <= planEnd.value))
 const progressLabel = computed(() => {
   const n = props.task?.execProgress
   return n == null || n === '' ? '-' : `${n}%`
@@ -71,12 +70,10 @@ watch(
     priority.value = t.priority || '보통'
     difficulty.value = t.difficulty || '중'
     remark.value = t.remark || ''
-    showConfirmAlert.value = false
     showStartAlert.value = false
     showCompleteAlert.value = false
     showDelayReason.value = false
     delayReason.value = ''
-    showConfirmTip.value = false
   },
 )
 
@@ -140,19 +137,6 @@ function save() {
   close()
 }
 
-function onConfirmToggle() {
-  if (confirmed.value) {
-    confirmed.value = false
-    return
-  }
-  showConfirmAlert.value = true
-}
-
-function applyConfirm() {
-  confirmed.value = true
-  showConfirmAlert.value = false
-}
-
 function onStartClick() {
   if (!hasPlan.value) {
     window.alert('계획일이 등록되어야 실행일정(착수/완료)를 체크할 수 있습니다.')
@@ -199,6 +183,32 @@ function finishComplete(end, reason) {
   })
   emit('save', payload)
   showDelayReason.value = false
+}
+
+function onUncompleteClick() {
+  if (
+    !window.confirm(
+      '실행 완료 취소하시겠습니까? 취소 시, 변경이력이 생성되며, 공정률이 재산정됩니다.',
+    )
+  ) {
+    return
+  }
+  const restartedAt = execStart.value
+  execEnd.value = ''
+  const execProgress = calcExecProgress(
+    { ...props.task, execStart: restartedAt, execEnd: null, planEnd: planEnd.value, status: '진행중', excluded: false },
+    wbsMockToday,
+  )
+  emit(
+    'save',
+    buildPayload({
+      status: '진행중',
+      execEnd: null,
+      execProgress,
+      scheduleStatus: null,
+      scheduleReason: null,
+    }),
+  )
 }
 
 function saveDelayReason() {
@@ -275,11 +285,43 @@ function openMultiChange() {
         <template v-if="showTaskInfo">
           <div class="field">
             <label class="field__lab">업무명 <i>*</i></label>
-            <input v-model="taskName" class="inp" type="text" maxlength="100" />
+            <input v-model="taskName" class="inp inp--block" type="text" maxlength="100" />
           </div>
           <div class="field">
             <label class="field__lab">업무 상세</label>
             <textarea v-model="taskDetail" class="ta" rows="3" maxlength="1000" />
+          </div>
+          <div class="field field--split">
+            <div>
+              <label class="field__lab">난이도</label>
+              <div class="seg">
+                <button
+                  v-for="d in difficultyOptions"
+                  :key="d"
+                  type="button"
+                  class="seg__btn"
+                  :class="{ 'seg__btn--on': difficulty === d }"
+                  @click="difficulty = d"
+                >
+                  {{ d }}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="field__lab">우선순위</label>
+              <div class="seg">
+                <button
+                  v-for="p in priorityOptions"
+                  :key="p"
+                  type="button"
+                  class="seg__btn"
+                  :class="{ 'seg__btn--on': priority === p }"
+                  @click="priority = p"
+                >
+                  {{ p }}
+                </button>
+              </div>
+            </div>
           </div>
         </template>
       </section>
@@ -298,14 +340,22 @@ function openMultiChange() {
           </button>
         </div>
 
+        <p class="guide">
+          · 계획일이 등록되어야 실행일정(착수/완료)를 체크할 수 있습니다.
+          (계획일 이전 착수할 경우 착수 버튼 클릭)<br />
+          · 착수 버튼 클릭 시, 착수일이 즉시 체크됩니다.
+          버튼 클릭 후에는 [일정변경 요청] 버튼을 통해서만 일정을 변경할 수 있습니다.
+        </p>
+
         <div class="field">
           <label class="field__lab">계획일정 <i>*</i></label>
-          <div class="date-row">
+          <div class="date-row date-row--narrow">
             <input
               v-model="planStart"
               class="inp"
               type="date"
               :disabled="!isInitial && planLocked"
+              @click="$event.target.showPicker?.()"
             />
             <span>~</span>
             <input
@@ -313,16 +363,10 @@ function openMultiChange() {
               class="inp"
               type="date"
               :disabled="!isInitial && planLocked"
+              @click="$event.target.showPicker?.()"
             />
           </div>
         </div>
-
-        <p class="guide">
-          계획일이 등록되어야 실행일정(착수/완료)를 체크할 수 있습니다.
-          (계획일 이전 착수할 경우 착수 버튼 클릭)<br />
-          착수 버튼 클릭 시, 착수일이 즉시 체크됩니다.
-          버튼 클릭 후에는 [일정변경 요청] 버튼을 통해서만 일정을 변경할 수 있습니다.
-        </p>
 
         <div v-if="hasPlan" class="field">
           <label class="field__lab">실행일정</label>
@@ -343,6 +387,14 @@ function openMultiChange() {
               <span class="exec-date">{{ execStart }}</span>
               <span>~</span>
               <span class="exec-date">{{ execEnd }}</span>
+              <button
+                v-if="canUncomplete"
+                type="button"
+                class="btn btn--ghost btn--sm"
+                @click="onUncompleteClick"
+              >
+                완료취소
+              </button>
             </template>
           </div>
         </div>
@@ -351,101 +403,6 @@ function openMultiChange() {
       <!-- 추가 정보 (SB 120) — 계획 등록 후 -->
       <section v-if="hasPlan || !isInitial" class="panel">
         <h4 class="panel__title">추가 정보</h4>
-
-        <div class="extra-grid">
-          <div class="field">
-            <label class="field__lab">단위테스트 사용 <i>*</i></label>
-            <div class="seg">
-              <button
-                type="button"
-                class="seg__btn"
-                :class="{ 'seg__btn--on': useUnitTest }"
-                @click="useUnitTest = true"
-              >
-                사용
-              </button>
-              <button
-                type="button"
-                class="seg__btn"
-                :class="{ 'seg__btn--on': !useUnitTest }"
-                @click="useUnitTest = false"
-              >
-                미사용
-              </button>
-            </div>
-          </div>
-
-          <div class="field">
-            <label class="field__lab">
-              확정여부 <i>*</i>
-              <button
-                type="button"
-                class="tip-btn"
-                @mouseenter="showConfirmTip = true"
-                @mouseleave="showConfirmTip = false"
-              >
-                !
-              </button>
-            </label>
-            <div v-if="showConfirmTip" class="tip-box">
-              확정 여부<br />
-              - 개발계획 보고(직속 팀장에게 일정 보고 및 현업/기획에 메일 발송) 후 확정
-              처리합니다.<br />
-              - 확정 전 : 계획일정 수정 가능 (계획 시작일 전까지)<br />
-              - 확정 후 : 직접 수정 불가 (일정 변경 요청을 통해서만 수정 가능)
-            </div>
-            <div class="seg">
-              <button
-                type="button"
-                class="seg__btn"
-                :class="{ 'seg__btn--on': confirmed }"
-                @click="onConfirmToggle"
-              >
-                ON
-              </button>
-              <button
-                type="button"
-                class="seg__btn"
-                :class="{ 'seg__btn--on': !confirmed }"
-                @click="confirmed = false"
-              >
-                OFF
-              </button>
-            </div>
-          </div>
-
-          <div class="field">
-            <label class="field__lab">우선순위</label>
-            <div class="seg">
-              <button
-                v-for="p in priorityOptions"
-                :key="p"
-                type="button"
-                class="seg__btn"
-                :class="{ 'seg__btn--on': priority === p }"
-                @click="priority = p"
-              >
-                {{ p }}
-              </button>
-            </div>
-          </div>
-
-          <div class="field">
-            <label class="field__lab">난이도</label>
-            <div class="seg">
-              <button
-                v-for="d in difficultyOptions"
-                :key="d"
-                type="button"
-                class="seg__btn"
-                :class="{ 'seg__btn--on': difficulty === d }"
-                @click="difficulty = d"
-              >
-                {{ d }}
-              </button>
-            </div>
-          </div>
-        </div>
 
         <div class="field">
           <label class="field__lab">비고 (개발내용/작업이슈)</label>
@@ -653,6 +610,19 @@ function openMultiChange() {
   gap: 8px;
 }
 
+.date-row--narrow {
+  max-width: 300px;
+}
+
+.date-row--narrow .inp {
+  flex: 0 0 135px;
+}
+
+.inp--block {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .inp {
   flex: 1;
   height: 32px;
@@ -689,9 +659,12 @@ function openMultiChange() {
 
 .guide {
   margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--teal-50);
+  border-radius: var(--radius-md);
   font-size: calc(11px + var(--font-size-offset, 0px));
-  line-height: 1.55;
-  color: var(--lnb-muted);
+  line-height: 1.6;
+  color: var(--teal-700);
 }
 
 .exec-date {
@@ -709,7 +682,7 @@ function openMultiChange() {
   border-radius: 20px;
 }
 
-.extra-grid {
+.field--split {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 16px;
@@ -750,37 +723,6 @@ function openMultiChange() {
   text-align: right;
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
-}
-
-.tip-btn {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid var(--orange);
-  background: var(--orange-bg);
-  color: var(--orange);
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  font-weight: 800;
-  cursor: help;
-  line-height: 1;
-  padding: 0;
-}
-
-.tip-box {
-  position: absolute;
-  z-index: 5;
-  top: 22px;
-  left: 0;
-  width: 320px;
-  padding: 10px 12px;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  line-height: 1.5;
-  color: var(--lnb-txt);
-  font-weight: 500;
 }
 
 .tabs {
@@ -854,5 +796,21 @@ function openMultiChange() {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 14px;
+}
+
+.btn--primary {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--color-text-inverse);
+}
+
+.btn--primary:hover {
+  background: var(--teal-600);
+}
+
+.btn--ghost {
+  background: #ffffff;
+  border-color: var(--lnb-line);
+  color: var(--lnb-txt);
 }
 </style>

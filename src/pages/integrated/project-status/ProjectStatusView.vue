@@ -278,9 +278,9 @@ function onPageSizeChange() {
           <div class="filter__field">
             <label>오픈일</label>
             <div class="filter__range">
-              <input v-model="filters.openDateFrom" class="filter__input" type="date" />
+              <input v-model="filters.openDateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
               <span>~</span>
-              <input v-model="filters.openDateTo" class="filter__input" type="date" />
+              <input v-model="filters.openDateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
             </div>
           </div>
           <div class="filter__field">
@@ -366,8 +366,12 @@ function onPageSizeChange() {
         </div>
       </div>
 
-      <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        검색조건
+      <button
+        type="button"
+        class="filter__expand"
+        aria-label="검색조건 확장/접기"
+        @click="filterExpanded = !filterExpanded"
+      >
         <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
       </button>
 
@@ -790,9 +794,9 @@ function onPageSizeChange() {
 
 .tbl thead th {
   background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 12px;
   border-bottom: 1px solid var(--lnb-line);
   white-space: nowrap;
@@ -854,6 +858,7 @@ function onPageSizeChange() {
   align-items: center;
   gap: 8px;
   min-width: 50px;
+  max-width: 50%;
 }
 
 .bar {

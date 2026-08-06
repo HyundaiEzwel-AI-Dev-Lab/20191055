@@ -23,9 +23,12 @@ const totalCount = computed(() => rootIssues.value.length)
 
 const showIssueForm = ref(false)
 const issueDraft = ref('')
-const editingIssueId = ref(null)
 const replyTargetId = ref(null)
 const replyDraft = ref('')
+
+const editingIssueId = ref(null)
+const editingReplyId = ref(null)
+const editDraft = ref('')
 
 const mentionTarget = ref(null) // 'issue' | 'reply'
 const mentionQuery = ref('')
@@ -42,9 +45,11 @@ watch(
     if (!open) return
     showIssueForm.value = false
     issueDraft.value = ''
-    editingIssueId.value = null
     replyTargetId.value = null
     replyDraft.value = ''
+    editingIssueId.value = null
+    editingReplyId.value = null
+    editDraft.value = ''
     mentionTarget.value = null
     mentionQuery.value = ''
   },
@@ -93,57 +98,78 @@ function nowStamp() {
 }
 
 function openIssueForm() {
-  editingIssueId.value = null
+  cancelEdit()
   replyTargetId.value = null
   showIssueForm.value = true
   issueDraft.value = ''
 }
 
-function startEditIssue(issue) {
-  if (issue.author !== CURRENT_USER_NAME) return
-  editingIssueId.value = issue.id
-  replyTargetId.value = null
-  showIssueForm.value = true
-  issueDraft.value = issue.body
-}
-
 function cancelIssueForm() {
   showIssueForm.value = false
-  editingIssueId.value = null
   issueDraft.value = ''
 }
 
 function saveIssue() {
   if (!issueDraft.value.trim() || !props.requirement) return
-  if (editingIssueId.value) {
-    const target = rootIssues.value.find((i) => i.id === editingIssueId.value)
-    if (target) {
-      target.body = issueDraft.value.trim()
-      target.editedAt = nowStamp()
-    }
-  } else {
-    if (!props.requirement.issues) props.requirement.issues = []
-    const body = issueDraft.value.trim()
-    props.requirement.issues.unshift({
-      id: `iss-${Date.now()}`,
-      author: CURRENT_USER_NAME,
-      dept: CURRENT_USER_DEPT,
-      createdAt: nowStamp(),
-      body,
-      replies: [],
-    })
-    emit('issue-added', { requirement: props.requirement, body })
-    notifyMentionsInBody(body, {
-      projectName: projectStore.currentProject?.name || props.requirement.reqId,
-      route: '/workspace/requirement',
-      scope: 'requirement',
-    })
-  }
+  if (!props.requirement.issues) props.requirement.issues = []
+  const body = issueDraft.value.trim()
+  props.requirement.issues.unshift({
+    id: `iss-${Date.now()}`,
+    author: CURRENT_USER_NAME,
+    dept: CURRENT_USER_DEPT,
+    createdAt: nowStamp(),
+    body,
+    replies: [],
+  })
+  emit('issue-added', { requirement: props.requirement, body })
+  notifyMentionsInBody(body, {
+    projectName: projectStore.currentProject?.name || props.requirement.reqId,
+    route: '/workspace/requirement',
+    scope: 'requirement',
+  })
   cancelIssueForm()
 }
 
-function startReplyIssue(issue) {
+function cancelEdit() {
   editingIssueId.value = null
+  editingReplyId.value = null
+  editDraft.value = ''
+}
+
+function startEditIssue(issue) {
+  if (issue.author !== CURRENT_USER_NAME) return
+  cancelIssueForm()
+  cancelReply()
+  editingReplyId.value = null
+  editingIssueId.value = issue.id
+  editDraft.value = issue.body
+}
+
+function saveEditIssue(issue) {
+  if (!editDraft.value.trim()) return
+  issue.body = editDraft.value.trim()
+  issue.editedAt = nowStamp()
+  cancelEdit()
+}
+
+function startEditReply(reply) {
+  if (reply.author !== CURRENT_USER_NAME) return
+  cancelIssueForm()
+  cancelReply()
+  editingIssueId.value = null
+  editingReplyId.value = reply.id
+  editDraft.value = reply.body
+}
+
+function saveEditReply(reply) {
+  if (!editDraft.value.trim()) return
+  reply.body = editDraft.value.trim()
+  reply.editedAt = nowStamp()
+  cancelEdit()
+}
+
+function startReplyIssue(issue) {
+  cancelEdit()
   showIssueForm.value = false
   replyTargetId.value = issue.id
   replyDraft.value = ''
@@ -182,11 +208,13 @@ function saveReply(issue) {
     @close="close"
   >
     <template v-if="requirement">
-      <p class="issue-guide">요구사항 관련 이슈 등록 및 처리 현황 관리</p>
-      <ul class="issue-guide__notes">
-        <li>정책 협의 단계에서의 협의/변경 이슈는 처리정보 입력 대상이 아닙니다.</li>
-        <li>요건 확정 상태 이후 개발 또는 테스트 중 발생한 요건 관련 이슈/협의 사항만 입력하세요.</li>
-      </ul>
+      <div class="issue-guide-box">
+        <p class="issue-guide">요구사항 관련 이슈 등록 및 처리 현황 관리</p>
+        <ul class="issue-guide__notes">
+          <li>정책 협의 단계에서의 협의/변경 이슈는 처리정보 입력 대상이 아닙니다.</li>
+          <li class="issue-guide__notes--accent">요건 확정 상태 이후 개발 또는 테스트 중 발생한 요건 관련 이슈/협의 사항만 입력하세요.</li>
+        </ul>
+      </div>
       <div class="issue-summary">
         총 <b>{{ totalCount }}</b>건
         <button
@@ -248,7 +276,21 @@ function saveReply(issue) {
             </span>
           </header>
 
-          <p class="issue__body">{{ issue.body }}</p>
+          <p v-if="editingIssueId !== issue.id" class="issue__body">{{ issue.body }}</p>
+          <div v-else class="issue-form issue-form--inline">
+            <textarea v-model="editDraft" class="issue-form__input" rows="3" maxlength="2000" />
+            <div class="issue-form__actions">
+              <button type="button" class="btn btn--ghost btn--sm" @click="cancelEdit">취소</button>
+              <button
+                type="button"
+                class="btn btn--primary btn--sm"
+                :disabled="!editDraft.trim()"
+                @click="saveEditIssue(issue)"
+              >
+                수정
+              </button>
+            </div>
+          </div>
 
           <div v-if="issue.collaborator || issue.details?.length" class="issue__meta">
             <p v-if="issue.collaborator" class="issue__collab">
@@ -315,9 +357,26 @@ function saveReply(issue) {
             >
               <header class="issue__head">
                 <span class="issue__author">{{ reply.author }} / {{ reply.dept }}</span>
-                <span class="issue__time">{{ reply.createdAt }}</span>
+                <span class="issue__time">{{ formatTime(reply) }}</span>
               </header>
-              <p class="issue__body">{{ reply.body }}</p>
+              <p v-if="editingReplyId !== reply.id" class="issue__body">{{ reply.body }}</p>
+              <div v-else class="issue-form issue-form--inline">
+                <textarea v-model="editDraft" class="issue-form__input" rows="2" maxlength="2000" />
+                <div class="issue-form__actions">
+                  <button type="button" class="btn btn--ghost btn--sm" @click="cancelEdit">취소</button>
+                  <button
+                    type="button"
+                    class="btn btn--primary btn--sm"
+                    :disabled="!editDraft.trim()"
+                    @click="saveEditReply(reply)"
+                  >
+                    수정
+                  </button>
+                </div>
+              </div>
+              <div v-if="editingReplyId !== reply.id && reply.author === CURRENT_USER_NAME" class="issue__actions">
+                <button type="button" class="link-btn" @click="startEditReply(reply)">수정</button>
+              </div>
             </article>
           </div>
         </article>
@@ -331,18 +390,35 @@ function saveReply(issue) {
 </template>
 
 <style scoped>
+.issue-guide-box {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--teal-50);
+}
+
 .issue-guide {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
+  font-weight: 700;
+  color: var(--lnb-txt);
 }
 
 .issue-guide__notes {
-  margin: 0 0 12px;
-  padding-left: 18px;
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
   font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   line-height: 1.6;
+}
+
+.issue-guide__notes li::before {
+  content: '· ';
+}
+
+.issue-guide__notes--accent {
+  color: #0e8275;
 }
 
 .mention-wrap {
@@ -416,6 +492,11 @@ function saveReply(issue) {
 .issue-form--reply {
   margin-top: 10px;
   margin-bottom: 0;
+}
+
+.issue-form--inline {
+  margin-top: 6px;
+  margin-bottom: 8px;
 }
 
 .issue-form__input {

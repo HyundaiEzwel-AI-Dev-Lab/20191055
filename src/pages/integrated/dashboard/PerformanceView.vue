@@ -1,6 +1,7 @@
 <script setup>
 // PAG-M-DAS-06 실적관리
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   performanceMeta,
   performanceSummary,
@@ -16,7 +17,12 @@ import {
 } from '@/entities/dashboard/mock/performance'
 import { pageSizeOptions } from '@/shared/lib/commonOptions'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload, flattenPersonProjects } from '@/shared/file-excel/excelDownload'
+import { useProjectStore } from '@/app/stores/project'
+
+const router = useRouter()
+const projectStore = useProjectStore()
 
 const filterExpanded = ref(false)
 const pageSize = ref(20)
@@ -120,8 +126,16 @@ function resetFilters() {
     devType: '',
     summary: '',
   }
-  appliedFilters.value = { ...filters.value }
-  currentPage.value = 1
+}
+
+function onProjectClick(proj) {
+  projectStore.setCurrentProject({ id: proj.id || proj.name, name: proj.name })
+  router.push('/workspace/info')
+}
+
+function onTaskCountClick(person, proj) {
+  projectStore.setCurrentProject({ id: proj.id || proj.name, name: proj.name })
+  router.push({ path: '/workspace/wbs', query: { assignee: person.name } })
 }
 
 function search() {
@@ -184,7 +198,6 @@ function onMonthPresetChange() {
       <div class="performance__hint-body">
         <p>{{ performanceMeta.notice }}</p>
         <p>{{ performanceMeta.chartNotice }}</p>
-        <p class="performance__hint-time">조회시점 {{ performanceMeta.queryTime }}</p>
       </div>
     </div>
 
@@ -200,16 +213,13 @@ function onMonthPresetChange() {
         <div class="filter__field filter__field--range">
           <label>오픈일</label>
           <div class="filter__range">
-            <input v-model="filters.openFrom" class="filter__input filter__input--date" type="date" />
+            <select v-model="filters.monthPreset" class="filter__select" @change="onMonthPresetChange">
+              <option v-for="m in monthPresets" :key="m" :value="m">{{ m }}</option>
+            </select>
+            <input v-model="filters.openFrom" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
             <span>~</span>
-            <input v-model="filters.openTo" class="filter__input filter__input--date" type="date" />
+            <input v-model="filters.openTo" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
           </div>
-        </div>
-        <div class="filter__field">
-          <label>기간</label>
-          <select v-model="filters.monthPreset" class="filter__select" @change="onMonthPresetChange">
-            <option v-for="m in monthPresets" :key="m" :value="m">{{ m }}</option>
-          </select>
         </div>
         <div class="filter__field">
           <label>상태</label>
@@ -227,6 +237,7 @@ function onMonthPresetChange() {
             class="filter__input"
             type="text"
             placeholder="프로젝트명 또는 ID"
+            @keyup.enter="search"
           />
         </div>
         <div class="filter__field">
@@ -236,6 +247,7 @@ function onMonthPresetChange() {
             class="filter__input"
             type="text"
             placeholder="이름 또는 사번"
+            @keyup.enter="search"
           />
         </div>
         <div class="filter__field">
@@ -271,27 +283,43 @@ function onMonthPresetChange() {
       </div>
     </section>
 
+    <p class="performance__query-time">조회시점 {{ performanceMeta.queryTime }}</p>
+
     <!-- 실적 요약 -->
     <section class="kpi-row card pad">
       <div class="kpi kpi--neutral">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">수행 프로젝트</span>
-        <span class="kpi__num">{{ performanceSummary.projectCount }}<small>건</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">수행 프로젝트</span>
+          <span class="kpi__num">{{ performanceSummary.projectCount }}<small>건</small></span>
+        </span>
       </div>
-      <div class="kpi kpi--orange">
+      <div class="kpi kpi--red">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">장기프로젝트</span>
-        <span class="kpi__num">{{ performanceSummary.longTermProjects }}<small>건</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">
+            장기프로젝트
+            <BaseTooltip text="개발 공수 합계가 2MM 이상인 프로젝트의 수" />
+          </span>
+          <span class="kpi__num">{{ performanceSummary.longTermProjects }}<small>건</small></span>
+        </span>
       </div>
       <div class="kpi kpi--violet">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">평균 개발 공수</span>
-        <span class="kpi__num">{{ performanceSummary.avgDevWorkload }}<small>M</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">
+            평균 개발 공수
+            <BaseTooltip text="업무유형 '개발'의 평균 공수" />
+          </span>
+          <span class="kpi__num">{{ performanceSummary.avgDevWorkload }}<small>M</small></span>
+        </span>
       </div>
       <div class="kpi kpi--blue">
         <span class="kpi__dot"></span>
-        <span class="kpi__lab">인당 프로젝트</span>
-        <span class="kpi__num">{{ performanceSummary.projectsPerPerson }}<small>건</small></span>
+        <span class="kpi__body">
+          <span class="kpi__lab">인당 프로젝트</span>
+          <span class="kpi__num">{{ performanceSummary.projectsPerPerson }}<small>건</small></span>
+        </span>
       </div>
     </section>
 
@@ -337,7 +365,7 @@ function onMonthPresetChange() {
         </div>
       </section>
 
-      <section class="card pad">
+      <section class="card pad summary-card">
         <h3 class="sec-title">적요</h3>
         <div class="hbar">
           <div v-for="item in summaries" :key="item.label" class="hbar__row">
@@ -359,7 +387,7 @@ function onMonthPresetChange() {
       <div class="listcard__head">
         <h3 class="sec-title">인력별 실적</h3>
         <span class="listcard__cnt">총 <b>{{ filteredRecords.length }}</b>명</span>
-        <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
+        <select v-model="pageSize" class="listcard__pagesize listcard__pagesize--push" @change="onPageSizeChange">
           <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
         </select>
         <ExcelDownloadButton @click="onExcelDownload" />
@@ -391,14 +419,16 @@ function onMonthPresetChange() {
             </tr>
           </thead>
           <tbody>
-            <template v-for="person in pagedRecords" :key="person.id">
+            <template v-for="(person, personIdx) in pagedRecords" :key="person.id">
               <tr
                 v-for="(proj, pIdx) in person.projects"
                 :key="`${person.id}-${pIdx}`"
                 class="tbl__row"
               >
                 <template v-if="pIdx === 0">
-                  <td :rowspan="person.projects.length">{{ person.no }}</td>
+                  <td :rowspan="person.projects.length">
+                    {{ (currentPage - 1) * pageSize + personIdx + 1 }}
+                  </td>
                   <td :rowspan="person.projects.length">{{ person.dept }}</td>
                   <td :rowspan="person.projects.length" class="tbl__person">
                     {{ person.name }}
@@ -408,10 +438,24 @@ function onMonthPresetChange() {
                   <td :rowspan="person.projects.length">{{ person.projectCount }}건</td>
                   <td :rowspan="person.projects.length">{{ person.totalMd }} MD</td>
                 </template>
-                <td class="tbl__proj">{{ proj.name }}</td>
+                <td class="tbl__proj">
+                  <button type="button" class="tbl__link" @click="onProjectClick(proj)">
+                    {{ proj.name }}
+                  </button>
+                </td>
                 <td>{{ proj.md }}MD</td>
                 <td>{{ proj.openDate }}</td>
-                <td>{{ proj.taskCount }}건</td>
+                <td>
+                  <button
+                    v-if="proj.taskCount > 0"
+                    type="button"
+                    class="tbl__link"
+                    @click="onTaskCountClick(person, proj)"
+                  >
+                    {{ proj.taskCount }}건
+                  </button>
+                  <span v-else>-</span>
+                </td>
                 <td>{{ proj.delayedCount ? `${proj.delayedCount}건` : '-' }}</td>
                 <td>{{ proj.planMd }} MD</td>
                 <td>{{ proj.execMd }} MD</td>
@@ -500,11 +544,11 @@ function onMonthPresetChange() {
   color: var(--lnb-txt);
 }
 
-.performance__hint-time {
-  margin-top: 4px !important;
-  font-size: calc(11px + var(--font-size-offset, 0px)) !important;
-  font-weight: 500 !important;
-  color: var(--lnb-muted) !important;
+.performance__query-time {
+  margin: -4px 0 16px;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 500;
+  color: var(--lnb-muted);
 }
 
 .card {
@@ -525,6 +569,8 @@ function onMonthPresetChange() {
   font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .sec-title::before {
@@ -545,7 +591,7 @@ function onMonthPresetChange() {
 
 .filter__row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px 14px;
 }
 
@@ -654,6 +700,9 @@ function onMonthPresetChange() {
 
 .kpi {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border: none;
   border-radius: 14px;
   padding: 16px 16px 14px;
@@ -665,16 +714,24 @@ function onMonthPresetChange() {
 }
 
 .kpi__dot {
-  display: block;
+  flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: currentColor;
-  margin-bottom: 10px;
+}
+
+.kpi__body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .kpi__lab {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: currentColor;
   opacity: 0.75;
@@ -682,10 +739,9 @@ function onMonthPresetChange() {
 }
 
 .kpi__num {
-  display: block;
-  font-size: calc(28px + var(--font-size-offset, 0px));
+  display: inline-block;
+  font-size: calc(22px + var(--font-size-offset, 0px));
   font-weight: 800;
-  margin-top: 4px;
   color: currentColor;
 }
 
@@ -696,7 +752,7 @@ function onMonthPresetChange() {
 }
 
 .kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
-.kpi--orange { background: var(--orange-bg); color: var(--orange); }
+.kpi--red { background: var(--red-bg); color: var(--red); }
 .kpi--violet { background: var(--purple-bg); color: var(--purple); }
 .kpi--blue { background: var(--blue-bg); color: var(--blue); }
 
@@ -717,8 +773,9 @@ function onMonthPresetChange() {
 }
 
 .donut {
-  width: 130px;
-  height: 130px;
+  width: 150px;
+  height: 150px;
+  margin-left: 50px;
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
@@ -794,7 +851,13 @@ function onMonthPresetChange() {
 
 .legend__item b {
   margin-left: auto;
+  margin-right: 50px;
   font-weight: 700;
+}
+
+.summary-card {
+  padding-left: 10px;
+  padding-right: 30px;
 }
 
 .legend__pct {
@@ -831,7 +894,7 @@ function onMonthPresetChange() {
 
 .hbar__track {
   flex: 1;
-  height: 18px;
+  height: 15px;
   background: var(--lnb-hover);
   border-radius: 9px;
   overflow: hidden;
@@ -862,6 +925,8 @@ function onMonthPresetChange() {
   align-items: center;
   gap: 8px;
   padding: 14px 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .listcard__head .sec-title {
@@ -869,7 +934,6 @@ function onMonthPresetChange() {
 }
 
 .listcard__cnt {
-  margin-left: auto;
   font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
@@ -886,6 +950,10 @@ function onMonthPresetChange() {
   font-family: inherit;
   background: var(--lnb-side);
   color: var(--lnb-txt);
+}
+
+.listcard__pagesize--push {
+  margin-left: auto;
 }
 
 .listcard__scroll {
@@ -922,10 +990,6 @@ function onMonthPresetChange() {
   text-align: center;
 }
 
-.tbl tbody tr:last-child td {
-  border-bottom: none;
-}
-
 .tbl__row:hover {
   background: var(--teal-50);
 }
@@ -946,6 +1010,17 @@ function onMonthPresetChange() {
   text-align: left;
   max-width: 220px;
   line-height: 1.4;
+}
+
+.tbl__link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--teal-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .sched-badge {

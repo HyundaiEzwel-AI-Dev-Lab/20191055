@@ -1,6 +1,7 @@
 <script setup>
 // PAG-S-REQ-01 요구사항 관리
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   requirementMeta,
   taskTypeOptions,
@@ -29,6 +30,7 @@ import { useAuthStore } from '@/app/stores/auth'
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
+const route = useRoute()
 const requirements = ref([])
 const filterExpanded = ref(false)
 const filters = ref({
@@ -98,6 +100,10 @@ const canExpandAll = computed(() => pageSize.value === 20)
 
 onMounted(() => {
   requirements.value = getRequirementList(authStore.user?.id)
+  if (route.query.reqId) {
+    const target = requirements.value.find((r) => r.reqId === route.query.reqId)
+    if (target) openEdit(target)
+  }
 })
 
 function resetFilters() {
@@ -126,16 +132,6 @@ function search() {
 
 function onSystemFilterChange() {
   filters.value.bizCategory = ''
-}
-
-function toggleExpand(id) {
-  const next = new Set(expandedIds.value)
-  if (next.has(id)) next.delete(id)
-  else {
-    next.clear()
-    next.add(id)
-  }
-  expandedIds.value = next
 }
 
 function toggleExpandAll() {
@@ -577,9 +573,9 @@ function onPageSizeChange() {
         <div class="filter__field filter__field--range">
           <label>&nbsp;</label>
           <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__input" type="date" />
+            <input v-model="filters.dateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
             <span>~</span>
-            <input v-model="filters.dateTo" class="filter__input" type="date" />
+            <input v-model="filters.dateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
           </div>
         </div>
       </div>
@@ -705,7 +701,7 @@ function onPageSizeChange() {
                 <td>{{ row.screenPath }}</td>
                 <td>{{ row.screenName }}</td>
                 <td>
-                  <button type="button" class="name-link" @click="toggleExpand(row.id)">
+                  <button type="button" class="name-link" @click="openEdit(row)">
                     {{ row.name }}
                   </button>
                 </td>
@@ -1081,7 +1077,7 @@ function onPageSizeChange() {
   background: var(--lnb-hover);
   color: var(--ink);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 11px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -1360,8 +1356,8 @@ function onPageSizeChange() {
 }
 
 .pager__btn--on {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--teal);
+  border-color: var(--teal);
   color: var(--color-text-inverse);
   font-weight: 700;
 }

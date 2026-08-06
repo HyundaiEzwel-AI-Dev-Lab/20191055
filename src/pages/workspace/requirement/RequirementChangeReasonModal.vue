@@ -4,12 +4,12 @@ import { computed, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 
 const changeReasonOptions = [
-  '요건 명확화',
-  '고객사 요청 변경',
-  '정책/법규 변경',
-  '유관부서 협의 결과 반영',
-  '오류/누락 수정',
-  '우선순위 변경',
+  '요구사항 보완',
+  '요건 오류/누락 수정',
+  '유관부서 협의결과 반영',
+  '개발검토 반영',
+  '고객사 요청',
+  '업무 정책 변경',
   '기타(직접입력)',
 ]
 

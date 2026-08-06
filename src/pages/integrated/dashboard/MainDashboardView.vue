@@ -240,9 +240,9 @@ function onOverdueClick(row) {
         <div class="filter__field">
           <label>오픈기간</label>
           <div class="filter__range">
-            <input v-model="filters.openFrom" class="filter__input filter__input--date" type="date" />
+            <input v-model="filters.openFrom" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
             <span>~</span>
-            <input v-model="filters.openTo" class="filter__input filter__input--date" type="date" />
+            <input v-model="filters.openTo" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
           </div>
         </div>
       </div>
@@ -515,6 +515,8 @@ function onOverdueClick(row) {
   font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .sec-title::before {
@@ -904,6 +906,8 @@ function onOverdueClick(row) {
   align-items: center;
   gap: 8px;
   padding: 14px 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .listcard__head .sec-title {
@@ -943,9 +947,9 @@ function onOverdueClick(row) {
 
 .tbl thead th {
   background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  color: var(--lnb-txt);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 12px;
   border-bottom: 1px solid var(--lnb-line);
   white-space: nowrap;

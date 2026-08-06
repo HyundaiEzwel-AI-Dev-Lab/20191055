@@ -63,9 +63,12 @@ const pendingSave = ref(false)
 const showIssueForm = ref(false)
 const issueDraft = ref('')
 const showIssueCancelAlert = ref(false)
-const editingIssueId = ref(null)
 const replyTargetId = ref(null)
 const replyDraft = ref('')
+
+const editingIssueId = ref(null)
+const editingReplyId = ref(null)
+const editDraft = ref('')
 const assigneeSearch = reactive({})
 const assigneeSearchOpen = reactive({})
 
@@ -388,14 +391,21 @@ function onScheduleReasonSave() {
 }
 
 function onTesterChangeSave(payload) {
+  const target = form.assignees.테스트.find((t) => t.id === payload.targetId)
   form.testerChangePending = {
     from: {
-      name: form.assignees.테스트.find((t) => t.id === payload.targetId)?.name || '',
-      dept: form.assignees.테스트.find((t) => t.id === payload.targetId)?.dept || '',
+      name: target?.name || '',
+      dept: target?.dept || '',
       empId: payload.targetId,
     },
     to: payload.newStaff,
     applyDate: payload.applyDate,
+  }
+  // 변경적용일이 미래여도 프로젝트 정보에는 변경된 테스터명을 즉시 반영
+  if (target && payload.newStaff) {
+    target.name = payload.newStaff.name
+    target.dept = payload.newStaff.dept
+    target.empId = payload.newStaff.empId
   }
 }
 
@@ -414,47 +424,65 @@ function toggleLibraryScenario(id) {
 function addIssue() {
   if (!issueDraft.value.trim()) return
   const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
-  if (editingIssueId.value) {
-    const target = form.issues.find((i) => i.id === editingIssueId.value)
-    if (target) {
-      target.body = issueDraft.value.trim()
-      target.updatedAt = now
-    }
-    editingIssueId.value = null
-  } else {
-    const body = issueDraft.value.trim()
-    form.issues.unshift({
-      id: `iss-${Date.now()}`,
-      author: CURRENT_USER_NAME,
-      dept: '웹기획팀',
-      createdAt: now,
-      updatedAt: null,
-      body,
-      replies: [],
-    })
-    notifyMentionsInBody(body, {
-      projectName: form.name || projectStore.currentProject?.name,
-      projectId: projectStore.currentProject?.id,
-      route: '/workspace/info',
-      scope: 'project',
-    })
-  }
+  const body = issueDraft.value.trim()
+  form.issues.unshift({
+    id: `iss-${Date.now()}`,
+    author: CURRENT_USER_NAME,
+    dept: '웹기획팀',
+    createdAt: now,
+    updatedAt: null,
+    body,
+    replies: [],
+  })
+  notifyMentionsInBody(body, {
+    projectName: form.name || projectStore.currentProject?.name,
+    projectId: projectStore.currentProject?.id,
+    route: '/workspace/info',
+    scope: 'project',
+  })
   showIssueForm.value = false
   issueDraft.value = ''
 }
 
+function cancelEdit() {
+  editingIssueId.value = null
+  editingReplyId.value = null
+  editDraft.value = ''
+}
+
 function startEditIssue(issue) {
   if (isReadOnly.value || issue.author !== CURRENT_USER_NAME) return
+  cancelReply()
+  editingReplyId.value = null
   editingIssueId.value = issue.id
-  replyTargetId.value = null
-  replyDraft.value = ''
-  showIssueForm.value = true
-  issueDraft.value = issue.body
+  editDraft.value = issue.body
+}
+
+function saveEditIssue(issue) {
+  if (!editDraft.value.trim()) return
+  issue.body = editDraft.value.trim()
+  issue.updatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  cancelEdit()
+}
+
+function startEditReply(reply) {
+  if (isReadOnly.value || reply.author !== CURRENT_USER_NAME) return
+  cancelReply()
+  editingIssueId.value = null
+  editingReplyId.value = reply.id
+  editDraft.value = reply.body
+}
+
+function saveEditReply(reply) {
+  if (!editDraft.value.trim()) return
+  reply.body = editDraft.value.trim()
+  reply.updatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  cancelEdit()
 }
 
 function startReplyIssue(issue) {
   if (isReadOnly.value) return
-  editingIssueId.value = null
+  cancelEdit()
   showIssueForm.value = false
   issueDraft.value = ''
   replyTargetId.value = issue.id
@@ -521,20 +549,18 @@ function cancelIssueForm() {
     return
   }
   showIssueForm.value = false
-  editingIssueId.value = null
   issueDraft.value = ''
 }
 
 function confirmIssueCancel() {
   showIssueCancelAlert.value = false
   showIssueForm.value = false
-  editingIssueId.value = null
   issueDraft.value = ''
 }
 
 function openIssueForm() {
   if (isReadOnly.value) return
-  editingIssueId.value = null
+  cancelEdit()
   replyTargetId.value = null
   replyDraft.value = ''
   showIssueForm.value = true
@@ -672,6 +698,7 @@ function openIssueForm() {
             class="inp inp--edit inp--date"
             type="date"
             :disabled="isReadOnly"
+            @click="$event.target.showPicker?.()"
           />
         </div>
         <div v-if="showOpenDate" class="fld fld--req">
@@ -681,6 +708,7 @@ function openIssueForm() {
             class="inp inp--edit inp--date"
             type="date"
             :disabled="isReadOnly"
+            @click="$event.target.showPicker?.()"
           />
         </div>
       </div>
@@ -937,11 +965,7 @@ function openIssueForm() {
             class="issue-form__input"
             rows="4"
             maxlength="2000"
-            :placeholder="
-              editingIssueId
-                ? '이슈 내용을 수정하세요'
-                : '이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대'
-            "
+            placeholder="이슈 내용을 입력하세요. (처리 필요한 이슈일 경우 담당자 태그(@)하여 입력 ex) @권현대"
             @input="onIssueDraftInput"
             @blur="closeMentionList"
           />
@@ -966,7 +990,7 @@ function openIssueForm() {
               :disabled="!issueDraft.trim()"
               @click="addIssue"
             >
-              {{ editingIssueId ? '수정' : '추가' }}
+              추가
             </button>
           </div>
         </div>
@@ -984,8 +1008,24 @@ function openIssueForm() {
             <template v-if="issue.updatedAt"> ({{ issue.updatedAt }})</template>
           </span>
         </header>
-        <p class="issue-item__body">{{ issue.body }}</p>
-        <div v-if="!isReadOnly" class="issue-item__actions">
+        <p v-if="editingIssueId !== issue.id" class="issue-item__body">{{ issue.body }}</p>
+        <div v-else class="issue-form issue-form--inline">
+          <textarea v-model="editDraft" class="issue-form__input" rows="3" maxlength="2000" />
+          <div class="issue-form__foot">
+            <div class="issue-form__actions">
+              <button type="button" class="btn btn--ghost btn--sm" @click="cancelEdit">취소</button>
+              <button
+                type="button"
+                class="btn btn--primary btn--sm"
+                :disabled="!editDraft.trim()"
+                @click="saveEditIssue(issue)"
+              >
+                수정
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-if="!isReadOnly && editingIssueId !== issue.id" class="issue-item__actions">
           <template v-if="issue.author === CURRENT_USER_NAME">
             <button type="button" class="link-btn" @click="startEditIssue(issue)">수정</button>
             <span class="issue-item__sep">|</span>
@@ -1033,9 +1073,31 @@ function openIssueForm() {
         <div v-for="reply in issue.replies" :key="reply.id" class="issue-reply">
           <header class="issue-item__head">
             <span class="issue-item__author">{{ reply.author }} / {{ reply.dept }}</span>
-            <span class="issue-item__time">{{ reply.createdAt }}</span>
+            <span class="issue-item__time">
+              {{ reply.createdAt }}
+              <template v-if="reply.updatedAt"> ({{ reply.updatedAt }})</template>
+            </span>
           </header>
-          <p class="issue-item__body">{{ reply.body }}</p>
+          <p v-if="editingReplyId !== reply.id" class="issue-item__body">{{ reply.body }}</p>
+          <div v-else class="issue-form issue-form--inline">
+            <textarea v-model="editDraft" class="issue-form__input" rows="2" maxlength="2000" />
+            <div class="issue-form__foot">
+              <div class="issue-form__actions">
+                <button type="button" class="btn btn--ghost btn--sm" @click="cancelEdit">취소</button>
+                <button
+                  type="button"
+                  class="btn btn--primary btn--sm"
+                  :disabled="!editDraft.trim()"
+                  @click="saveEditReply(reply)"
+                >
+                  수정
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-if="!isReadOnly && editingReplyId !== reply.id && reply.author === CURRENT_USER_NAME" class="issue-item__actions">
+            <button type="button" class="link-btn" @click="startEditReply(reply)">수정</button>
+          </div>
         </div>
       </article>
     </section>
@@ -1719,6 +1781,11 @@ select.inp--edit {
 
 .issue-form--reply {
   margin-top: 10px;
+}
+
+.issue-form--inline {
+  margin-top: 6px;
+  margin-bottom: 8px;
 }
 
 .mention-wrap {

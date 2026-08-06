@@ -5,6 +5,7 @@ import { ref, watch } from 'vue'
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   note: { type: String, default: '' },
+  anchorTopRight: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'save'])
@@ -30,7 +31,12 @@ function save() {
 
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="postit-overlay" @mousedown.self="close">
+    <div
+      v-if="modelValue"
+      class="postit-overlay"
+      :class="{ 'postit-overlay--anchor': anchorTopRight }"
+      @mousedown.self="close"
+    >
       <div class="postit">
         <button type="button" class="postit__close" @click="close">×</button>
         <p class="postit__label">테스트 참고사항</p>
@@ -60,9 +66,21 @@ function save() {
   background: rgba(0, 0, 0, 0.35);
 }
 
+.postit-overlay--anchor {
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 96px 24px 0 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.postit-overlay--anchor .postit {
+  pointer-events: auto;
+}
+
 .postit {
   position: relative;
-  width: 260px;
+  width: 500px;
   min-height: 220px;
   padding: 20px 18px;
   background: #fff6a8;

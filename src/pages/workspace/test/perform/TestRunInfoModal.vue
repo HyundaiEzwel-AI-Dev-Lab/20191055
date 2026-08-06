@@ -12,6 +12,14 @@ const emit = defineEmits(['update:modelValue', 'save'])
 
 const form = reactive({})
 
+function findExecDate(caseRow, name) {
+  const dates = (caseRow.steps || [])
+    .map((s) => s.byTester?.[name]?.executedAt)
+    .filter(Boolean)
+    .sort()
+  return dates[0] || ''
+}
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -22,7 +30,7 @@ watch(
       form[name] = {
         planStart: existing?.planStart || props.caseRow.planStart || '',
         planEnd: existing?.planEnd || props.caseRow.planEnd || '',
-        execDate: existing?.execDate || '',
+        execDate: findExecDate(props.caseRow, name),
         memo: existing?.memo || '',
       }
     }
@@ -41,15 +49,8 @@ function save() {
 </script>
 
 <template>
-  <BaseModal
-    :title="`수행정보 (${caseRow?.testers?.length || 0})`"
-    :visible="modelValue"
-    wide
-    @close="close"
-  >
+  <BaseModal title="테스트 수행 정보" :visible="modelValue" wide @close="close">
     <template v-if="caseRow">
-      <p class="guide">{{ caseRow.caseName }} — 테스터별 계획일/수행일/메모를 입력하세요.</p>
-
       <div class="summary">
         <div class="summary__row">
           <span class="summary__label">요구사항ID</span>
@@ -64,10 +65,24 @@ function save() {
           <span class="summary__val">{{ caseRow.screenName || '-' }}</span>
           <span class="summary__label">케이스ID</span>
           <span class="summary__val">{{ caseRow.caseId || '-' }}</span>
+          <span class="summary__label">케이스명</span>
+          <span class="summary__val">{{ caseRow.caseName || '-' }}</span>
+        </div>
+        <div class="summary__row">
           <span class="summary__label">계획기간</span>
           <span class="summary__val">{{ caseRow.planStart || '-' }} ~ {{ caseRow.planEnd || '-' }}</span>
+          <span class="summary__label">테스터</span>
+          <span class="summary__val">{{ (caseRow.testers || []).join(', ') || '-' }}</span>
+          <span class="summary__label">절차 수</span>
+          <span class="summary__val">{{ caseRow.stepTotal || caseRow.steps?.length || 0 }}건</span>
         </div>
       </div>
+
+      <h4 class="section-title">테스트 수행정보</h4>
+      <p class="guide">
+        테스터 개별 테스트 계획일을 수립하거나 오류 이외의 테스트 진행 관련 메모(ex. 테스트 진행 이슈, 결제테스트 시
+        주문번호)를 입력하세요.
+      </p>
 
       <table class="tbl">
         <thead>
@@ -82,12 +97,12 @@ function save() {
           <tr v-for="name in caseRow.testers" :key="name">
             <td>{{ name }}</td>
             <td class="plan-range">
-              <input v-model="form[name].planStart" class="inp inp--date" type="date" />
+              <input v-model="form[name].planStart" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
               <span>~</span>
-              <input v-model="form[name].planEnd" class="inp inp--date" type="date" />
+              <input v-model="form[name].planEnd" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
             </td>
-            <td><input v-model="form[name].execDate" class="inp inp--date" type="date" /></td>
-            <td><input v-model="form[name].memo" class="inp" type="text" placeholder="메모 입력" /></td>
+            <td class="exec-date">{{ form[name].execDate || '-' }}</td>
+            <td><textarea v-model="form[name].memo" class="inp inp--textarea" rows="2" placeholder="메모 입력" /></td>
           </tr>
         </tbody>
       </table>
@@ -101,10 +116,18 @@ function save() {
 </template>
 
 <style scoped>
+.section-title {
+  margin: 0 0 4px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: var(--lnb-txt);
+}
+
 .guide {
   margin: 0 0 12px;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
+  line-height: 1.5;
 }
 
 .summary {
@@ -157,6 +180,7 @@ function save() {
 .tbl th {
   background: var(--lnb-hover);
   font-weight: 600;
+  text-align: center;
 }
 
 .inp {
@@ -173,5 +197,17 @@ function save() {
 
 .inp--date {
   min-width: 130px;
+}
+
+.inp--textarea {
+  height: auto;
+  min-height: 30px;
+  padding: 6px 8px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.exec-date {
+  color: var(--lnb-muted);
 }
 </style>

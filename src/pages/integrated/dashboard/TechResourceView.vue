@@ -297,10 +297,10 @@ function formatExecProgress(progress) {
       <div class="listcard__head">
         <h3 class="sec-title">인력별 투입 현황</h3>
         <span class="listcard__cnt">총 <b>{{ filteredRecords.length }}</b>명</span>
-        <ExcelDownloadButton class="listcard__excel" @click="onExcelDownload" />
         <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
           <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
         </select>
+        <ExcelDownloadButton class="listcard__excel" @click="onExcelDownload" />
       </div>
       <div class="listcard__scroll">
         <table class="tbl tbl--grouped">
@@ -527,6 +527,8 @@ function formatExecProgress(progress) {
   font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--lnb-txt);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .sec-title::before {
@@ -719,6 +721,8 @@ function formatExecProgress(progress) {
   align-items: center;
   gap: 8px;
   padding: 14px 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .listcard__head .sec-title {
@@ -729,15 +733,12 @@ function formatExecProgress(progress) {
   font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
-.listcard__excel {
-  margin-left: auto;
-}
-
 .listcard__cnt b {
   color: var(--teal-600);
 }
 
 .listcard__pagesize {
+  margin-left: auto;
   height: 28px;
   border: 1px solid var(--lnb-line);
   border-radius: var(--radius-sm, 6px);

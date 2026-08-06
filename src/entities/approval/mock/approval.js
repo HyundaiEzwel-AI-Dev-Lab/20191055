@@ -5,7 +5,7 @@ export const approvalMeta = {
   hint: '시스템 관리 · WBS 일정변경·요구사항 변경 요청 승인',
 }
 
-export const approvalStatusOptions = ['전체', '승인요청', '승인완료', '승인반려']
+export const approvalStatusOptions = ['전체', '승인요청', '승인완료', '승인반려', '요청취소']
 export const requestTypeOptions = ['전체', '요구사항', '일정', '일시중단']
 export const dateTypeOptions = ['요청일', '승인일']
 export { pageSizeOptions } from '@/shared/lib/commonOptions'
@@ -265,6 +265,32 @@ export const approvalList = reactive([
     },
   },
   {
+    id: 31,
+    status: '요청취소',
+    type: '일정',
+    projectName: '전사 프로젝트 관리 시스템 구축',
+    projectId: 'p6',
+    openDate: '2026-05-20',
+    before: '2026/05/10~05/20',
+    after: '2026/05/25~06/05',
+    requester: '박현대',
+    requestDate: '2026-05-08',
+    approveDate: '-',
+    reason: '요청자가 승인 전 요청취소',
+    detail: {
+      scheduleRows: [
+        {
+          taskType: '개발',
+          assignee: '김개발',
+          before: '2026/05/10~05/20',
+          after: '2026/05/25~06/05',
+          reason: '요청자가 승인 전 요청취소',
+          requestedAt: '2026-05-08 09:40',
+        },
+      ],
+    },
+  },
+  {
     id: 23,
     status: '승인요청',
     type: '일정',
@@ -313,5 +339,6 @@ export function approvalStatusClass(status) {
   if (status === '승인요청') return 'wait'
   if (status === '승인완료') return 'ok'
   if (status === '승인반려') return 'err'
+  if (status === '요청취소') return 'cancel'
   return 'muted'
 }

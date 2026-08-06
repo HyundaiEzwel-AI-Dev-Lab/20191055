@@ -197,7 +197,7 @@ function onExcelDownload() {
                 />
               </td>
               <td>
-                <input v-model="row.date" class="cell-input" type="date" />
+                <input v-model="row.date" class="cell-input" type="date" @click="$event.target.showPicker?.()" />
               </td>
               <td>
                 <input v-model="row.name" class="cell-input" type="text" placeholder="휴무일명 입력" />

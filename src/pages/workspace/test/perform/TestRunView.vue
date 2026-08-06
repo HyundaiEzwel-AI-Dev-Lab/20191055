@@ -15,9 +15,11 @@ import TestErrorRegisterModal from '@/pages/workspace/test/perform/TestErrorRegi
 import TestRunTesterChangeModal from '@/pages/workspace/test/perform/TestRunTesterChangeModal.vue'
 import TestRunInfoModal from '@/pages/workspace/test/perform/TestRunInfoModal.vue'
 import TestNoteModal from '@/pages/workspace/test/scenario/TestNoteModal.vue'
+import { scenarioMeta } from '@/entities/scenario/mock/scenario'
 import DefectDetailModal from '@/pages/workspace/test/defects/DefectDetailModal.vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const { mode, config, pageTitle } = useTestContext()
@@ -35,8 +37,7 @@ const filterExpanded = ref(false)
 const showTesterChange = ref(false)
 const showRunInfo = ref(false)
 const runInfoTarget = ref(null)
-const showNoteModal = ref(false)
-const noteTarget = ref(null)
+const showCommonNoteModal = ref(false)
 
 const filters = ref({
   system: '전체',
@@ -74,9 +75,11 @@ const kpi = computed(() => computeTestRunKpi(filtered.value))
 
 const period = computed(() => config.value.testPeriod)
 
-const resultOptions = ['전체', '대기', '정상', '오류', '재처리요청', '수정완료', '기타']
-
 const hasOutOfPeriod = computed(() => filtered.value.some((r) => isCaseDimmed(r, period.value)))
+
+const allExpanded = computed(
+  () => filtered.value.length > 0 && filtered.value.every((r) => expanded.value.has(r.id)),
+)
 
 function resetFilters() {
   filters.value = {
@@ -157,14 +160,8 @@ function onRunInfoSave(info) {
   runInfoTarget.value.testerInfo = info
 }
 
-function openNote(row) {
-  noteTarget.value = row
-  showNoteModal.value = true
-}
-
-function onNoteSave(text) {
-  if (!noteTarget.value) return
-  noteTarget.value.note = text
+function onCommonNoteSave(text) {
+  scenarioMeta.commonNote[mode.value] = text
 }
 
 function viewErrors(row, step) {
@@ -230,10 +227,6 @@ function onErrorRegistered(payload) {
 function setStepResult(row, step, testerName, result) {
   const cell = step.byTester[testerName]
   if (!cell) return
-  if (result === '오류') {
-    openErrorRegister(row, step, testerName)
-    return
-  }
   cell.result = result
   if (result !== '대기' && !cell.executedAt) {
     cell.executedAt = '2026-04-17'
@@ -312,13 +305,7 @@ function onExcelDownload() {
             <option v-for="o in config.roundOptions" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
-        <div class="filter__field">
-          <label>결과</label>
-          <select v-model="filters.result" class="filter__inp">
-            <option v-for="o in resultOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field filter__field--wide">
+        <div class="filter__field filter__field--case">
           <label>케이스</label>
           <input
             v-model="filters.keyword"
@@ -336,15 +323,20 @@ function onExcelDownload() {
             placeholder="테스터"
           />
         </div>
+        <label class="chk chk--toggle">
+          <input v-model="myTestsOnly" type="checkbox" />
+          <span class="chk__switch"></span>
+          내 테스트만
+        </label>
       </div>
 
       <div v-if="filterExpanded" class="filter__row">
         <div class="filter__field filter__field--range">
           <label>계획일</label>
           <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__inp" type="date" />
+            <input v-model="filters.dateFrom" class="filter__inp" type="date" @click="$event.target.showPicker?.()" />
             <span>~</span>
-            <input v-model="filters.dateTo" class="filter__inp" type="date" />
+            <input v-model="filters.dateTo" class="filter__inp" type="date" @click="$event.target.showPicker?.()" />
           </div>
         </div>
         <div class="filter__field filter__field--wide">
@@ -365,14 +357,11 @@ function onExcelDownload() {
       </div>
 
       <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        {{ filterExpanded ? '▲ 검색조건 접기' : '＋ 검색조건 확장' }}
+        검색조건
+        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
       </button>
 
       <div class="filter__actions">
-        <label class="chk">
-          <input v-model="myTestsOnly" type="checkbox" />
-          내 테스트만
-        </label>
         <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
         <button type="button" class="btn btn--primary">조회</button>
       </div>
@@ -386,6 +375,7 @@ function onExcelDownload() {
       <div class="period__head">
         <b>테스트 기간 (WBS 기준)</b>
         <span class="muted">{{ period.start }} ~ {{ period.end }}</span>
+        <button type="button" class="note-link" @click="showCommonNoteModal = true">테스트 참고사항</button>
       </div>
       <div class="kpi-row">
         <div class="kpi-chip"><span class="kpi-chip__lab">전체</span><span class="kpi-chip__num">{{ kpi.total }}</span></div>
@@ -402,11 +392,14 @@ function onExcelDownload() {
     </div>
 
     <div class="toolbar">
-      <span class="toolbar__count">총 {{ filtered.length }}건</span>
+      <span class="toolbar__count">
+        총 {{ filtered.length }}건
+        <button type="button" class="toolbar__expand-btn" @click="allExpanded ? collapseAll() : expandAll()">
+          {{ allExpanded ? '전체 접기' : '전체 열기' }}
+        </button>
+      </span>
       <div class="toolbar__btns">
-        <button type="button" class="btn btn--ghost btn--sm" @click="expandAll">전체 펼치기</button>
-        <button type="button" class="btn btn--ghost btn--sm" @click="collapseAll">전체 접기</button>
-        <button type="button" class="btn btn--ghost btn--sm" @click="openTesterChange">테스터/계획변경</button>
+        <button type="button" class="btn btn--primary btn--sm" @click="openTesterChange">테스터/계획변경</button>
         <ExcelDownloadButton @click="onExcelDownload" />
       </div>
     </div>
@@ -419,6 +412,7 @@ function onExcelDownload() {
         :class="{ dimmed: isCaseDimmed(row, period), open: expanded.has(row.id) }"
       >
         <div class="case-head" @click="toggleExpand(row.id)">
+          <span class="case-head__arrow">{{ expanded.has(row.id) ? '▲' : '▼' }}</span>
           <span class="case-head__no">{{ idx + 1 }}</span>
           <span class="case-head__req">{{ row.reqId }}</span>
           <span class="case-head__type">{{ row.executionType }}</span>
@@ -441,16 +435,9 @@ function onExcelDownload() {
           >
             수행정보({{ row.testerCount }})
           </button>
-          <span class="case-head__arrow">{{ expanded.has(row.id) ? '▲' : '▼' }}</span>
         </div>
 
         <div v-if="expanded.has(row.id)" class="case-body">
-          <div class="note-row">
-            <span class="note-row__text">참고사항: {{ row.note || '-' }}</span>
-            <button type="button" class="note-edit-btn" title="참고사항 편집" @click="openNote(row)">
-              ✎
-            </button>
-          </div>
           <table class="step-grid">
             <thead>
               <tr>
@@ -467,7 +454,10 @@ function onExcelDownload() {
               <tr>
                 <template v-for="name in row.testers" :key="`${name}-sub`">
                   <th>결과</th>
-                  <th>실행일</th>
+                  <th>
+                    실행일
+                    <BaseTooltip text="최초 테스트 결과 저장일시입니다. 결과 변경 시, 최종 변경일은 실행일에 마우스 오버 시 확인할 수 있습니다." />
+                  </th>
                 </template>
               </tr>
             </thead>
@@ -500,16 +490,16 @@ function onExcelDownload() {
                   </td>
                 </template>
                 <!-- 오류등록/조치여부는 담당자별이 아니라 절차(케이스) 1건당 공용 컬럼이다. -->
-                <td class="center">
+                <td class="center error-actions">
                   <button
                     type="button"
-                    class="link-btn"
+                    class="link-btn link-btn--register"
                     :disabled="!myErrorTesterFor(row, step)"
                     @click="openErrorRegister(row, step, myErrorTesterFor(row, step))"
                   >
                     등록
                   </button>
-                  <button type="button" class="link-btn" @click="viewErrors(row, step)">조회</button>
+                  <button type="button" class="link-btn link-btn--lookup" @click="viewErrors(row, step)">조회</button>
                 </td>
                 <td class="center">
                   <span
@@ -544,7 +534,12 @@ function onExcelDownload() {
       @save="onTesterChangeSave"
     />
     <TestRunInfoModal v-model="showRunInfo" :case-row="runInfoTarget" @save="onRunInfoSave" />
-    <TestNoteModal v-model="showNoteModal" :note="noteTarget?.note" @save="onNoteSave" />
+    <TestNoteModal
+      v-model="showCommonNoteModal"
+      :note="scenarioMeta.commonNote[mode]"
+      anchor-top-right
+      @save="onCommonNoteSave"
+    />
     <BaseModal :visible="showErrorDetail" title="오류 상세" wide @close="showErrorDetail = false">
       <DefectDetailModal :row="errorDetailTarget" :config="config" @save="onErrorDetailSave" />
     </BaseModal>
@@ -572,8 +567,13 @@ function onExcelDownload() {
 .filter__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 16px;
   margin-bottom: 10px;
+}
+
+.filter__field--case {
+  width: 300px;
 }
 
 .filter__field {
@@ -625,6 +625,9 @@ function onExcelDownload() {
 }
 
 .filter__expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: none;
   background: none;
   color: var(--teal-600);
@@ -633,6 +636,52 @@ function onExcelDownload() {
   padding: 0;
   margin-bottom: 10px;
   font-family: inherit;
+}
+
+.filter__expand-icon {
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.filter__expand-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
+.btn--primary {
+  background: var(--teal);
+  color: var(--color-text-inverse);
+}
+
+.btn--primary:hover {
+  background: var(--teal-600);
+}
+
+.btn--ghost {
+  background: var(--lnb-side);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn--ghost:hover {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
 }
 
 .period-banner {
@@ -651,6 +700,57 @@ function onExcelDownload() {
   gap: 6px;
   font-size: calc(12px + var(--font-size-offset, 0px));
   margin-right: auto;
+}
+
+.chk--toggle {
+  margin-right: 0;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.chk--toggle input {
+  display: none;
+}
+
+.chk__switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 10px;
+  background: var(--line);
+  transition: background var(--transition-fast);
+}
+
+.chk__switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--transition-fast);
+}
+
+.chk--toggle input:checked + .chk__switch {
+  background: var(--teal);
+}
+
+.chk--toggle input:checked + .chk__switch::after {
+  transform: translateX(14px);
+}
+
+.note-link {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  font-weight: 600;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
 }
 
 .period {
@@ -711,6 +811,24 @@ function onExcelDownload() {
   font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
+.toolbar__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar__expand-btn {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--lnb-side);
+  color: var(--ink);
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .toolbar__btns {
   display: flex;
   gap: 6px;
@@ -734,7 +852,7 @@ function onExcelDownload() {
 
 .case-head {
   display: grid;
-  grid-template-columns: 36px 72px 64px 1.2fr 88px 80px 1fr 120px 40px 56px 48px 64px 40px 56px 100px 84px 28px;
+  grid-template-columns: 28px 36px 72px 64px 1.2fr 88px 80px 1fr 120px 40px 56px 48px 64px 40px 56px 100px 84px;
   gap: 6px;
   align-items: center;
   width: 100%;
@@ -784,28 +902,6 @@ function onExcelDownload() {
   overflow-x: auto;
 }
 
-.note-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-}
-
-.note-row__text {
-  color: var(--ink-2);
-}
-
-
-.note-edit-btn {
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  cursor: pointer;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  padding: 0;
-}
-
 .step-grid {
   width: 100%;
   border-collapse: collapse;
@@ -834,7 +930,7 @@ function onExcelDownload() {
 .tester-group__date {
   display: block;
   margin-top: 2px;
-  font-size: calc(10px + var(--font-size-offset, 0px));
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--muted);
 }
@@ -867,6 +963,22 @@ function onExcelDownload() {
 .link-btn:disabled {
   color: var(--muted);
   cursor: not-allowed;
+}
+
+.error-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.link-btn--register {
+  color: var(--teal-600);
+  font-weight: 700;
+}
+
+.link-btn--lookup {
+  color: var(--muted);
 }
 
 .fix-tag {

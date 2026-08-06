@@ -172,9 +172,9 @@ function wbsTaskPath(chg) {
               </option>
             </select>
             <div class="filter__range">
-              <input v-model="filters.dateFrom" class="filter__input filter__input--date" type="date" />
+              <input v-model="filters.dateFrom" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
               <span class="filter__range-sep">~</span>
-              <input v-model="filters.dateTo" class="filter__input filter__input--date" type="date" />
+              <input v-model="filters.dateTo" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
             </div>
           </div>
         </div>
@@ -597,6 +597,7 @@ function wbsTaskPath(chg) {
   font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
+  text-align: center;
 }
 
 .data-table__row {
@@ -742,8 +743,8 @@ function wbsTaskPath(chg) {
 
 .btn--ghost {
   background: var(--lnb-side);
-  border-color: var(--lnb-line);
-  color: var(--lnb-txt);
+  border-color: var(--line);
+  color: var(--ink-2);
 }
 
 .btn--ghost:hover {

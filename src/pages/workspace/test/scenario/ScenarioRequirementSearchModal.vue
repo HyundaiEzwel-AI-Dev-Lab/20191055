@@ -89,6 +89,8 @@ function confirm() {
               <th class="col-radio" />
               <th>요구사항 ID</th>
               <th>시스템/업무</th>
+              <th>화면경로</th>
+              <th>화면명</th>
               <th>요구사항명</th>
             </tr>
           </thead>
@@ -104,6 +106,8 @@ function confirm() {
               </td>
               <td>{{ row.reqId }}</td>
               <td>{{ row.systemPath }}</td>
+              <td>{{ row.screenPath || '-' }}</td>
+              <td>{{ row.screenName || row.screenMenu || '-' }}</td>
               <td class="name">{{ row.name }}</td>
             </tr>
           </tbody>
@@ -161,21 +165,26 @@ function confirm() {
 }
 
 .result {
-  min-height: 200px;
+  height: 420px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--lnb-line);
   border-radius: 10px;
   overflow: hidden;
 }
 
 .empty {
-  padding: 48px 16px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
 .table-wrap {
-  max-height: 360px;
+  flex: 1;
   overflow: auto;
 }
 
@@ -200,6 +209,7 @@ function confirm() {
   position: sticky;
   top: 0;
   white-space: nowrap;
+  text-align: center;
 }
 
 .tbl tbody tr {
