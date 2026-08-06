@@ -432,9 +432,9 @@ export function getTaskTypeColor(taskType) {
   return taskTypeColors[taskType] || 'var(--teal)'
 }
 
-export function formatDateRange(start, end) {
-  if (!start && !end) return '미등록'
-  const fmt = (d) => (d ? d.slice(5).replace('-', '-') : '-')
+export function formatDateRange(start, end, emptyLabel = '미등록') {
+  if (!start && !end) return emptyLabel
+  const fmt = (d) => (d ? d.slice(5).replace('-', '.') : '-')
   if (!start) return fmt(end)
   if (!end) return fmt(start)
   return `${fmt(start)}~${fmt(end)}`

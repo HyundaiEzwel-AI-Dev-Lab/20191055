@@ -19,7 +19,6 @@ const form = ref({
   title: '',
   grade: 'Major',
   description: '',
-  assignee: '이개발',
   occurrencePhase: '오픈 전',
   deployStatus: 'DEV배포',
   attachments: [],
@@ -38,7 +37,6 @@ watch(
       title: `[${props.step.no}번] ${props.step.procedure} 오류`,
       grade: 'Major',
       description: '',
-      assignee: '이개발',
       occurrencePhase: '오픈 전',
       deployStatus: props.mode === 'uat' ? 'STG배포' : 'DEV배포',
       attachments: [],
@@ -67,10 +65,6 @@ function register() {
     window.alert('오류 내용을 입력해 주세요.')
     return
   }
-  if (!form.value.assignee.trim()) {
-    window.alert('담당자를 입력해 주세요.')
-    return
-  }
   emit('register', {
     caseId: props.caseRow.caseId,
     caseName: props.caseRow.caseName,
@@ -83,7 +77,7 @@ function register() {
     title: form.value.title.trim(),
     grade: form.value.grade,
     description: form.value.description.trim(),
-    assignee: form.value.assignee.trim(),
+    assignee: CURRENT_USER,
     occurrencePhase: form.value.occurrencePhase,
     deployStatus: form.value.deployStatus,
     attachments: [...form.value.attachments],
@@ -96,51 +90,76 @@ function register() {
 <template>
   <BaseModal
     :visible="visible"
-    title="오류등록 (POP-UAT)"
+    title="오류 상세"
     wide
     @close="$emit('close')"
   >
     <template v-if="caseRow && step">
+      <div class="meta card">
+        <span>{{ caseRow.round }} 시나리오</span>
+        <span>{{ caseRow.systemPath }} · {{ caseRow.screenName }}</span>
+        <span>{{ caseRow.caseId }} · {{ caseRow.caseName }}</span>
+        <span>절차 {{ step.no }}: {{ step.procedure }}</span>
+      </div>
+
       <div class="layout">
-        <aside class="list-col">
+        <aside class="list-col card">
           <h4 class="list-col__title">이 케이스의 등록된 오류 ({{ existingDefects.length }}건)</h4>
-          <ul v-if="existingDefects.length" class="existing-list">
-            <li v-for="d in existingDefects" :key="d.id">
-              <span class="existing-list__id">{{ d.defectId }}</span>
-              <span class="existing-list__title">{{ d.title }}</span>
-              <span class="existing-list__status">{{ d.status }}</span>
-            </li>
-          </ul>
+          <div v-if="existingDefects.length" class="list-col__scroll">
+            <table class="existing-tbl">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>오류ID</th>
+                  <th>등급</th>
+                  <th>제목</th>
+                  <th>테스트결과</th>
+                  <th>등록자</th>
+                  <th>등록일</th>
+                  <th>조치상태</th>
+                  <th>조치자</th>
+                  <th>조치예정일</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(d, i) in existingDefects" :key="d.id">
+                  <td class="center">{{ i + 1 }}</td>
+                  <td>{{ d.defectId }}</td>
+                  <td>{{ d.grade }}</td>
+                  <td class="name">{{ d.title }}</td>
+                  <td>{{ d.result }}</td>
+                  <td>{{ d.tester }}</td>
+                  <td>{{ d.registeredAt }}</td>
+                  <td>{{ d.status }}</td>
+                  <td>{{ d.assignee }}</td>
+                  <td>{{ d.dueDate || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p v-else class="list-col__empty">등록된 오류가 없습니다.</p>
         </aside>
 
-        <div class="form-col">
-          <div class="meta">
-            <span>{{ caseRow.caseId }}</span>
-            <span>{{ caseRow.caseName }}</span>
-            <span>절차 {{ step.no }}: {{ step.procedure }}</span>
+        <div class="form-col card">
+          <div class="field">
+            <label>오류등급</label>
+            <div class="grade-steps">
+              <button
+                v-for="g in ['Critical', 'Major', 'Minor']"
+                :key="g"
+                type="button"
+                class="grade-step"
+                :class="[{ 'is-on': form.grade === g }, `grade-step--${g.toLowerCase()}`]"
+                @click="form.grade = g"
+              >
+                {{ g }}
+              </button>
+            </div>
           </div>
 
-          <div class="form-row">
-            <div class="field">
-              <label>오류ID</label>
-              <div class="inp inp--ro">자동채번</div>
-            </div>
-            <div class="field">
-              <label>등록자</label>
-              <div class="inp inp--ro">{{ CURRENT_USER }}</div>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="field">
-              <label>테스트절차</label>
-              <div class="inp inp--ro">{{ step.procedure }}</div>
-            </div>
-            <div class="field">
-              <label>예상결과</label>
-              <div class="inp inp--ro">{{ step.expected }}</div>
-            </div>
+          <div class="field">
+            <label>오류ID</label>
+            <div class="inp inp--ro">자동채번</div>
           </div>
 
           <div class="field">
@@ -148,35 +167,13 @@ function register() {
             <input v-model="form.title" class="inp" type="text" />
           </div>
 
-          <div class="form-row">
-            <div class="field">
-              <label>오류등급</label>
-              <select v-model="form.grade" class="inp">
-                <option v-for="g in ['Critical', 'Major', 'Minor']" :key="g" :value="g">{{ g }}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>담당자</label>
-              <input v-model="form.assignee" class="inp" type="text" />
-            </div>
+          <div class="field">
+            <label>테스트절차</label>
+            <div class="inp inp--ro inp--wrap">{{ step.procedure }}</div>
           </div>
-
-          <div v-if="mode === 'uat'" class="form-row">
-            <div class="field">
-              <label>발생시점</label>
-              <select v-model="form.occurrencePhase" class="inp">
-                <option value="오픈 전">오픈 전</option>
-                <option value="오픈 후">오픈 후</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>배포상태</label>
-              <select v-model="form.deployStatus" class="inp">
-                <option value="DEV배포">DEV배포</option>
-                <option value="STG배포">STG배포</option>
-                <option value="운영배포">운영배포</option>
-              </select>
-            </div>
+          <div class="field">
+            <label>예상결과</label>
+            <div class="inp inp--ro inp--wrap">{{ step.expected }}</div>
           </div>
 
           <div class="field">
@@ -197,18 +194,47 @@ function register() {
               </label>
             </div>
           </div>
+
+          <div class="field">
+            <label>등록자</label>
+            <div class="inp inp--ro">{{ CURRENT_USER }}</div>
+          </div>
+
+          <div v-if="mode === 'uat'" class="form-row">
+            <div class="field">
+              <label>발생시점</label>
+              <select v-model="form.occurrencePhase" class="inp">
+                <option value="오픈 전">오픈 전</option>
+                <option value="오픈 후">오픈 후</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>배포상태</label>
+              <select v-model="form.deployStatus" class="inp">
+                <option value="DEV배포">DEV배포</option>
+                <option value="STG배포">STG배포</option>
+                <option value="운영배포">운영배포</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </template>
 
     <template #footer>
       <button type="button" class="btn btn--ghost" @click="$emit('close')">취소</button>
-      <button type="button" class="btn btn--primary" @click="register">오류등록</button>
+      <button type="button" class="btn btn--primary" @click="register">테스트 결과 저장</button>
     </template>
   </BaseModal>
 </template>
 
 <style scoped>
+.card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
 .layout {
   display: flex;
   gap: 16px;
@@ -216,9 +242,7 @@ function register() {
 }
 
 .list-col {
-  flex: 0 0 190px;
-  padding-right: 14px;
-  border-right: 1px solid var(--line);
+  flex: 0 0 260px;
 }
 
 .list-col__title {
@@ -233,6 +257,42 @@ function register() {
   color: var(--muted);
 }
 
+.list-col__scroll {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.existing-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
+}
+
+.existing-tbl th,
+.existing-tbl td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.existing-tbl th {
+  background: var(--field);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.existing-tbl .name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.existing-tbl .center {
+  text-align: center;
+}
+
 .form-col {
   flex: 1;
   min-width: 0;
@@ -240,11 +300,42 @@ function register() {
 
 .meta {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin-bottom: 12px;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
+}
+
+.grade-steps {
+  display: flex;
+  gap: 8px;
+}
+
+.grade-step {
+  flex: 1;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--lnb-side);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.grade-step.is-on.grade-step--critical { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.grade-step.is-on.grade-step--major { background: var(--orange-bg); border-color: var(--orange); color: var(--orange); }
+.grade-step.is-on.grade-step--minor { background: var(--teal-50); border-color: var(--teal-600); color: var(--teal-600); }
+
+.inp--wrap {
+  height: auto;
+  min-height: 32px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+  padding: 6px 10px;
 }
 
 .field {
@@ -286,40 +377,6 @@ function register() {
   color: var(--muted);
   display: flex;
   align-items: center;
-}
-
-.existing-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.existing-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  background: var(--orange-bg);
-  border-radius: 8px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--ink-2);
-}
-
-.existing-list__id {
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.existing-list__title {
-  word-break: break-word;
-}
-
-.existing-list__status {
-  color: var(--orange);
-  font-weight: 600;
 }
 
 .attach {

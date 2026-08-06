@@ -217,9 +217,9 @@ function submit() {
     </div>
 
     <p class="guide">
-      변경 시, 담당 팀장의 승인이 필요합니다.
+      · 변경 시, 담당 팀장의 승인이 필요합니다.
       (기획자 배정된 경우, 담당 기획자 ‘협조자’ 지정 필수)<br />
-      대기 상태(착수 전)에서 일정 변경 시 시작일~종료일 모두 변경 가능하며,
+      · 대기 상태(착수 전)에서 일정 변경 시 시작일~종료일 모두 변경 가능하며,
       착수 후엔 종료일만 변경할 수 있습니다.
     </p>
 
@@ -233,36 +233,31 @@ function submit() {
               <th>업무</th>
               <th>화면명</th>
               <th>업무명</th>
-              <th>업무 ID</th>
               <th>업무유형</th>
               <th>담당자</th>
               <th>공정률</th>
-              <th colspan="2">현재일정(계획)</th>
-              <template v-if="tab === 'hold'">
-                <th colspan="2">현재일정(실행)</th>
-              </template>
               <template v-if="tab === 'plan'">
+                <th colspan="2">현재일정(계획)</th>
                 <th colspan="2">변경 일정</th>
               </template>
               <template v-else>
+                <th colspan="2">현재일정(계획/실행)</th>
                 <th colspan="2">중단 일정</th>
-                <th>재착수 예정일</th>
-                <th>보정 계획일</th>
+                <th colspan="2">재착수 예정일</th>
+                <th colspan="2">보정 계획일</th>
               </template>
             </tr>
             <tr class="tbl__sub">
-              <th colspan="8" />
+              <th colspan="7" />
+              <th>시작일</th>
+              <th>종료일</th>
               <th>시작일</th>
               <th>종료일</th>
               <template v-if="tab === 'hold'">
-                <th>착수일</th>
+                <th>시작일</th>
                 <th>종료일</th>
-              </template>
-              <th>시작일</th>
-              <th>종료일</th>
-              <template v-if="tab === 'hold'">
-                <th />
-                <th />
+                <th>시작일</th>
+                <th>종료일</th>
               </template>
             </tr>
           </thead>
@@ -272,44 +267,56 @@ function submit() {
               <td>{{ (row.systemPath || '').split('>')[1] || '-' }}</td>
               <td>{{ row.screenName }}</td>
               <td class="name">{{ row.taskName || row.requirementName }}</td>
-              <td>{{ row.wbsId }}</td>
               <td>{{ row.taskType }}</td>
               <td>{{ row.assigneeDisplay || '-' }}</td>
               <td>{{ row.execProgress != null ? `${row.execProgress}%` : '-' }}</td>
-              <td>{{ row.planStart || '-' }}</td>
-              <td>{{ row.planEnd || '-' }}</td>
-              <template v-if="tab === 'hold'">
-                <td>{{ row.execStart || '-' }}</td>
-                <td>{{ row.execEnd || '-' }}</td>
-              </template>
-
               <template v-if="tab === 'plan'">
+                <td class="date-cell">{{ row.planStart || '-' }}</td>
+                <td class="date-cell">{{ row.planEnd || '-' }}</td>
                 <td>
                   <input
                     v-if="!isStartLocked(row)"
                     v-model="row.changeStart"
                     class="inp inp--date"
                     type="date"
+                    @click="$event.target.showPicker?.()"
                   />
                   <span v-else class="locked">{{ lockedStartValue(row) }}</span>
                 </td>
                 <td>
-                  <input v-model="row.changeEnd" class="inp inp--date" type="date" />
+                  <input v-model="row.changeEnd" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
                 </td>
               </template>
               <template v-else>
-                <td>
-                  <input v-model="row.holdStart" class="inp inp--date" type="date" />
+                <td class="date-cell">
+                  {{ row.planStart || '-' }}
+                  <br />
+                  <span class="date-cell__exec">{{ row.execStart ? `(${row.execStart})` : '' }}</span>
+                </td>
+                <td class="date-cell">
+                  {{ row.planEnd || '-' }}
+                  <br />
+                  <span
+                    class="date-cell__exec"
+                    :class="{ 'date-cell__exec--prog': !row.execEnd && row.execStart }"
+                  >
+                    {{ row.execEnd ? `(${row.execEnd})` : row.execStart ? '-(진행중)' : '' }}
+                  </span>
                 </td>
                 <td>
-                  <input v-model="row.holdEnd" class="inp inp--date" type="date" />
+                  <input v-model="row.holdStart" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
+                </td>
+                <td>
+                  <input v-model="row.holdEnd" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
                 </td>
                 <td class="restart">{{ restartStartText(row) }}</td>
+                <td class="restart">{{ restartEndText(row) }}</td>
+                <td class="restart">{{ row.planStart || '-' }}</td>
                 <td class="restart">{{ restartEndText(row) }}</td>
               </template>
             </tr>
             <tr v-if="!rows.length">
-              <td :colspan="tab === 'hold' ? 16 : 12" class="empty">선택된 업무가 없습니다.</td>
+              <td :colspan="tab === 'hold' ? 15 : 11" class="empty">선택된 업무가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -392,9 +399,12 @@ function submit() {
 
 .guide {
   margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--teal-50);
+  border-radius: var(--radius-md);
   font-size: calc(11px + var(--font-size-offset, 0px));
-  line-height: 1.55;
-  color: var(--lnb-muted);
+  line-height: 1.6;
+  color: var(--teal-700);
 }
 
 .section {
@@ -403,6 +413,8 @@ function submit() {
 
 .section__title {
   margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--lnb-line);
   font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
@@ -440,6 +452,7 @@ function submit() {
   background: var(--lnb-hover);
   font-weight: 600;
   color: var(--lnb-txt);
+  text-align: center;
 }
 
 .tbl__sub th {
@@ -449,9 +462,25 @@ function submit() {
 }
 
 .tbl .name {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 160px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.date-cell {
+  font-weight: 700;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  color: var(--lnb-txt);
+}
+
+.date-cell__exec {
+  font-weight: 500;
+  font-size: calc(10px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
+}
+
+.date-cell__exec--prog {
+  color: var(--green);
 }
 
 .inp {

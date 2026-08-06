@@ -4,7 +4,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/app/stores/auth'
 import { systemOptions, bizCategoryOptions } from '@/shared/lib/testConfig'
 import {
-  unitTestMeta,
   unitResultOptions,
   pageSizeOptions,
   getUnitTestList,
@@ -19,6 +18,7 @@ import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 const auth = useAuthStore()
 const rows = ref([])
 const myTasksOnly = ref(false)
+const selectedIds = ref(new Set())
 const filters = ref({ keyword: '', status: '전체', system: '전체', bizCategory: '전체' })
 const appliedFilters = ref({ ...filters.value })
 const pageSize = ref(20)
@@ -61,6 +61,38 @@ function openDetail(row) {
   showDetail.value = true
 }
 
+function toggleSelect(id) {
+  const row = rows.value.find((r) => r.id === id)
+  if (row?.excluded) return
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+function toggleSelectAll(checked) {
+  if (checked) {
+    selectedIds.value = new Set(pagedList.value.filter((r) => !r.excluded).map((r) => r.id))
+  } else {
+    selectedIds.value = new Set()
+  }
+}
+
+function isAllSelected() {
+  const selectable = pagedList.value.filter((r) => !r.excluded)
+  return selectable.length > 0 && selectable.every((r) => selectedIds.value.has(r.id))
+}
+
+function excludeSelected() {
+  if (!selectedIds.value.size) return
+  const ok = window.confirm(`선택한 ${selectedIds.value.size}건을 테스트 제외 처리하시겠습니까?`)
+  if (!ok) return
+  rows.value.forEach((row) => {
+    if (selectedIds.value.has(row.id)) row.excluded = true
+  })
+  selectedIds.value = new Set()
+}
+
 function onExcelDownload() {
   mockExcelDownload('단위테스트', filteredList.value, [
     { key: 'systemPath', label: '시스템/업무' },
@@ -90,14 +122,16 @@ function onDetailSave(payload) {
     row.lastExecutedAt = today
   }
   if (payload.defect) {
-    row.defectStatus = '접수'
+    row.defectStatus = payload.defect.status
     row.defects.push({
       id: `d-${Date.now()}`,
-      title: payload.defect.title,
-      grade: payload.defect.grade,
-      status: '접수',
+      status: payload.defect.status,
+      result: payload.defect.result,
       registeredAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     })
+    if (payload.defect.status === '처리완료') {
+      row.defectHandledAt = today
+    }
   } else if (payload.testResult === '정상') {
     row.defectStatus = null
   } else if (row.defects.length) {
@@ -111,23 +145,10 @@ function onDetailSave(payload) {
 
 <template>
   <div class="unit-test">
-    <h1 class="unit-test__title">
-      단위테스트
-      <span class="unit-test__hint">{{ unitTestMeta.hint }}</span>
-    </h1>
+    <h1 class="unit-test__title">단위테스트</h1>
 
     <section class="filter card">
-      <div class="filter__row filter__row--5">
-        <div class="filter__field">
-          <label>화면명 검색</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="화면명 검색"
-            @keyup.enter="search"
-          />
-        </div>
+      <div class="filter__row filter__row--4">
         <div class="filter__field">
           <label>시스템 선택</label>
           <select v-model="filters.system" class="filter__select">
@@ -141,17 +162,20 @@ function onDetailSave(payload) {
           </select>
         </div>
         <div class="filter__field">
+          <label>화면명 검색</label>
+          <input
+            v-model="filters.keyword"
+            class="filter__input"
+            type="text"
+            placeholder="화면명 검색"
+            @keyup.enter="search"
+          />
+        </div>
+        <div class="filter__field">
           <label>테스트 상태</label>
           <select v-model="filters.status" class="filter__select">
             <option v-for="o in unitResultOptions" :key="o" :value="o">{{ o }}</option>
           </select>
-        </div>
-        <div class="filter__field filter__field--toggle">
-          <label>&nbsp;</label>
-          <label class="toggle">
-            <input v-model="myTasksOnly" type="checkbox" />
-            내 업무만
-          </label>
         </div>
       </div>
       <div class="filter__actions">
@@ -160,13 +184,24 @@ function onDetailSave(payload) {
       </div>
     </section>
 
-    <p class="notice card">{{ unitTestMeta.notice }}</p>
-
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
       <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
+      <button
+        v-if="selectedIds.size"
+        type="button"
+        class="btn btn--ghost btn--sm"
+        @click="excludeSelected"
+      >
+        테스트 제외
+      </button>
+      <label class="chk chk--toggle">
+        <input v-model="myTasksOnly" type="checkbox" />
+        <span class="chk__switch"></span>
+        내 업무만
+      </label>
       <ExcelDownloadButton @click="onExcelDownload" />
     </div>
 
@@ -175,6 +210,9 @@ function onDetailSave(payload) {
         <table class="data-table">
           <thead>
             <tr>
+              <th class="col-check">
+                <input type="checkbox" :checked="isAllSelected()" @change="toggleSelectAll($event.target.checked)" />
+              </th>
               <th class="col-no">NO</th>
               <th>시스템/업무</th>
               <th>화면경로</th>
@@ -182,13 +220,23 @@ function onDetailSave(payload) {
               <th>업무유형</th>
               <th>담당자</th>
               <th>난이도</th>
-              <th>테스트수행</th>
-              <th>결함처리</th>
+              <th>테스트수행 결과</th>
+              <th>테스트수행일</th>
+              <th>결함처리 결과</th>
+              <th>결함처리일</th>
               <th>최종실행일</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, idx) in pagedList" :key="row.id">
+            <tr v-for="(row, idx) in pagedList" :key="row.id" :class="{ 'row--excluded': row.excluded }">
+              <td class="col-check">
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.has(row.id)"
+                  :disabled="row.excluded"
+                  @change="toggleSelect(row.id)"
+                />
+              </td>
               <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td>{{ row.systemPath }}</td>
               <td>{{ row.screenPath }}</td>
@@ -204,21 +252,21 @@ function onDetailSave(payload) {
                 <span class="badge" :class="`badge--${unitResultClass(row.testResult)}`">
                   {{ row.testResult }}
                 </span>
-                <span v-if="row.testExecutedAt" class="sub-date">{{ row.testExecutedAt }}</span>
               </td>
+              <td>{{ row.testExecutedAt || '-' }}</td>
               <td>
                 <template v-if="row.defectStatus">
                   <span class="badge" :class="`badge--${defectStatusClass(row.defectStatus)}`">
                     {{ row.defectStatus }}
                   </span>
-                  <span v-if="row.defectHandledAt" class="sub-date">{{ row.defectHandledAt }}</span>
                 </template>
                 <span v-else class="muted">-</span>
               </td>
+              <td>{{ row.defectHandledAt || '-' }}</td>
               <td>{{ row.lastExecutedAt || '-' }}</td>
             </tr>
             <tr v-if="!pagedList.length">
-              <td colspan="10" class="empty">조회 결과가 없습니다.</td>
+              <td colspan="13" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -265,15 +313,6 @@ function onDetailSave(payload) {
   font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0 0 14px;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.unit-test__hint {
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-weight: 500;
-  color: var(--muted);
 }
 
 .filter {
@@ -287,8 +326,8 @@ function onDetailSave(payload) {
   margin-bottom: 10px;
 }
 
-.filter__row--5 {
-  grid-template-columns: repeat(5, 1fr);
+.filter__row--4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .filter__field {
@@ -320,24 +359,6 @@ function onDetailSave(payload) {
   gap: 8px;
 }
 
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-}
-
-.notice {
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  background: var(--teal-50);
-  border-color: var(--teal-100);
-  color: var(--teal-600);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
 .toolbar {
   display: flex;
   align-items: center;
@@ -362,6 +383,51 @@ function onDetailSave(payload) {
   background: var(--lnb-side);
   font-size: calc(11.5px + var(--font-size-offset, 0px));
   font-family: inherit;
+}
+
+.chk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
+.chk--toggle {
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.chk--toggle input {
+  display: none;
+}
+
+.chk__switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 10px;
+  background: var(--line);
+  transition: background var(--transition-fast);
+}
+
+.chk__switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--transition-fast);
+}
+
+.chk--toggle input:checked + .chk__switch {
+  background: var(--teal);
+}
+
+.chk--toggle input:checked + .chk__switch::after {
+  transform: translateX(14px);
 }
 
 .listcard {
@@ -393,11 +459,26 @@ function onDetailSave(payload) {
   background: var(--field);
   font-weight: 600;
   color: var(--ink);
+  text-align: center;
+}
+
+.col-check {
+  width: 36px;
+  text-align: center !important;
 }
 
 .col-no {
   width: 48px;
   text-align: center !important;
+}
+
+.row--excluded {
+  opacity: 0.5;
+  background: var(--gray-bg);
+}
+
+.row--excluded:hover {
+  background: var(--gray-bg);
 }
 
 .link-btn {
@@ -426,13 +507,6 @@ function onDetailSave(payload) {
 .badge--warn { background: var(--orange-bg); color: var(--orange); }
 .badge--prog { background: var(--teal-50); color: var(--teal-700); }
 .badge--muted { background: var(--gray-bg); color: var(--gray); }
-
-.sub-date {
-  display: block;
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  margin-top: 2px;
-}
 
 .muted { color: var(--muted); }
 .empty { text-align: center !important; color: var(--muted); padding: 24px !important; }

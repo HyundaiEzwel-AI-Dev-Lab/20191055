@@ -3,8 +3,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTestContext } from '@/app/composables/useTestContext'
-import { getProgressData, donutStyle, gaugeStyle } from '@/entities/test-progress/mock/testProgress'
+import { getProgressData, donutStyle } from '@/entities/test-progress/mock/testProgress'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { useAuthStore } from '@/app/stores/auth'
 
@@ -306,74 +307,39 @@ function onExcelDownload() {
 
       <section class="panel card">
         <div class="panel__head">
-          <h3>시스템별 진척·결함</h3>
+          <h3>시스템별 테스트 진행 및 결함 발생 현황</h3>
           <button
             v-if="filteredSystemProgress.length > SYSTEM_DONUT_LIMIT"
             type="button"
             class="more-btn"
-            @click="showAllSystems = true"
+            @click="showAllSystems = !showAllSystems"
           >
-            더보기(+{{ filteredSystemProgress.length - SYSTEM_DONUT_LIMIT }})
+            {{ showAllSystems ? '접기' : `더보기(+${filteredSystemProgress.length - SYSTEM_DONUT_LIMIT})` }}
           </button>
         </div>
         <p v-if="!visibleSystemProgress.length" class="empty-row">조회 결과가 없습니다.</p>
-        <div v-else class="donut-row">
+        <div v-else class="hbar-row">
           <button
             v-for="row in visibleSystemProgress"
             :key="row.system"
             type="button"
-            class="donut-item"
+            class="hbar-item"
             @click="goToDefect(row.system)"
           >
-            <div class="donut" :style="donutStyle(row.testRate)">
-              <div class="donut__hole">
-                <span class="donut__v">{{ row.testRate }}%</span>
-                <span class="donut__l">진척</span>
-              </div>
+            <span class="hbar-item__lab">{{ row.system }}</span>
+            <div class="hbar-item__track">
+              <span class="hbar-item__done" :style="{ width: `${row.testRate}%` }" />
+              <span class="hbar-item__defect" :style="{ width: `${row.defectRate}%` }" />
             </div>
-            <div class="donut-meta">
-              <b>{{ row.system }}</b>
-              <span>완료 {{ row.testDone }} · 결함 {{ row.defect }} ({{ row.defectRate }}%)</span>
-            </div>
+            <span class="hbar-item__val">완료 {{ row.testRate }}% · 결함 {{ row.defect }}건({{ row.defectRate }}%)</span>
           </button>
         </div>
       </section>
     </div>
 
-    <Teleport to="body">
-      <div v-if="showAllSystems" class="overlay-scrim" @mousedown.self="showAllSystems = false">
-        <div class="overlay-box">
-          <div class="overlay-box__head">
-            <h3>시스템별 진척·결함 (전체 {{ filteredSystemProgress.length }}건)</h3>
-            <button type="button" class="overlay-box__close" @click="showAllSystems = false">✕</button>
-          </div>
-          <div class="donut-row donut-row--wrap">
-            <button
-              v-for="row in filteredSystemProgress"
-              :key="row.system"
-              type="button"
-              class="donut-item"
-              @click="goToDefect(row.system)"
-            >
-              <div class="donut" :style="donutStyle(row.testRate)">
-                <div class="donut__hole">
-                  <span class="donut__v">{{ row.testRate }}%</span>
-                  <span class="donut__l">진척</span>
-                </div>
-              </div>
-              <div class="donut-meta">
-                <b>{{ row.system }}</b>
-                <span>완료 {{ row.testDone }} · 결함 {{ row.defect }} ({{ row.defectRate }}%)</span>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
     <section class="panel card">
       <div class="panel__head">
-        <h3>시스템별 상세</h3>
+        <h3>시스템별 상세 테스트 진척 현황</h3>
         <button
           v-if="filteredSystemDetail.length > SYSTEM_DETAIL_LIMIT"
           type="button"
@@ -388,36 +354,32 @@ function onExcelDownload() {
           <tr>
             <th rowspan="2">시스템</th>
             <th colspan="5" class="group-head">테스트진행</th>
-            <th colspan="4" class="group-head">결함처리</th>
+            <th colspan="4" class="group-head group-head--defect">결함처리</th>
           </tr>
           <tr>
-            <th>전체</th>
+            <th>공정률</th>
+            <th>총건수</th>
             <th>대기</th>
             <th>진행</th>
             <th>지연</th>
-            <th>공정률</th>
-            <th>결함처리율</th>
-            <th>결함</th>
-            <th>미처리</th>
-            <th>처리</th>
+            <th>
+              처리율
+              <BaseTooltip text="미조치 : 처리상태 접수 + 처리예정 / 조치완료 : 처리완료 + 오류아님 + 수정제외" />
+            </th>
+            <th>총 결함</th>
+            <th>미조치</th>
+            <th>조치완료</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in visibleSystemDetail" :key="row.system">
             <td>{{ row.system }}</td>
+            <td class="progress-rate">{{ row.progressRate }}%</td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system)">{{ row.total }}</button></td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '대기')">{{ row.wait }}</button></td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '진행')">{{ row.progress }}</button></td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '지연')">{{ row.delay }}</button></td>
-            <td>{{ row.progressRate }}%</td>
-            <td>
-              <div class="gauge-wrap">
-                <div class="gauge" :style="gaugeStyle(row.fixRate)">
-                  <div class="gauge__arc" />
-                  <div class="gauge__hole"><b>{{ row.fixRate }}%</b></div>
-                </div>
-              </div>
-            </td>
+            <td class="fix-rate">{{ row.fixRate }}%</td>
             <td><button type="button" class="count-link" @click="goToDefect(row.system)">{{ row.defects }}</button></td>
             <td><button type="button" class="count-link" @click="goToDefect(row.system)">{{ row.pending }}</button></td>
             <td>{{ row.done }}</td>
@@ -427,11 +389,11 @@ function onExcelDownload() {
           </tr>
           <tr v-if="filteredSystemDetail.length" class="total-row">
             <td>전체 합계</td>
+            <td>{{ systemDetailTotals.progressRate }}%</td>
             <td>{{ systemDetailTotals.total }}</td>
             <td>{{ systemDetailTotals.wait }}</td>
             <td>{{ systemDetailTotals.progress }}</td>
             <td>{{ systemDetailTotals.delay }}</td>
-            <td>{{ systemDetailTotals.progressRate }}%</td>
             <td>{{ systemDetailTotals.fixRate }}%</td>
             <td>{{ systemDetailTotals.defects }}</td>
             <td>{{ systemDetailTotals.pending }}</td>
@@ -565,69 +527,26 @@ function onExcelDownload() {
       </table>
     </section>
 
-    <div v-if="data.unitCompare" class="grid-2">
-      <section class="panel card">
-        <h3>단위 vs DEV 비교</h3>
-        <div class="compare-row">
-          <div v-for="row in data.unitCompare" :key="row.label" class="compare-item">
-            <div class="donut donut--lg" :style="donutStyle(row.rate)">
-              <div class="donut__hole">
-                <span class="donut__v">{{ row.rate }}%</span>
-                <span class="donut__l">{{ row.label }}</span>
-              </div>
-            </div>
-            <span class="compare-sub">{{ row.done }} / {{ row.total }}</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel card">
-        <h3>단계별 결함발생률</h3>
-        <table class="inner-table">
-          <thead>
-            <tr>
-              <th>차수</th>
-              <th>결함수</th>
-              <th>발생률</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in data.defectByPhase" :key="row.phase">
-              <td>{{ row.phase }}</td>
-              <td>{{ row.count }}</td>
-              <td>
-                <div class="prog">
-                  <i :style="{ width: `${row.rate * 4}%`, maxWidth: '100%' }" />
-                  <span>{{ row.rate }}%</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </div>
-
-    <section v-if="data.unitDevSystemCompare" class="panel card">
-      <h3>단위 vs DEV수행 vs DEV결함 (시스템별)</h3>
+    <section v-if="data.defectByPhase" class="panel card">
+      <h3>단계별 결함발생률</h3>
       <table class="inner-table">
         <thead>
           <tr>
-            <th>시스템</th>
-            <th>단위 전체</th>
-            <th>단위 완료</th>
-            <th>DEV수행 전체</th>
-            <th>DEV수행 완료</th>
-            <th>DEV결함</th>
+            <th>차수</th>
+            <th>결함수</th>
+            <th>발생률</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in data.unitDevSystemCompare" :key="row.system">
-            <td>{{ row.system }}</td>
-            <td>{{ row.unitTotal }}</td>
-            <td>{{ row.unitDone }}</td>
-            <td>{{ row.devTotal }}</td>
-            <td>{{ row.devDone }}</td>
-            <td>{{ row.devDefects }}</td>
+          <tr v-for="row in data.defectByPhase" :key="row.phase">
+            <td>{{ row.phase }}</td>
+            <td>{{ row.count }}</td>
+            <td>
+              <div class="prog">
+                <i :style="{ width: `${row.rate * 4}%`, maxWidth: '100%' }" />
+                <span>{{ row.rate }}%</span>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -673,12 +592,15 @@ function onExcelDownload() {
     </section>
 
     <section v-if="data.threeStageDefectRate?.length" class="panel card">
-      <h3>단위/DEV/운영 결함발생률 비교</h3>
-      <div class="phase-bars">
-        <div v-for="row in data.threeStageDefectRate" :key="row.stage" class="phase-bar">
-          <span class="phase-bar__lab">{{ row.stage }}</span>
-          <div class="hbar hbar--err"><i :style="{ width: `${row.rate * 3}%` }" /></div>
-          <span class="phase-bar__num">{{ row.defects }}건 ({{ row.rate }}%)</span>
+      <h3>테스트 단계별 결함 발생률</h3>
+      <div class="vbar-chart">
+        <div v-for="row in data.threeStageDefectRate" :key="row.stage" class="vbar">
+          <span class="vbar__num">{{ row.rate }}%</span>
+          <div class="vbar__track">
+            <span class="vbar__fill" :style="{ height: `${Math.min(row.rate * 3, 100)}%` }" />
+          </div>
+          <span class="vbar__lab">{{ row.stage }}</span>
+          <span class="vbar__sub">{{ row.defects }}건</span>
         </div>
       </div>
     </section>
@@ -954,62 +876,17 @@ function onExcelDownload() {
   font-weight: 700;
 }
 
-.overlay-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 30, 34, 0.34);
-  z-index: 1300;
+.hbar-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.overlay-box {
-  width: min(720px, 100%);
-  max-height: 80vh;
-  overflow-y: auto;
-  background: var(--lnb-side);
-  border-radius: 14px;
-  padding: 20px 22px;
-  box-shadow: 0 6px 24px rgba(20, 40, 50, 0.16);
-}
-
-.overlay-box__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.overlay-box__head h3 {
-  margin: 0;
-  font-size: calc(15px + var(--font-size-offset, 0px));
-}
-
-.overlay-box__close {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: calc(16px + var(--font-size-offset, 0px));
-  color: var(--muted);
-}
-
-.donut-row--wrap {
-  flex-wrap: wrap;
-}
-
-.donut-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.donut-item {
-  display: flex;
+.hbar-item {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
   align-items: center;
   gap: 10px;
-  min-width: 180px;
   border: none;
   background: none;
   padding: 0;
@@ -1018,17 +895,54 @@ function onExcelDownload() {
   text-align: left;
 }
 
+.hbar-item__lab {
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar-item__track {
+  position: relative;
+  height: 10px;
+  background: var(--line-2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.hbar-item__done {
+  position: absolute;
+  inset: 0;
+  display: block;
+  height: 100%;
+  background: var(--teal-500);
+  border-radius: 5px;
+}
+
+.hbar-item__defect {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: block;
+  background: var(--red);
+  opacity: 0.7;
+  border-radius: 5px;
+}
+
+.hbar-item__val {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .donut {
   width: 72px;
   height: 72px;
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
-}
-
-.donut--lg {
-  width: 100px;
-  height: 100px;
 }
 
 .donut__hole {
@@ -1042,10 +956,6 @@ function onExcelDownload() {
   justify-content: center;
 }
 
-.donut--lg .donut__hole {
-  inset: 18px;
-}
-
 .donut__v {
   font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 800;
@@ -1055,17 +965,6 @@ function onExcelDownload() {
 .donut__l {
   font-size: calc(9px + var(--font-size-offset, 0px));
   color: var(--muted);
-}
-
-.donut-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-}
-
-.donut-meta b {
-  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .inner-table {
@@ -1107,59 +1006,19 @@ function onExcelDownload() {
   border-radius: 3px;
 }
 
-.gauge-wrap {
-  display: flex;
-  justify-content: center;
+.progress-rate {
+  font-weight: 700;
+  color: var(--teal-600);
 }
 
-.gauge {
-  width: 60px;
-  height: 34px;
-  position: relative;
-  overflow: hidden;
+.fix-rate {
+  font-weight: 700;
+  color: var(--teal-600);
 }
 
-.gauge__arc {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: conic-gradient(from 270deg, var(--teal-500) 0 var(--p, 25%), var(--line-2) var(--p, 25%) 50%, transparent 50%);
-}
-
-.gauge__hole {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 0;
-  top: 8px;
-  background: var(--lnb-side);
-  border-radius: 60px 60px 0 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 2px;
-}
-
-.gauge__hole b {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-}
-
-.compare-row {
-  display: flex;
-  justify-content: space-around;
-  gap: 16px;
-}
-
-.compare-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.compare-sub {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
+.group-head--defect {
+  background: var(--red-bg);
+  color: var(--red);
 }
 
 .phase-bars {
@@ -1184,5 +1043,56 @@ function onExcelDownload() {
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   text-align: right;
+}
+
+.vbar-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  gap: 24px;
+  height: 180px;
+  padding-top: 10px;
+}
+
+.vbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  width: 64px;
+}
+
+.vbar__num {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: var(--teal-600);
+}
+
+.vbar__track {
+  flex: 1;
+  width: 32px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--line-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vbar__fill {
+  display: block;
+  width: 100%;
+  background: var(--red);
+  border-radius: 4px 4px 0 0;
+}
+
+.vbar__lab {
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+}
+
+.vbar__sub {
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
+  color: var(--muted);
 }
 </style>

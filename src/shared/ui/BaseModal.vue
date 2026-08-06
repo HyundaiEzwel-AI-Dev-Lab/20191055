@@ -14,7 +14,7 @@ defineEmits(['close', 'confirm'])
     <div v-if="visible" class="modal-overlay" :class="{ 'modal-overlay--side': side }">
       <div class="modal" :class="{ 'modal--wide': wide, 'modal--side': side }">
         <div class="modal__header">
-          <span>{{ title }}</span>
+          <span>{{ title }}<slot name="title-extra" /></span>
           <button class="app-header__icon-btn" @click="$emit('close')">×</button>
         </div>
         <div class="modal__body">

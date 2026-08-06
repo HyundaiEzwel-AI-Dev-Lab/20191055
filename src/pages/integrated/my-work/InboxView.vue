@@ -292,10 +292,10 @@ function nextWaiting() {
             type="button"
             class="pcard"
             :class="p.stageType"
-            @click="openProject(p, '/workspace/info')"
+            @click="openProject(p, '/workspace/dashboard')"
           >
             <div class="pcard__top">
-              <span class="pcard__dday">{{ p.openDate }} ( {{ p.dday }} )</span>
+              <span class="pcard__dday">{{ p.openDate }} ( <b class="pcard__dday-tag">{{ p.dday }}</b> )</span>
               <span class="stbadge" :class="p.stageType">{{ p.stage }}</span>
             </div>
             <div class="pcard__name">{{ p.name }}</div>
@@ -649,6 +649,10 @@ function nextWaiting() {
   font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
+.pcard__dday-tag {
+  color: var(--red);
+  font-weight: 700;
+}
 .pcard__name {
   font-size: calc(13.5px + var(--font-size-offset, 0px));
   font-weight: 700;
@@ -804,7 +808,7 @@ function nextWaiting() {
   background: var(--lnb-hover);
   color: var(--lnb-txt);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 12px;
   border-bottom: 1px solid var(--lnb-line);
   white-space: nowrap;
@@ -821,7 +825,7 @@ function nextWaiting() {
   cursor: pointer;
 }
 .tbl tbody tr.click:hover {
-  background: var(--lnb-hover);
+  background: var(--teal-50);
 }
 .ell {
   max-width: 0;

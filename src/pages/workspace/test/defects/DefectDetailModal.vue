@@ -22,6 +22,7 @@ const form = ref({
 
 const confirmStatus = ref('')
 const confirmComment = ref('')
+const retryCollapsed = ref(false)
 
 const retryHistory = computed(() => (props.row?.history || []).filter((h) => h.action === '재처리요청'))
 
@@ -70,9 +71,13 @@ function appendHistory(action, body) {
   })
 }
 
-function save() {
+function saveAll() {
   if (!props.row) return
-  if (!window.confirm('결함 정보를 저장하시겠습니까?')) return
+  if (confirmStatus.value === '운영확인' && !canConfirmOps.value) {
+    window.alert('운영확인은 DEV확인 완료 후 배포상태가 "운영배포"일 때만 처리할 수 있습니다.')
+    return
+  }
+  if (!window.confirm('처리내용을 저장하시겠습니까?')) return
   const updates = {
     status: form.value.status,
     dueDate: form.value.dueDate,
@@ -82,28 +87,11 @@ function save() {
   if (form.value.comment) {
     appendHistory(form.value.status, form.value.comment)
   }
+  if (confirmStatus.value) {
+    updates.result = confirmStatus.value
+    appendHistory(confirmStatus.value, confirmComment.value || `${confirmStatus.value} 처리`)
+  }
   emit('save', updates)
-}
-
-function setStatus(status) {
-  if (!window.confirm(`${status} 처리하시겠습니까?`)) return
-  form.value.status = status
-  appendHistory(status, form.value.comment || `${status} 처리`)
-  emit('save', { status })
-}
-
-function saveConfirm() {
-  if (!confirmStatus.value) {
-    window.alert('확인상태를 선택해 주세요.')
-    return
-  }
-  if (confirmStatus.value === '운영확인' && !canConfirmOps.value) {
-    window.alert('운영확인은 DEV확인 완료 후 배포상태가 "운영배포"일 때만 처리할 수 있습니다.')
-    return
-  }
-  if (!window.confirm(`${confirmStatus.value}(으)로 확인 처리하시겠습니까?`)) return
-  appendHistory(confirmStatus.value, confirmComment.value || `${confirmStatus.value} 처리`)
-  emit('save', { result: confirmStatus.value })
 }
 </script>
 
@@ -127,23 +115,31 @@ function saveConfirm() {
         <p class="desc">{{ row.description || row.stepProcedure }}</p>
       </div>
 
-      <div class="form-row">
-        <div class="field">
-          <label>조치상태</label>
-          <select v-model="form.status" class="inp">
-            <option v-for="s in actionStatusValues" :key="s" :value="s">{{ s }}</option>
-          </select>
+      <div class="field">
+        <label>조치상태</label>
+        <div class="step-tabs">
+          <button
+            v-for="s in actionStatusValues"
+            :key="s"
+            type="button"
+            class="step-tab"
+            :class="{ 'is-on': form.status === s }"
+            @click="form.status = s"
+          >
+            {{ s }}
+          </button>
         </div>
-        <div class="field">
-          <label>조치자 (수정불가)</label>
-          <div class="inp inp--ro">{{ row.assignee }}</div>
-        </div>
+      </div>
+
+      <div class="field">
+        <label>조치자 (수정불가)</label>
+        <div class="inp inp--ro">{{ row.assignee }}</div>
       </div>
 
       <div class="form-row">
         <div class="field">
           <label>조치 예정일</label>
-          <input v-model="form.dueDate" class="inp" type="date" />
+          <input v-model="form.dueDate" class="inp" type="date" @click="$event.target.showPicker?.()" />
         </div>
         <div class="field" v-if="config.showDeployStatus">
           <label>배포상태</label>
@@ -177,53 +173,88 @@ function saveConfirm() {
 
       <div class="confirm-block">
         <h4>조치 확인 (테스터 입력)</h4>
-        <div v-if="!config.showDeployStatus" class="confirm-radios">
-          <label class="radio-item">
-            <input v-model="confirmStatus" type="radio" value="수정완료" />
+        <div v-if="!config.showDeployStatus" class="step-tabs">
+          <button
+            type="button"
+            class="step-tab"
+            :class="{ 'is-on': confirmStatus === '수정완료' }"
+            @click="confirmStatus = '수정완료'"
+          >
             수정완료
-          </label>
-          <label class="radio-item">
-            <input v-model="confirmStatus" type="radio" value="재처리요청" />
+          </button>
+          <button
+            type="button"
+            class="step-tab"
+            :class="{ 'is-on': confirmStatus === '재처리요청' }"
+            @click="confirmStatus = '재처리요청'"
+          >
             재처리요청
-          </label>
+          </button>
         </div>
-        <div v-else class="confirm-radios">
-          <label class="radio-item">
-            <input v-model="confirmStatus" type="radio" value="DEV확인" />
+        <div v-else class="step-tabs">
+          <button
+            type="button"
+            class="step-tab"
+            :class="{ 'is-on': confirmStatus === 'DEV확인' }"
+            @click="confirmStatus = 'DEV확인'"
+          >
             DEV확인
-          </label>
-          <label class="radio-item" :title="!canConfirmOps ? 'DEV확인 완료 + 배포상태 운영배포일 때만 선택 가능' : undefined">
-            <input v-model="confirmStatus" type="radio" value="운영확인" :disabled="!canConfirmOps" />
+          </button>
+          <button
+            type="button"
+            class="step-tab"
+            :class="{ 'is-on': confirmStatus === '운영확인' }"
+            :disabled="!canConfirmOps"
+            :title="!canConfirmOps ? 'DEV확인 완료 + 배포상태 운영배포일 때만 선택 가능' : undefined"
+            @click="confirmStatus = '운영확인'"
+          >
             운영확인
-          </label>
-          <label class="radio-item">
-            <input v-model="confirmStatus" type="radio" value="재처리요청" />
+          </button>
+          <button
+            type="button"
+            class="step-tab"
+            :class="{ 'is-on': confirmStatus === '재처리요청' }"
+            @click="confirmStatus = '재처리요청'"
+          >
             재처리요청
-          </label>
+          </button>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label>최종확인자</label>
-            <div class="inp inp--ro">{{ CURRENT_USER }}</div>
+        <div class="field">
+          <label>최종확인자</label>
+          <div class="inp inp--ro">
+            {{ CURRENT_USER }}
+            <span class="confirm-at">{{ row.history?.[0]?.at || row.registeredAt }}</span>
           </div>
         </div>
         <div class="field">
           <label>확인내용</label>
           <textarea v-model="confirmComment" class="inp textarea" rows="2" placeholder="확인 내용 입력" />
         </div>
-        <button type="button" class="btn btn--primary btn--sm" @click="saveConfirm">확인 저장</button>
       </div>
 
       <div v-if="retryHistory.length" class="history">
-        <h4>재처리요청 이력</h4>
-        <article v-for="h in retryHistory" :key="h.id" class="history-item" :title="h.body">
-          <header>
-            <span>{{ h.author }} ({{ h.role }})</span>
-            <span class="action">{{ h.action }}</span>
-            <span class="at">{{ h.at }}</span>
-          </header>
-          <p>{{ h.body }}</p>
-        </article>
+        <button type="button" class="history__toggle" @click="retryCollapsed = !retryCollapsed">
+          <h4>재처리요청 이력 ({{ retryHistory.length }}건)</h4>
+          <span>{{ retryCollapsed ? '▼' : '▲' }}</span>
+        </button>
+        <table v-if="!retryCollapsed" class="history-tbl">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>요청일</th>
+              <th>요청자</th>
+              <th>요청내용</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(h, i) in retryHistory" :key="h.id">
+              <td class="center">{{ i + 1 }}</td>
+              <td>{{ h.at }}</td>
+              <td>{{ h.author }} ({{ h.role }})</td>
+              <td>{{ h.body }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <div v-if="row.history?.length" class="history">
@@ -239,9 +270,7 @@ function saveConfirm() {
       </div>
 
     <div class="detail-card__foot">
-      <button type="button" class="btn btn--ghost" @click="setStatus('오류아님')">오류아님</button>
-      <button type="button" class="btn btn--primary" @click="setStatus('처리완료')">처리완료</button>
-      <button type="button" class="btn btn--primary" @click="save">저장</button>
+      <button type="button" class="btn btn--primary" @click="saveAll">처리내용 저장</button>
     </div>
   </section>
 </template>
@@ -433,7 +462,7 @@ function saveConfirm() {
 .confirm-block {
   margin-bottom: 14px;
   padding: 12px 14px;
-  background: var(--teal-50);
+  background: var(--field);
   border-radius: 8px;
 }
 
@@ -442,17 +471,75 @@ function saveConfirm() {
   font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
-.confirm-radios {
+.step-tabs {
   display: flex;
-  gap: 16px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
-.radio-item {
+.step-tab {
+  flex: 1;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--lnb-side);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.step-tab.is-on {
+  background: var(--teal-50);
+  border-color: var(--teal-600);
+  color: var(--teal-600);
+}
+
+.step-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.confirm-at {
+  margin-left: auto;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--muted);
+}
+
+.history__toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: none;
   cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  color: var(--muted);
+}
+
+.history-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  margin-top: 6px;
+}
+
+.history-tbl th,
+.history-tbl td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.history-tbl th {
+  background: var(--field);
+  font-weight: 600;
+}
+
+.history-tbl .center {
+  text-align: center;
 }
 </style>

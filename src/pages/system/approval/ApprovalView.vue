@@ -206,9 +206,9 @@ function onExcelDownload() {
         <div class="filter__field">
           <label>기간</label>
           <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__input" type="date" />
+            <input v-model="filters.dateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
             <span class="filter__range-sep">~</span>
-            <input v-model="filters.dateTo" class="filter__input" type="date" />
+            <input v-model="filters.dateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
           </div>
         </div>
       </div>
@@ -469,5 +469,11 @@ function onExcelDownload() {
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--lnb-line);
+}
+
+.badge--cancel {
+  background: var(--gray-bg);
+  color: var(--gray);
+  text-decoration: line-through;
 }
 </style>

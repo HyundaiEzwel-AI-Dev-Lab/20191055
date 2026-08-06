@@ -1,7 +1,7 @@
 <script setup>
 // PAG-S-UAT-04 시나리오 편집 (전용 페이지)
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useTestContext } from '@/app/composables/useTestContext'
 import { getScenarioEditGroups, saveScenarioCase } from '@/entities/scenario/mock/scenario'
 import ScenarioLoadFromWbsModal from '@/pages/workspace/test/scenario/ScenarioLoadFromWbsModal.vue'
@@ -12,7 +12,6 @@ import ScenarioRequirementSearchModal from '@/pages/workspace/test/scenario/Scen
 const STEP_MAX = 20
 
 const route = useRoute()
-const router = useRouter()
 const { mode, config } = useTestContext()
 
 const groups = ref([])
@@ -45,10 +44,6 @@ onMounted(loadGroups)
 watch(mode, loadGroups)
 
 const pageTitle = computed(() => `시나리오 편집 (${config.value.label})`)
-
-function goBack() {
-  router.push({ name: 'scenario', params: { mode: mode.value } })
-}
 
 function nextCaseId(prefix = 'TC') {
   caseSeq += 1
@@ -90,17 +85,13 @@ function removeStep(caseRow, idx) {
   caseRow.stepCount = caseRow.steps.length
 }
 
-function moveStep(caseRow, idx, dir) {
-  const next = idx + dir
-  if (next < 0 || next >= caseRow.steps.length) return
-  const steps = caseRow.steps
-  ;[steps[idx], steps[next]] = [steps[next], steps[idx]]
-  steps.forEach((s, i) => {
-    s.no = i + 1
-  })
-}
-
 const dragState = ref({ caseId: null, fromIdx: null })
+
+function autoGrow(e) {
+  const el = e.target
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
 
 function onStepDragStart(caseRow, idx) {
   dragState.value = { caseId: caseRow.id, fromIdx: idx }
@@ -243,7 +234,6 @@ function onWbsConfirm(round) {
     }
   }
   selectedRound.value = round
-  window.alert(`${round} 시나리오 기준으로 덮어쓰기 되었습니다.`)
 }
 
 function onLibraryConfirm(cases) {
@@ -272,44 +262,42 @@ function onLibraryConfirm(cases) {
       round: selectedRound.value,
     })
   }
-  window.alert(`${cases.length}건을 복사했습니다.`)
 }
 </script>
 
 <template>
   <div class="scenario-edit">
     <div class="head">
-      <button type="button" class="back-btn" @click="goBack">← 시나리오 목록</button>
       <h1 class="scenario-edit__title">{{ pageTitle }}</h1>
-    </div>
-
-    <div class="toolbar card">
-      <div class="toolbar__left">
-        <label class="round-sel">
-          <span>차수</span>
-          <select v-model="selectedRound">
-            <option v-for="o in config.roundOptions.filter((r) => r !== '전체')" :key="o" :value="o">
-              {{ o }}
-            </option>
-          </select>
-        </label>
-      </div>
-      <div class="toolbar__right">
-        <button type="button" class="btn btn--ghost" @click="toggleAllCollapse">
-          {{ allCollapsed ? '전체열기' : '전체접기' }}
-        </button>
-        <button type="button" class="btn btn--ghost" @click="loadFromWbs">불러오기</button>
-        <button type="button" class="btn btn--ghost" @click="copyFromLibrary">라이브러리 복사</button>
-        <button type="button" class="btn btn--ghost" @click="openScreenSearch">테스트대상 신규등록</button>
-        <button type="button" class="btn btn--primary" @click="saveAll">저장</button>
-      </div>
+      <label class="round-sel">
+        <span>차수</span>
+        <select v-model="selectedRound">
+          <option v-for="o in config.roundOptions.filter((r) => r !== '전체')" :key="o" :value="o">
+            {{ o }}
+          </option>
+        </select>
+      </label>
+      <div class="head__spacer" />
+      <button type="button" class="btn btn--primary" @click="saveAll">시나리오 저장</button>
     </div>
 
     <p class="notice">※ 화면당 케이스 1개 이상, 케이스당 절차 1개 이상 등록이 필요합니다. (절차는 최대 {{ STEP_MAX }}개)</p>
 
+    <div class="toolbar card">
+      <div class="toolbar__right">
+        <button type="button" class="btn btn--ghost" @click="loadFromWbs">불러오기</button>
+        <button type="button" class="btn btn--ghost" @click="copyFromLibrary">라이브러리 복사</button>
+        <button type="button" class="btn btn--ghost" @click="openScreenSearch">테스트대상 신규등록</button>
+      </div>
+    </div>
+
     <div v-if="!groups.length" class="empty-groups card">
       등록된 테스트대상이 없습니다. "불러오기", "라이브러리 복사" 또는 "테스트대상 신규등록"으로 추가하세요.
     </div>
+
+    <button v-else type="button" class="btn btn--ghost btn--sm expand-all-btn" @click="toggleAllCollapse">
+      {{ allCollapsed ? '전체열기' : '전체접기' }}
+    </button>
 
     <div v-for="group in groups" :key="`${group.reqId}-${group.screenName}`" class="target card">
       <div class="target__head">
@@ -329,36 +317,29 @@ function onLibraryConfirm(cases) {
       >
         <div class="case-block__meta">
           <button type="button" class="collapse-btn" @click="toggleCollapse(caseRow.id)">
-            {{ isCollapsed(caseRow.id) ? '▶' : '▼' }}
+            {{ isCollapsed(caseRow.id) ? '▼' : '▲' }}
           </button>
           <span class="case-no">{{ caseIdx + 1 }}</span>
           <span class="case-id">{{ caseRow.caseId }}</span>
+          <span class="field-lab">케이스명</span>
           <input v-model="caseRow.caseName" class="inp case-name" type="text" placeholder="케이스명" />
+          <span class="field-lab">수행구분</span>
           <select v-model="caseRow.executionType" class="inp">
             <option v-for="o in config.editExecutionTypeOptions" :key="o" :value="o">{{ o }}</option>
           </select>
+          <span class="step-count">절차 {{ caseRow.steps.length }}건</span>
           <button type="button" class="icon-btn" title="요구사항 검색" @click="openReqSearch(caseRow)">🔍</button>
           <button type="button" class="link-btn case-remove" @click="removeCase(group, caseRow)">✕ 케이스 삭제</button>
         </div>
 
         <template v-if="!isCollapsed(caseRow.id)">
-          <div class="form-block">
-            <label>테스트 참고사항</label>
-            <textarea v-model="caseRow.note" class="inp textarea" rows="2" placeholder="참고사항 입력" />
-          </div>
-
-          <div class="steps-head">
-            <h4>절차 / 예상결과</h4>
-            <button type="button" class="btn btn--ghost btn--sm" @click="addStep(caseRow)">+ 절차 추가</button>
-          </div>
-
           <table class="step-table">
             <thead>
               <tr>
+                <th style="width: 32px"></th>
                 <th style="width: 40px">No</th>
                 <th>절차</th>
                 <th>예상결과</th>
-                <th style="width: 88px">순서</th>
                 <th style="width: 48px"></th>
               </tr>
             </thead>
@@ -372,26 +353,19 @@ function onLibraryConfirm(cases) {
                 @dragover.prevent
                 @drop="onStepDrop(caseRow, idx)"
               >
+                <td class="center drag-handle" title="드래그하여 순서 변경">::</td>
                 <td class="center">{{ step.no }}</td>
-                <td><input v-model="step.procedure" class="inp" type="text" /></td>
-                <td><input v-model="step.expected" class="inp" type="text" /></td>
+                <td><textarea v-model="step.procedure" class="inp textarea step-textarea" rows="1" @input="autoGrow" /></td>
+                <td><textarea v-model="step.expected" class="inp textarea step-textarea" rows="1" @input="autoGrow" /></td>
                 <td class="center">
-                  <button type="button" class="icon-btn" :disabled="idx === 0" @click="moveStep(caseRow, idx, -1)">▲</button>
-                  <button
-                    type="button"
-                    class="icon-btn"
-                    :disabled="idx === caseRow.steps.length - 1"
-                    @click="moveStep(caseRow, idx, 1)"
-                  >
-                    ▼
-                  </button>
-                </td>
-                <td class="center">
-                  <button type="button" class="link-btn" @click="removeStep(caseRow, idx)">삭제</button>
+                  <button type="button" class="link-btn" @click="removeStep(caseRow, idx)">X</button>
                 </td>
               </tr>
             </tbody>
           </table>
+          <div class="steps-head">
+            <button type="button" class="btn btn--ghost btn--sm" @click="addStep(caseRow)">+ 절차 추가</button>
+          </div>
         </template>
       </div>
     </div>
@@ -414,16 +388,11 @@ function onLibraryConfirm(cases) {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
-.back-btn {
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
+.head__spacer {
+  flex: 1;
 }
 
 .scenario-edit__title {
@@ -435,7 +404,7 @@ function onLibraryConfirm(cases) {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 12px 16px;
   margin-bottom: 12px;
 }
@@ -443,6 +412,47 @@ function onLibraryConfirm(cases) {
 .toolbar__right {
   display: flex;
   gap: 8px;
+}
+
+.expand-all-btn {
+  margin-bottom: 10px;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
+.btn--primary {
+  background: var(--teal);
+  color: var(--color-text-inverse);
+}
+
+.btn--primary:hover {
+  background: var(--teal-600);
+}
+
+.btn--ghost {
+  background: var(--lnb-side);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn--ghost:hover {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
 }
 
 .round-sel {
@@ -575,27 +585,26 @@ function onLibraryConfirm(cases) {
 
 .case-name {
   flex: 1;
-  min-width: 200px;
+  min-width: 160px;
 }
 
-.form-block {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.form-block label {
+.field-lab {
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   font-weight: 600;
 }
 
+.step-count {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--teal-600);
+  font-weight: 600;
+}
+
 .steps-head {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 8px;
+  margin-top: 8px;
 }
 
 .steps-head h4 {
@@ -651,9 +660,20 @@ function onLibraryConfirm(cases) {
   font-size: calc(10px + var(--font-size-offset, 0px));
 }
 
-.icon-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.step-textarea {
+  width: 100%;
+  min-height: 32px;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+  font-family: inherit;
 }
 
 .link-btn {

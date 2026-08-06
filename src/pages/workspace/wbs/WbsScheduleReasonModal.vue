@@ -40,6 +40,7 @@ function close() {
 
 <style scoped>
 .reason-box {
+  max-width: 600px;
   background: var(--teal-50);
   border: 1px solid var(--teal-100);
   border-radius: var(--radius-lg);
@@ -51,6 +52,8 @@ function close() {
   font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
   color: var(--lnb-txt);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .reason-box__meta {

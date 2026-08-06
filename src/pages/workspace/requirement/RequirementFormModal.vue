@@ -3,11 +3,11 @@
 // v1.0: 상세 수정 가능: 접수·수용(확정여부 무관) / 불가: 반려만 (SB p.98~101)
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
+import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import RequirementScreenSearchModal from '@/pages/workspace/requirement/RequirementScreenSearchModal.vue'
 import RequirementChangeReasonModal from '@/pages/workspace/requirement/RequirementChangeReasonModal.vue'
 import {
   requirementTypes,
-  registerTaskTypes,
   systemOptions,
   bizCategoryMap,
 } from '@/entities/requirement/mock/requirement'
@@ -276,13 +276,6 @@ function removeAttachment(idx) {
   form.attachments.splice(idx, 1)
 }
 
-function toggleTaskType(type) {
-  if (!canEditFields.value) return
-  const idx = form.taskTypes.indexOf(type)
-  if (idx >= 0) form.taskTypes.splice(idx, 1)
-  else form.taskTypes.push(type)
-}
-
 function onSystemChange() {
   if (!canEditFields.value) return
   const opts = bizCategoryMap[form.system] || []
@@ -344,16 +337,8 @@ function save() {
     window.alert('추가된 업무범주의 시스템/업무구분을 선택해 주세요.')
     return
   }
-  if (form.status === '수용' && !form.taskTypes.length) {
-    window.alert('수용 상태에서는 업무유형을 1개 이상 선택해 주세요.')
-    return
-  }
   if (form.status === '수용' && !form.screenName && !form.screenMenu) {
     window.alert('수용 상태에서는 화면(메뉴)을 선택해 주세요.')
-    return
-  }
-  if (!form.taskTypes.length && isRegister.value) {
-    window.alert('업무유형을 1개 이상 선택해 주세요.')
     return
   }
   if (!window.confirm('저장하시겠습니까?')) return
@@ -416,23 +401,47 @@ function diffFields(entry) {
 
 <template>
   <BaseModal :title="title" :visible="modelValue" wide @close="close">
+    <template #title-extra>
+      <BaseTooltip text="업무범주는 '업무범주 추가' 버튼으로 여러 개를 조합해 등록할 수 있습니다. (예: 시스템A 화면1 + 시스템B 화면2)" />
+    </template>
+    <p v-if="metaLine" class="meta-line">{{ metaLine }}</p>
     <section class="section">
       <h3 class="section__title">요구사항 기본 정보</h3>
       <div class="frow">
-        <div class="fld">
+        <div class="fld fld--reqid">
           <label>요구사항 ID</label>
           <div class="inp inp--ro">{{ form.reqId }}</div>
         </div>
-        <div class="fld fld--wide">
-          <label class="fld--req">요구사항명</label>
-          <input
-            v-model="form.name"
-            class="inp"
-            type="text"
-            maxlength="100"
-            :disabled="!canEditFields"
-          />
+        <div class="fld">
+          <label class="fld--req">
+            구분
+            <BaseTooltip text="최초 요구사항 : 현업에서 발의한 최초 개발 요청사항 · 추가 요구사항 : 최초 발의된 요구사항에 없던 신규 요구사항" />
+          </label>
+          <div class="seg">
+            <button
+              v-for="t in requirementTypes"
+              :key="t"
+              type="button"
+              class="seg__btn"
+              :class="{ 'seg__btn--on': form.reqType === t }"
+              :disabled="reqTypeLocked || !canEditFields"
+              @click="form.reqType = t"
+            >
+              {{ t }}
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div class="fld">
+        <label class="fld--req">요구사항명</label>
+        <input
+          v-model="form.name"
+          class="inp"
+          type="text"
+          maxlength="100"
+          :disabled="!canEditFields"
+        />
       </div>
 
       <div class="fld">
@@ -457,23 +466,6 @@ function diffFields(entry) {
           placeholder="테크(기획/개발)에서 상세 분석/정의한 내용 입력"
           :disabled="!canEditFields"
         />
-      </div>
-
-      <div class="fld">
-        <label class="fld--req">구분</label>
-        <div class="seg">
-          <button
-            v-for="t in requirementTypes"
-            :key="t"
-            type="button"
-            class="seg__btn"
-            :class="{ 'seg__btn--on': form.reqType === t }"
-            :disabled="reqTypeLocked || !canEditFields"
-            @click="form.reqType = t"
-          >
-            {{ t }}
-          </button>
-        </div>
       </div>
     </section>
 
@@ -568,30 +560,19 @@ function diffFields(entry) {
         ＋ 업무범주 추가
       </button>
 
-      <div class="fld fld--req">
-        <label>업무유형</label>
-        <div class="chips">
-          <button
-            v-for="t in registerTaskTypes"
-            :key="t"
-            type="button"
-            class="chip-btn"
-            :class="{ 'chip-btn--on': form.taskTypes.includes(t) }"
-            :disabled="!canEditFields"
-            @click="toggleTaskType(t)"
-          >
-            {{ t }}
-          </button>
-        </div>
-      </div>
     </section>
 
     <section class="section">
       <h3 class="section__title">추가 정보</h3>
       <div class="frow frow--2">
         <div class="fld">
-          <label>상태</label>
-          <div class="seg">
+          <label>
+            상태
+            <BaseTooltip
+              text="접수 : 요건 분석 및 요건 정의 초안 단계 (화면/메뉴 및 업무유형 선택 등록) · 수용 : SB 초안에 반영된 상태 (화면/메뉴 및 업무유형 필수 등록) · 반려 : 현업에서 개발 요건 취소한 상태"
+            />
+          </label>
+          <div class="seg seg--tight">
             <button
               v-for="s in ['접수', '수용', '반려']"
               :key="s"
@@ -607,7 +588,7 @@ function diffFields(entry) {
         </div>
         <div class="fld">
           <label>우선순위</label>
-          <div class="seg">
+          <div class="seg seg--tight">
             <button
               v-for="p in ['낮음', '보통', '높음']"
               :key="p"
@@ -625,7 +606,7 @@ function diffFields(entry) {
 
       <div class="confirm-row">
         <span class="confirm-label">
-          요건확정
+          요건확정 <span class="confirm-label__star">*</span>
           <button
             type="button"
             class="confirm-tip"
@@ -691,11 +672,10 @@ function diffFields(entry) {
         </div>
       </div>
 
-      <p v-if="metaLine" class="meta-line">{{ metaLine }}</p>
     </section>
 
     <section v-if="isEdit" class="section">
-      <h3 class="section__title">변경 이력</h3>
+      <h3 class="section__title">변경 이력 (요구사항 기본정보)</h3>
       <div class="history-summary">총 <b>{{ historyTotal }}</b>건</div>
 
       <div v-if="!historyList.length" class="history-empty">변경 이력이 없습니다.</div>
@@ -768,12 +748,19 @@ function diffFields(entry) {
 <style scoped>
 .section {
   margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-lg, 10px);
 }
 
 .section__title {
   margin: 0 0 12px;
   font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
+}
+
+.fld--reqid {
+  max-width: 200px;
 }
 
 .frow {
@@ -876,6 +863,10 @@ label.fld--req::after {
   border-right: none;
 }
 
+.seg--tight .seg__btn:last-child {
+  width: 50px;
+}
+
 .seg__btn--on {
   background: var(--teal);
   color: var(--color-text-inverse);
@@ -883,35 +874,6 @@ label.fld--req::after {
 }
 
 .seg__btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip-btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--lnb-line);
-  border-radius: 20px;
-  background: var(--lnb-side);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.chip-btn--on {
-  background: var(--teal-50);
-  border-color: var(--teal-100);
-  color: var(--teal-600);
-  font-weight: 700;
-}
-
-.chip-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -929,9 +891,13 @@ label.fld--req::after {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
-  color: var(--lnb-txt);
+  color: #000;
+}
+
+.confirm-label__star {
+  color: var(--red);
 }
 
 .confirm-tip {
@@ -989,8 +955,14 @@ label.fld--req::after {
   color: var(--lnb-muted);
 }
 
+:deep(.modal__header) .tooltip {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .meta-line {
-  margin: 8px 0 0;
+  margin: 0 0 10px;
+  text-align: right;
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
@@ -1156,11 +1128,21 @@ label.fld--req::after {
   color: var(--lnb-muted);
 }
 
+.history-item__head .link-btn {
+  font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
 .history-diff {
   width: 100%;
   margin-top: 10px;
   border-collapse: collapse;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  table-layout: fixed;
+}
+
+.history-diff th:first-child,
+.history-diff td:first-child {
+  width: 20%;
 }
 
 .history-diff th,
@@ -1168,12 +1150,15 @@ label.fld--req::after {
   padding: 6px 8px;
   border: 1px solid var(--lnb-line);
   text-align: left;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .history-diff th {
   background: var(--lnb-side);
   color: var(--lnb-muted);
   font-weight: 600;
+  text-align: center;
 }
 
 .history-more {

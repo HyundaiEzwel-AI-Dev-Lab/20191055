@@ -2,6 +2,7 @@
 // POP-S-UAT-05 시나리오 불러오기 — DEV모드는 단위테스트만, 운영(UAT)모드는 DEV+운영 차수만 단일선택 → 덮어쓰기
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
+import { roundCaseCounts } from '@/entities/scenario/mock/scenario'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -36,12 +37,13 @@ function confirm() {
   }
   if (
     !window.confirm(
-      `선택한 차수(${selected.value})의 시나리오로 현재 내용을 덮어쓰시겠습니까?\n기존에 입력한 내용은 사라집니다.`,
+      `선택한 ${selected.value} 시나리오를 불러오시겠습니까? 기존에 입력한 내용은 사라집니다.`,
     )
   ) {
     return
   }
   emit('confirm', selected.value)
+  window.alert('선택한 시나리오를 불러왔습니다.')
   close()
 }
 </script>
@@ -49,7 +51,7 @@ function confirm() {
 <template>
   <BaseModal title="시나리오 불러오기" :visible="modelValue" @close="close">
     <p class="notice">
-      불러올 차수를 선택하세요. 확인 시 현재 화면의 시나리오가 선택한 차수 기준으로 덮어쓰기 됩니다.
+      불러올 시나리오를 선택한 후 [불러오기] 버튼을 클릭하세요. 현재 편집 중인 시나리오는 선택한 시나리오로 덮어쓰기됩니다.
     </p>
     <div v-if="!availableRounds.length" class="empty">불러올 시나리오가 없습니다.</div>
     <ul v-else class="round-list">
@@ -57,6 +59,7 @@ function confirm() {
         <label class="round-item">
           <input v-model="selected" type="radio" name="load-round" :value="r" />
           {{ r }}
+          <span class="round-item__count">{{ roundCaseCounts[r] ?? 0 }}case</span>
         </label>
       </li>
     </ul>
@@ -99,6 +102,12 @@ function confirm() {
   font-size: calc(13px + var(--font-size-offset, 0px));
   cursor: pointer;
   border-bottom: 1px solid var(--lnb-line);
+}
+
+.round-item__count {
+  margin-left: auto;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
 }
 
 .round-list li:last-child .round-item {

@@ -8,7 +8,6 @@ import {
   scenarioMeta,
   getScenarioList,
   matchScenarioFilters,
-  saveScenarioCase,
 } from '@/entities/scenario/mock/scenario'
 import ScenarioBulkRegisterModal from '@/pages/workspace/test/scenario/ScenarioBulkRegisterModal.vue'
 import TestNoteModal from '@/pages/workspace/test/scenario/TestNoteModal.vue'
@@ -40,8 +39,7 @@ const expandedIds = ref(new Set())
 const expandAll = ref(false)
 
 const showBulkModal = ref(false)
-const showNoteModal = ref(false)
-const noteTarget = ref(null)
+const showCommonNoteModal = ref(false)
 
 const filteredList = computed(() =>
   rows.value.filter((row) => matchScenarioFilters(row, appliedFilters.value, config.value)),
@@ -122,18 +120,11 @@ function openEdit(row) {
 
 function goRequirement(row) {
   if (!row.reqId) return
-  router.push('/workspace/requirement')
+  router.push({ path: '/workspace/requirement', query: { reqId: row.reqId } })
 }
 
-function openNote(row) {
-  noteTarget.value = row
-  showNoteModal.value = true
-}
-
-function onNoteSave(text) {
-  if (!noteTarget.value) return
-  noteTarget.value.note = text
-  if (noteTarget.value.caseId) saveScenarioCase(noteTarget.value.caseId, { note: text })
+function onCommonNoteSave(text) {
+  scenarioMeta.commonNote[mode.value] = text
 }
 
 function onBulkRegister() {
@@ -166,19 +157,15 @@ function onBulkConfirm(items) {
 
 <template>
   <div class="scenario">
-    <h1 class="scenario__title">{{ pageTitle }}</h1>
+    <div class="scenario__head">
+      <h1 class="scenario__title">{{ pageTitle }}</h1>
+      <button type="button" class="note-link" @click="showCommonNoteModal = true">
+        테스트 참고사항
+      </button>
+    </div>
 
     <section class="filter card">
       <div class="filter__row filter__row--5">
-        <div class="filter__field">
-          <label>케이스 검색</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="케이스 ID, 케이스명"
-          />
-        </div>
         <div class="filter__field">
           <label>시스템</label>
           <select v-model="filters.system" class="filter__select">
@@ -190,6 +177,15 @@ function onBulkConfirm(items) {
           <select v-model="filters.bizCategory" class="filter__select">
             <option v-for="o in bizCategoryOptions" :key="o" :value="o">{{ o }}</option>
           </select>
+        </div>
+        <div class="filter__field">
+          <label>케이스 검색</label>
+          <input
+            v-model="filters.keyword"
+            class="filter__input"
+            type="text"
+            placeholder="케이스 ID, 케이스명"
+          />
         </div>
         <div class="filter__field">
           <label>차수</label>
@@ -209,9 +205,9 @@ function onBulkConfirm(items) {
         <div class="filter__field filter__field--range">
           <label>계획일</label>
           <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__input" type="date" />
+            <input v-model="filters.dateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
             <span>~</span>
-            <input v-model="filters.dateTo" class="filter__input" type="date" />
+            <input v-model="filters.dateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
           </div>
         </div>
         <div class="filter__field">
@@ -226,7 +222,8 @@ function onBulkConfirm(items) {
       </div>
 
       <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        {{ filterExpanded ? '▲ 검색조건 접기' : '＋ 검색조건 확장' }}
+        검색조건
+        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
       </button>
 
       <div class="filter__actions">
@@ -234,8 +231,6 @@ function onBulkConfirm(items) {
         <button type="button" class="btn btn--primary" @click="search">조회</button>
       </div>
     </section>
-
-    <p class="notice card">{{ scenarioMeta.notice }}</p>
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
@@ -256,8 +251,8 @@ function onBulkConfirm(items) {
         <table class="data-table">
           <thead>
             <tr>
-              <th class="col-no">No</th>
               <th class="col-expand"></th>
+              <th class="col-no">No</th>
               <th>요구사항 ID</th>
               <th>수행구분</th>
               <th>시스템/업무</th>
@@ -266,18 +261,17 @@ function onBulkConfirm(items) {
               <th>케이스 ID</th>
               <th>케이스명</th>
               <th>절차</th>
-              <th>편집</th>
             </tr>
           </thead>
           <tbody>
             <template v-for="(row, idx) in pagedList" :key="row.id">
               <tr class="main-row" :class="{ 'main-row--open': expandedIds.has(row.id) }">
-                <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
                 <td>
                   <button type="button" class="expand-btn" @click="toggleExpand(row.id)">
-                    {{ expandedIds.has(row.id) ? '▼' : '▶' }}
+                    {{ expandedIds.has(row.id) ? '▲' : '▼' }}
                   </button>
                 </td>
+                <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
                 <td>
                   <button v-if="row.reqId" type="button" class="link-btn" @click="goRequirement(row)">
                     {{ row.reqId }}
@@ -295,19 +289,10 @@ function onBulkConfirm(items) {
                   </button>
                 </td>
                 <td>{{ row.stepCount || 0 }}</td>
-                <td>
-                  <button type="button" class="link-btn" @click="openEdit(row)">편집</button>
-                </td>
               </tr>
               <tr v-if="expandedIds.has(row.id)" class="detail-row">
-                <td colspan="11">
+                <td colspan="10">
                   <div class="step-panel">
-                    <div class="step-note-row">
-                      <p class="step-note">참고: {{ row.note || '-' }}</p>
-                      <button type="button" class="note-edit-btn" title="참고사항 편집" @click="openNote(row)">
-                        ✎
-                      </button>
-                    </div>
                     <table class="inner-table">
                       <thead>
                         <tr>
@@ -348,7 +333,7 @@ function onBulkConfirm(items) {
       @close="showBulkModal = false"
       @register="onBulkConfirm"
     />
-    <TestNoteModal v-model="showNoteModal" :note="noteTarget?.note" @save="onNoteSave" />
+    <TestNoteModal v-model="showCommonNoteModal" :note="scenarioMeta.commonNote[mode]" @save="onCommonNoteSave" />
   </div>
 </template>
 
@@ -359,10 +344,28 @@ function onBulkConfirm(items) {
   font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
+.scenario__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 14px;
+}
+
 .scenario__title {
   font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
-  margin: 0 0 14px;
+  margin: 0;
+}
+
+.note-link {
+  border: none;
+  background: none;
+  color: var(--teal-600);
+  font-weight: 600;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
 }
 
 .filter {
@@ -413,6 +416,9 @@ function onBulkConfirm(items) {
 .filter__range .filter__input { flex: 1; }
 
 .filter__expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: none;
   background: none;
   color: var(--teal-600);
@@ -423,19 +429,56 @@ function onBulkConfirm(items) {
   font-family: inherit;
 }
 
+.filter__expand-icon {
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.filter__expand-icon.is-open {
+  transform: rotate(180deg);
+}
+
 .filter__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.notice {
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  background: var(--teal-50);
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
+.btn--primary {
+  background: var(--teal);
+  color: var(--color-text-inverse);
+}
+
+.btn--primary:hover {
+  background: var(--teal-600);
+}
+
+.btn--ghost {
+  background: var(--lnb-side);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn--ghost:hover {
   border-color: var(--teal-100);
   color: var(--teal-600);
-  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
 .toolbar {
@@ -487,6 +530,7 @@ function onBulkConfirm(items) {
 .data-table th {
   background: var(--field);
   font-weight: 600;
+  text-align: center;
 }
 
 .col-expand { width: 36px; }
@@ -526,41 +570,33 @@ function onBulkConfirm(items) {
 
 .step-panel { padding: 12px 16px 16px 48px; }
 
-.step-note-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.step-note {
-  margin: 0;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--teal-600);
-}
-
-.note-edit-btn {
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  cursor: pointer;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  padding: 0;
-}
-
 .inner-table {
   width: 100%;
   border-collapse: collapse;
   font-size: calc(11px + var(--font-size-offset, 0px));
+  background: var(--lnb-side);
+  table-layout: fixed;
 }
 
 .inner-table th,
 .inner-table td {
   padding: 6px 10px;
   border: 1px solid var(--line);
+  background: var(--lnb-side);
 }
 
-.inner-table th { background: var(--lnb-side); }
+.inner-table th { background: var(--field); }
+
+.inner-table th:first-child,
+.inner-table td:first-child {
+  width: 48px;
+  text-align: center;
+}
+
+.inner-table th:nth-child(2),
+.inner-table th:nth-child(3) {
+  width: calc(50% - 24px);
+}
 
 .link-btn {
   border: none;

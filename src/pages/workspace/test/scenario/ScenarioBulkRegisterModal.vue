@@ -57,31 +57,29 @@ function downloadTemplate() {
     '시나리오 일괄등록 양식',
     [
       {
-        caseId: 'TC-001',
-        caseName: '샘플 케이스명',
         reqId: 'REQ-001',
         executionType: '오픈 전',
+        systemBiz: 'FO>법인숙박',
+        screenPath: '여행레저>복지혜택',
         screenName: '화면명',
         screenId: 'FO-001',
-        systemPath: 'FO>법인숙박',
-        screenPath: '여행레저>복지혜택',
-        round: '1차',
+        caseId: 'TC-001',
+        caseName: '샘플 케이스명',
         stepNo: 1,
         procedure: '테스트 절차 입력',
         expected: '예상결과 입력',
       },
     ],
     [
-      { key: 'caseId', label: '케이스ID' },
-      { key: 'caseName', label: '케이스명' },
-      { key: 'reqId', label: '요구사항ID' },
+      { key: 'reqId', label: '요구사항 ID' },
       { key: 'executionType', label: '수행구분' },
+      { key: 'systemBiz', label: '시스템 > 업무구분' },
+      { key: 'screenPath', label: '화면경로' },
       { key: 'screenName', label: '화면명' },
       { key: 'screenId', label: '화면ID' },
-      { key: 'systemPath', label: '시스템경로' },
-      { key: 'screenPath', label: '화면경로' },
-      { key: 'round', label: '차수' },
-      { key: 'stepNo', label: '절차NO' },
+      { key: 'caseId', label: '케이스ID' },
+      { key: 'caseName', label: '케이스명' },
+      { key: 'stepNo', label: 'NO' },
       { key: 'procedure', label: '테스트절차' },
       { key: 'expected', label: '예상결과' },
     ],
@@ -103,85 +101,69 @@ function close() {
 </script>
 
 <template>
-  <BaseModal :visible="visible" title="시나리오 일괄등록 (POP-UAT-03)" @close="close">
-    <p class="guide">
-      엑셀 양식을 다운로드한 뒤 케이스·절차 정보를 입력하고 업로드하세요.
-    </p>
-
-    <div class="actions-row">
-      <ExcelDownloadButton title="양식 다운로드" @click="downloadTemplate" />
-      <span class="actions-row__label">양식 다운로드</span>
-      <label class="upload-btn">
-        파일업로드
-        <input type="file" accept=".xlsx,.xls,.csv" hidden @change="onFileChange" />
-      </label>
+  <BaseModal :visible="visible" title="시나리오 일괄 등록(엑셀 업로드)" @close="close">
+    <div class="section">
+      <p class="guide">
+        정해진 양식의 엑셀파일만 업로드 할 수 있습니다.<br />
+        파일 업로드 후 유효성 검사 시, 실패 건수가 없어야 시나리오를 등록할 수 있습니다.
+      </p>
     </div>
 
-    <div
-      class="dropzone"
-      :class="{ 'dropzone--active': isDragging }"
-      @dragover.prevent="isDragging = true"
-      @dragleave.prevent="isDragging = false"
-      @drop.prevent="onDrop"
-    >
-      파일을 이 영역으로 드래그하여 첨부할 수 있습니다.
+    <div class="section">
+      <div class="actions-row">
+        <ExcelDownloadButton title="양식 다운로드" @click="downloadTemplate" />
+        <span class="actions-row__label">양식 다운로드</span>
+        <label class="upload-btn">
+          파일업로드
+          <input type="file" accept=".xlsx,.xls,.csv" hidden @change="onFileChange" />
+        </label>
+      </div>
+
+      <div
+        class="dropzone"
+        :class="{ 'dropzone--active': isDragging }"
+        @dragover.prevent="isDragging = true"
+        @dragleave.prevent="isDragging = false"
+        @drop.prevent="onDrop"
+      >
+        파일을 이 영역으로 드래그하여 첨부할 수 있습니다.
+      </div>
+
+      <p v-if="fileName" class="file-name">
+        선택 파일: <b>{{ fileName }}</b>
+        <span v-if="uploading"> · 파싱 중...</span>
+      </p>
     </div>
 
-    <p v-if="fileName" class="file-name">
-      선택 파일: <b>{{ fileName }}</b>
-      <span v-if="uploading"> · 파싱 중...</span>
-    </p>
-
-    <div v-if="previewRows.length" class="preview">
-      <h4>미리보기 ({{ previewRows.length }}건)</h4>
+    <div v-if="previewRows.length" class="section preview">
+      <h4>유효성 결과</h4>
       <div class="summary-row">
-        <span>전체 <b>{{ previewRows.length }}</b>건</span>
+        <span>
+          전체 <b>{{ previewRows.length }}</b>건 (신규 <b>{{ newCount }}</b>건, 업데이트
+          <b>{{ updateCount }}</b>건)
+        </span>
         <span class="ok">정상 <b>{{ validRows.length }}</b>건</span>
         <span class="fail">실패 <b>{{ failedRows.length }}</b>건</span>
-        <span>신규 <b>{{ newCount }}</b>건</span>
-        <span>업데이트 <b>{{ updateCount }}</b>건</span>
       </div>
-      <table class="preview-table">
-        <thead>
-          <tr>
-            <th>케이스 ID</th>
-            <th>케이스명</th>
-            <th>요구사항ID</th>
-            <th>수행구분</th>
-            <th>화면명</th>
-            <th>화면ID</th>
-            <th>차수</th>
-            <th>절차 수</th>
-            <th>구분</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in validRows" :key="row.caseId">
-            <td>{{ row.caseId }}</td>
-            <td>{{ row.caseName }}</td>
-            <td>{{ row.reqId || '-' }}</td>
-            <td>{{ row.executionType || '-' }}</td>
-            <td>{{ row.screenName }}</td>
-            <td>{{ row.screenId || '-' }}</td>
-            <td>{{ row.round }}</td>
-            <td>{{ row.steps.length }}</td>
-            <td>{{ row.validation.isUpdate ? '업데이트' : '신규' }}</td>
-          </tr>
-        </tbody>
-      </table>
 
       <template v-if="failedRows.length">
         <h4 class="fail-title">실패내역 ({{ failedRows.length }}건)</h4>
         <table class="preview-table">
           <thead>
             <tr>
-              <th>케이스 ID</th>
+              <th>요구사항ID</th>
+              <th>수행구분</th>
+              <th>화면명</th>
+              <th>케이스ID</th>
               <th>케이스명</th>
               <th>실패 사유</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in failedRows" :key="row.caseId">
+              <td>{{ row.reqId || '-' }}</td>
+              <td>{{ row.executionType || '-' }}</td>
+              <td>{{ row.screenName || '-' }}</td>
               <td>{{ row.caseId }}</td>
               <td>{{ row.caseName || '-' }}</td>
               <td class="fail">{{ row.validation.errors.join(', ') }}</td>
@@ -206,8 +188,15 @@ function close() {
 </template>
 
 <style scoped>
+.section {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 .guide {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
   line-height: 1.5;

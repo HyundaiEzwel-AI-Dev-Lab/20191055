@@ -1,6 +1,6 @@
 <script setup>
 // PAG-S-DAS-01 프로젝트 대시보드
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/app/stores/project'
 import { useAuthStore } from '@/app/stores/auth'
@@ -10,8 +10,6 @@ import {
   formatPeriod,
   statusTone,
 } from '@/entities/dashboard/mock/projectDashboard'
-import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
-import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const router = useRouter()
 const projectStore = useProjectStore()
@@ -26,9 +24,6 @@ function loadData() {
 
 onMounted(loadData)
 watch(() => projectStore.currentProject?.id, loadData)
-
-const gaugePlan = computed(() => `${(data.value?.totalProgress.planRate / 2).toFixed(1)}%`)
-const gaugeExec = computed(() => `${(data.value?.totalProgress.execRate / 2).toFixed(1)}%`)
 
 const typeIcons = {
   기획: { label: '기', color: 'var(--teal-600)' },
@@ -50,26 +45,6 @@ function complianceLabel(status) {
 function goWbs() {
   router.push({ name: 'wbs' })
 }
-
-function onExcelDownload() {
-  mockExcelDownload(
-    '프로젝트 대시보드',
-    (data.value?.details || []).map((row) => ({
-      ...row,
-      planPeriod: `${row.planStart || '-'} ~ ${row.planEnd || '-'}`,
-      execPeriod: `${row.execStart || '-'} ~ ${row.execEnd || '진행중'}`,
-    })),
-    [
-      { key: 'taskType', label: '업무유형' },
-      { key: 'assignee', label: '담당자' },
-      { key: 'planPeriod', label: '계획일정' },
-      { key: 'execPeriod', label: '실행일정' },
-      { key: 'execRate', label: '실행 공정률(%)' },
-      { key: 'planDiff', label: '계획대비' },
-      { key: 'compliance', label: '계획준수' },
-    ],
-  )
-}
 </script>
 
 <template>
@@ -78,11 +53,36 @@ function onExcelDownload() {
       프로젝트 현황
       <span class="proj-dash__hint">(기준일 : {{ data.updatedAt }})</span>
     </h1>
-    <p class="proj-dash__sub">
-      {{ data.projectName }} · {{ projectDashboardMeta.refreshInterval }}마다 자동 갱신 (목업)
-    </p>
 
     <div class="top-grid">
+      <section class="card pad progress-panel">
+        <h3 class="sec-title">총 공정률 (자동계산)</h3>
+        <div class="progress-main">
+          <div class="gauge" :style="{ '--p': data.totalProgress.execRate }">
+            <div class="gauge__hole"><b>{{ data.totalProgress.execRate }}%</b></div>
+          </div>
+          <div class="progress-texts">
+            <div class="progress-text-row">
+              <span class="progress-text-row__lab">계획기준 공정률</span>
+              <span class="progress-text-row__val">{{ data.totalProgress.planRate }}%</span>
+            </div>
+            <div class="progress-text-row">
+              <span class="progress-text-row__lab">실행기준 공정률</span>
+              <span class="progress-text-row__val">{{ data.totalProgress.execRate }}%</span>
+            </div>
+            <div class="progress-text-row">
+              <span class="progress-text-row__lab">계획 대비</span>
+              <span class="progress-text-row__val progress-diff">{{ data.totalProgress.diffLabel }}</span>
+            </div>
+          </div>
+        </div>
+        <p class="note">총 공정률은 계획/실행 기준으로 자동 산정</p>
+        <div class="period-row">
+          <span>계획 {{ formatPeriod(data.totalProgress.planPeriod.start, data.totalProgress.planPeriod.end) }}</span>
+          <span>실행 {{ formatPeriod(data.totalProgress.execPeriod.start, data.totalProgress.execPeriod.end) }}</span>
+        </div>
+      </section>
+
       <section class="card pad schedule-panel">
         <h3 class="sec-title">일정 현황</h3>
         <div class="schedule-cards">
@@ -93,8 +93,11 @@ function onExcelDownload() {
             :class="`schedule-card--${card.tone}`"
           >
             <header class="schedule-card__head">
-              <span class="schedule-card__label">{{ card.label }}</span>
-              <span class="schedule-card__diff">{{ card.diffLabel }}</span>
+              <span class="schedule-card__label">
+                <span class="schedule-card__check" :class="`schedule-card__check--${card.tone}`">✓</span>
+                {{ card.label }}
+              </span>
+              <span class="schedule-card__diff">계획대비 {{ card.diffLabel }}</span>
             </header>
             <div class="schedule-card__row">
               <span class="schedule-card__key">계획 기간</span>
@@ -108,43 +111,17 @@ function onExcelDownload() {
             </div>
           </article>
         </div>
-      </section>
-
-      <section class="card pad progress-panel">
-        <h3 class="sec-title">총 공정률 (자동계산)</h3>
-        <div class="progress-main">
-          <div class="progress-sub__item">
-            <span class="progress-sub__lab">실행 기준</span>
-            <div class="gauge gauge--lg" :style="{ '--p': gaugeExec }">
-              <div class="gauge__arc" />
-              <div class="gauge__hole"><b>{{ data.totalProgress.execRate }}%</b></div>
-            </div>
-          </div>
-          <div class="progress-sub">
-            <div class="progress-sub__item">
-              <span class="progress-sub__lab">계획기준</span>
-              <div class="gauge gauge--sm" :style="{ '--p': gaugePlan }">
-                <div class="gauge__arc" />
-                <div class="gauge__hole"><b>{{ data.totalProgress.planRate }}%</b></div>
-              </div>
-            </div>
-            <div class="progress-sub__item">
-              <span class="progress-sub__lab">계획 대비</span>
-              <span class="progress-diff">{{ data.totalProgress.diffLabel }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="period-row">
-          <span>계획 {{ formatPeriod(data.totalProgress.planPeriod.start, data.totalProgress.planPeriod.end) }}</span>
-          <span>실행 {{ formatPeriod(data.totalProgress.execPeriod.start, data.totalProgress.execPeriod.end) }}</span>
-        </div>
+        <p class="note">진행중인 일정 기준 예상 결과</p>
       </section>
 
       <section class="card pad summary-panel">
-        <h3 class="sec-title">지연/단축 정보</h3>
+        <div class="summary-panel__head">
+          <h3 class="sec-title">지연/단축 정보</h3>
+          <span class="refresh-hint">{{ projectDashboardMeta.refreshInterval }}마다 자동 갱신 (목업)</span>
+        </div>
         <div class="summary-chips">
           <div class="summary-chip summary-chip--delay" @click="goWbs">
-            <span class="summary-chip__lab">경과(예상)</span>
+            <span class="summary-chip__lab summary-chip__lab--link">경과(예상)</span>
             <span class="summary-chip__num">{{ data.delaySummary.expectedDelay }}<small>건</small></span>
           </div>
           <div class="summary-chip summary-chip--normal">
@@ -152,11 +129,11 @@ function onExcelDownload() {
             <span class="summary-chip__num">{{ data.delaySummary.normal }}<small>건</small></span>
           </div>
           <div class="summary-chip summary-chip--shorten" @click="goWbs">
-            <span class="summary-chip__lab">단축(예상)</span>
+            <span class="summary-chip__lab summary-chip__lab--link">단축(예상)</span>
             <span class="summary-chip__num">{{ data.delaySummary.expectedShorten }}<small>건</small></span>
           </div>
         </div>
-        <p class="note">{{ projectDashboardMeta.scheduleNote }}</p>
+        <p class="note">진행/완료 업무별 단축/지연 여부 기준</p>
       </section>
     </div>
 
@@ -167,7 +144,6 @@ function onExcelDownload() {
           v-for="item in data.typeSummary"
           :key="item.type"
           class="type-card"
-          :class="`type-card--${statusTone(item.status)}`"
         >
           <span class="type-card__icon" :style="{ background: typeIcon(item.type).color }">{{
             typeIcon(item.type).label
@@ -177,7 +153,7 @@ function onExcelDownload() {
           <div v-if="item.rate != null" class="type-card__bar">
             <i :style="{ width: `${item.rate}%` }" />
           </div>
-          <span class="type-card__status">{{ item.statusLabel }}</span>
+          <span class="type-card__status" :class="`type-card__status--${statusTone(item.status)}`">{{ item.statusLabel }}</span>
         </article>
       </div>
     </section>
@@ -185,11 +161,8 @@ function onExcelDownload() {
     <section class="card listcard">
       <div class="listcard__head">
         <h3 class="sec-title">업무별 상세 현황</h3>
-        <div class="listcard__head-actions">
-          <button type="button" class="link-btn" @click="goWbs">WBS 관리 →</button>
-          <ExcelDownloadButton @click="onExcelDownload" />
-        </div>
       </div>
+      <p class="note listcard__note">{{ projectDashboardMeta.scheduleNote }}</p>
       <div class="listcard__scroll">
         <table class="tbl">
           <thead>
@@ -211,13 +184,21 @@ function onExcelDownload() {
               @click="goWbs"
             >
               <td>
+                <span class="type-icon" :style="{ background: typeIcon(row.taskType).color }">{{
+                  typeIcon(row.taskType).label
+                }}</span>
                 <span class="status-dot" :class="`status-dot--${statusTone(row.status)}`" />
                 {{ row.taskType }}
               </td>
-              <td>{{ row.assignee }}</td>
+              <td>{{ row.assignee }}<span v-if="row.empId" class="emp-id">({{ row.empId }})</span></td>
               <td>{{ formatPeriod(row.planStart, row.planEnd) }}</td>
               <td>{{ formatPeriod(row.execStart, row.execEnd, !row.execEnd) }}</td>
-              <td><b>{{ row.execRate }}%</b></td>
+              <td>
+                <div class="rate-cell">
+                  <b>{{ row.execRate }}%</b>
+                  <div class="rate-cell__bar"><i :style="{ width: `${row.execRate}%` }" /></div>
+                </div>
+              </td>
               <td :class="{ 'text-delay': row.planDiff.startsWith('+'), 'text-shorten': row.planDiff.startsWith('-') }">
                 {{ row.planDiff }}
               </td>
@@ -229,14 +210,6 @@ function onExcelDownload() {
         </table>
       </div>
     </section>
-
-    <footer class="legend card pad">
-      <span v-for="item in projectDashboardMeta.legend" :key="item.key" class="legend__item">
-        <span class="status-dot" :class="`status-dot--${statusTone(item.key)}`" />
-        {{ item.label }}
-      </span>
-      <span class="legend__note">* 총 공정률을 계획/실행 기준으로 자동 산정 · 진행/완료 업무별 단축/지연 여부 기준</span>
-    </footer>
   </div>
 </template>
 
@@ -250,7 +223,7 @@ function onExcelDownload() {
 .proj-dash__title {
   font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
-  margin: 0 0 4px;
+  margin: 0 0 14px;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -262,21 +235,23 @@ function onExcelDownload() {
   color: var(--muted);
 }
 
-.proj-dash__sub {
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--ink-2);
-  margin: 0 0 14px;
-}
-
 .sec-title {
   margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
   font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
+.summary-panel__head .sec-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .top-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 0.8fr;
+  grid-template-columns: 1fr 1.2fr 0.8fr;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -320,7 +295,20 @@ function onExcelDownload() {
 }
 
 .schedule-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: calc(14px + var(--font-size-offset, 0px));
+}
+
+.schedule-card__check {
   font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: var(--green);
+}
+
+.schedule-card__check--delay {
+  color: var(--red);
 }
 
 .schedule-card__diff {
@@ -351,49 +339,30 @@ function onExcelDownload() {
   margin-bottom: 10px;
 }
 
-.progress-big {
+.progress-texts {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
-.progress-big__lab {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.progress-big__num {
-  font-size: calc(36px + var(--font-size-offset, 0px));
-  font-weight: 800;
-  color: var(--teal-600);
-  line-height: 1;
-}
-
-.progress-big__num small {
-  font-size: calc(18px + var(--font-size-offset, 0px));
-}
-
-.progress-sub {
+.progress-text-row {
   display: flex;
-  gap: 16px;
-}
-
-.progress-sub__item {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
-.progress-sub__lab {
-  font-size: calc(10px + var(--font-size-offset, 0px));
+.progress-text-row__lab {
+  min-width: 100px;
   color: var(--muted);
+}
+
+.progress-text-row__val {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .progress-diff {
-  font-size: calc(14px + var(--font-size-offset, 0px));
-  font-weight: 700;
   color: var(--teal-700);
 }
 
@@ -406,62 +375,62 @@ function onExcelDownload() {
 }
 
 .gauge {
-  width: 72px;
-  height: 40px;
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
   position: relative;
-  overflow: hidden;
-}
-
-.gauge--lg {
-  width: 96px;
-  height: 52px;
-}
-
-.gauge--lg .gauge__arc {
-  width: 96px;
-  height: 96px;
-}
-
-.gauge--lg .gauge__hole b {
-  font-size: calc(16px + var(--font-size-offset, 0px));
-}
-
-.gauge__arc {
-  width: 72px;
-  height: 72px;
   border-radius: 50%;
-  background: conic-gradient(from 270deg, var(--teal-500) 0 var(--p, 30%), var(--line-2) var(--p, 30%) 50%, transparent 50%);
+  background: conic-gradient(var(--teal-500) calc(var(--p) * 1%), var(--line-2) 0);
 }
 
 .gauge__hole {
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 0;
-  top: 10px;
+  inset: 14px;
+  border-radius: 50%;
   background: var(--lnb-side);
-  border-radius: 72px 72px 0 0;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding-bottom: 2px;
 }
 
 .gauge__hole b {
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: calc(20px + var(--font-size-offset, 0px));
+  color: var(--teal-600);
+}
+
+.note {
+  margin: 8px 0 0;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.summary-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.refresh-hint {
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
+  color: var(--muted);
 }
 
 .summary-chips {
   display: flex;
-  flex-direction: column;
   gap: 8px;
   margin-bottom: 10px;
 }
 
 .summary-chip {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--field);
@@ -480,6 +449,10 @@ function onExcelDownload() {
 .summary-chip__lab {
   font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
+}
+
+.summary-chip__lab--link {
+  text-decoration: underline;
 }
 
 .summary-chip__num {
@@ -502,13 +475,6 @@ function onExcelDownload() {
 
 .summary-chip--shorten .summary-chip__num {
   color: var(--green);
-}
-
-.note {
-  margin: 0;
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  line-height: 1.4;
 }
 
 .type-grid {
@@ -542,7 +508,7 @@ function onExcelDownload() {
 }
 
 .type-card__name {
-  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--ink-2);
 }
@@ -553,14 +519,10 @@ function onExcelDownload() {
   color: var(--teal-600);
 }
 
-.type-card--wait .type-card__rate {
-  color: var(--muted);
-}
-
 .type-card__bar {
-  height: 6px;
+  height: 10px;
   background: var(--line-2);
-  border-radius: 3px;
+  border-radius: 5px;
   overflow: hidden;
 }
 
@@ -568,22 +530,25 @@ function onExcelDownload() {
   display: block;
   height: 100%;
   background: var(--teal-500);
-  border-radius: 3px;
+  border-radius: 5px;
 }
 
 .type-card__status {
-  font-size: calc(10px + var(--font-size-offset, 0px));
+  font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
+  font-weight: 600;
 }
 
-.type-card--delay {
-  border-color: var(--red);
-  background: var(--lnb-side);
+.type-card__status--delay {
+  color: var(--red);
 }
 
-.type-card--shorten {
-  border-color: var(--green);
-  background: var(--green-bg);
+.type-card__status--shorten {
+  color: var(--green);
+}
+
+.type-card__status--normal {
+  color: var(--teal-600);
 }
 
 .listcard {
@@ -599,15 +564,14 @@ function onExcelDownload() {
   padding: 14px 16px 0;
 }
 
-.listcard__head-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.listcard__note {
+  margin: 4px 0 0;
+  padding: 0 16px;
 }
 
 .listcard__scroll {
   overflow-x: auto;
-  padding: 0 0 4px;
+  padding: 8px 0 4px;
 }
 
 .tbl {
@@ -619,7 +583,7 @@ function onExcelDownload() {
 .tbl thead th {
   background: var(--field);
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 9px 12px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -637,6 +601,20 @@ function onExcelDownload() {
 
 .tbl__row:hover {
   background: var(--teal-50);
+}
+
+.type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  margin-right: 6px;
+  font-size: calc(8px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: #fff;
+  vertical-align: middle;
 }
 
 .status-dot {
@@ -662,6 +640,33 @@ function onExcelDownload() {
 
 .status-dot--wait {
   background: var(--gray);
+}
+
+.emp-id {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: calc(11px + var(--font-size-offset, 0px));
+}
+
+.rate-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rate-cell__bar {
+  width: 60px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.rate-cell__bar i {
+  display: block;
+  height: 100%;
+  background: var(--teal-500);
+  border-radius: 3px;
 }
 
 .text-delay {
@@ -694,36 +699,6 @@ function onExcelDownload() {
 .compliance--단축 {
   background: var(--green-bg);
   color: var(--green);
-}
-
-.link-btn {
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.legend {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--ink-2);
-}
-
-.legend__item {
-  display: inline-flex;
-  align-items: center;
-}
-
-.legend__note {
-  margin-left: auto;
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  color: var(--muted);
 }
 
 @media (max-width: 1100px) {

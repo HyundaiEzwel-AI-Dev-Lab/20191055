@@ -116,17 +116,14 @@ defineEmits(['close'])
   margin-right: 6px;
 }
 
-.change-line__before {
-  color: var(--muted);
+.change-line__before,
+.change-line__after {
+  color: inherit;
+  font-weight: 400;
 }
 
 .change-line__arrow {
   margin: 0 6px;
   color: var(--muted);
-}
-
-.change-line__after {
-  color: var(--teal-600);
-  font-weight: 600;
 }
 </style>
