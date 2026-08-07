@@ -473,6 +473,7 @@ function onExcelDownload() {
                       :class="resultClass(step.byTester[name]?.result)"
                       :value="step.byTester[name]?.result"
                       :disabled="!isMyColumn(name) || ['수정완료', '재처리요청', 'DEV확인', '운영확인'].includes(step.byTester[name]?.result)"
+                      :title="isMyColumn(name) ? '' : `담당 테스터(${name})만 결과를 입력할 수 있습니다.`"
                       @change="setStepResult(row, step, name, $event.target.value)"
                     >
                       <option value="대기">대기</option>
@@ -495,6 +496,7 @@ function onExcelDownload() {
                     type="button"
                     class="link-btn link-btn--register"
                     :disabled="!myErrorTesterFor(row, step)"
+                    :title="myErrorTesterFor(row, step) ? '' : '본인이 담당한 절차의 결과를 \'오류\'로 설정하면 등록할 수 있습니다.'"
                     @click="openErrorRegister(row, step, myErrorTesterFor(row, step))"
                   >
                     등록
