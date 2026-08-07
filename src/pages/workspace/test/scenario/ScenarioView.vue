@@ -1,6 +1,6 @@
 <script setup>
 // PAG-S-UAT-01 시나리오 관리
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTestContext } from '@/app/composables/useTestContext'
 import { bizCategoryOptions, pageSizeOptions, systemOptions } from '@/shared/lib/testConfig'
@@ -22,17 +22,17 @@ const { mode, config, pageTitle } = useTestContext()
 
 const rows = ref([])
 const filterExpanded = ref(false)
+const selectedRound = ref('')
 const filters = ref({
   keyword: '',
   system: '전체',
   bizCategory: '전체',
-  round: '전체',
   executionType: '전체',
   dateFrom: '',
   dateTo: '',
   screenKeyword: '',
 })
-const appliedFilters = ref({ ...filters.value })
+const appliedFilters = ref({ ...filters.value, round: '' })
 const pageSize = ref(20)
 const currentPage = ref(1)
 const expandedIds = ref(new Set())
@@ -40,6 +40,9 @@ const expandAll = ref(false)
 
 const showBulkModal = ref(false)
 const showCommonNoteModal = ref(false)
+const showEditMenu = ref(false)
+
+const roundTabs = computed(() => config.value.roundOptions.filter((r) => r !== '전체'))
 
 const filteredList = computed(() =>
   rows.value.filter((row) => matchScenarioFilters(row, appliedFilters.value, config.value)),
@@ -62,6 +65,8 @@ const allExpandedOnPage = computed(
 
 function loadData() {
   rows.value = getScenarioList(mode.value, authStore.user?.id)
+  selectedRound.value = roundTabs.value[0]
+  appliedFilters.value = { ...filters.value, round: selectedRound.value }
   expandedIds.value = new Set()
   currentPage.value = 1
 }
@@ -69,23 +74,38 @@ function loadData() {
 onMounted(loadData)
 watch(mode, loadData)
 
+function closeEditMenuOnOutsideClick(e) {
+  if (!e.target.closest('.split-btn')) showEditMenu.value = false
+}
+watch(showEditMenu, (open) => {
+  if (open) document.addEventListener('mousedown', closeEditMenuOnOutsideClick)
+  else document.removeEventListener('mousedown', closeEditMenuOnOutsideClick)
+})
+onUnmounted(() => document.removeEventListener('mousedown', closeEditMenuOnOutsideClick))
+
 function resetFilters() {
   filters.value = {
     keyword: '',
     system: '전체',
     bizCategory: '전체',
-    round: '전체',
     executionType: '전체',
     dateFrom: '',
     dateTo: '',
     screenKeyword: '',
   }
-  appliedFilters.value = { ...filters.value }
+  appliedFilters.value = { ...filters.value, round: selectedRound.value }
   currentPage.value = 1
 }
 
 function search() {
-  appliedFilters.value = { ...filters.value }
+  appliedFilters.value = { ...filters.value, round: selectedRound.value }
+  currentPage.value = 1
+  expandedIds.value = new Set()
+}
+
+function selectRound(round) {
+  selectedRound.value = round
+  appliedFilters.value = { ...appliedFilters.value, round }
   currentPage.value = 1
   expandedIds.value = new Set()
 }
@@ -111,10 +131,11 @@ function toggleExpandAll() {
 }
 
 function openEdit(row) {
+  showEditMenu.value = false
   router.push({
     name: 'scenario-edit',
     params: { mode: mode.value },
-    query: row ? { caseId: row.caseId } : {},
+    query: { round: selectedRound.value, ...(row ? { caseId: row.caseId } : {}) },
   })
 }
 
@@ -158,14 +179,33 @@ function onBulkConfirm(items) {
 <template>
   <div class="scenario">
     <div class="scenario__head">
-      <h1 class="scenario__title">{{ pageTitle }}</h1>
-      <button type="button" class="note-link" @click="showCommonNoteModal = true">
-        테스트 참고사항
+      <div class="scenario__head-left">
+        <h1 class="scenario__title">{{ pageTitle }}</h1>
+        <div class="round-tabs">
+          <button
+            v-for="r in roundTabs"
+            :key="r"
+            type="button"
+            class="round-tab"
+            :class="{ 'round-tab--on': selectedRound === r }"
+            @click="selectRound(r)"
+          >
+            {{ r }}
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="memo-btn"
+        title="테스트 참고사항"
+        @click="showCommonNoteModal = true"
+      >
+        📝 테스트 참고사항
       </button>
     </div>
 
     <section class="filter card">
-      <div class="filter__row filter__row--5">
+      <div class="filter__row filter__row--4">
         <div class="filter__field">
           <label>시스템</label>
           <select v-model="filters.system" class="filter__select">
@@ -186,12 +226,6 @@ function onBulkConfirm(items) {
             type="text"
             placeholder="케이스 ID, 케이스명"
           />
-        </div>
-        <div class="filter__field">
-          <label>차수</label>
-          <select v-model="filters.round" class="filter__select">
-            <option v-for="o in config.roundOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
         </div>
         <div class="filter__field">
           <label>수행구분</label>
@@ -241,8 +275,20 @@ function onBulkConfirm(items) {
         {{ allExpandedOnPage ? '전체접기' : '전체열기' }}
       </button>
       <div class="toolbar__spacer" />
-      <button type="button" class="btn btn--ghost btn--sm" @click="openEdit()">시나리오 편집</button>
-      <button type="button" class="btn btn--primary btn--sm" @click="onBulkRegister">일괄등록</button>
+      <div class="split-btn">
+        <button type="button" class="split-btn__main" @click="onBulkRegister">일괄등록</button>
+        <button
+          type="button"
+          class="split-btn__toggle"
+          :class="{ 'split-btn__toggle--on': showEditMenu }"
+          @click="showEditMenu = !showEditMenu"
+        >
+          ▾
+        </button>
+        <div v-if="showEditMenu" class="split-btn__menu">
+          <button type="button" class="split-btn__item" @click="openEdit()">시나리오 편집</button>
+        </div>
+      </div>
       <ExcelDownloadButton @click="onExcelDownload" />
     </div>
 
@@ -333,7 +379,12 @@ function onBulkConfirm(items) {
       @close="showBulkModal = false"
       @register="onBulkConfirm"
     />
-    <TestNoteModal v-model="showCommonNoteModal" :note="scenarioMeta.commonNote[mode]" @save="onCommonNoteSave" />
+    <TestNoteModal
+      v-model="showCommonNoteModal"
+      anchor-top-right
+      :note="scenarioMeta.commonNote[mode]"
+      @save="onCommonNoteSave"
+    />
   </div>
 </template>
 
@@ -351,21 +402,61 @@ function onBulkConfirm(items) {
   margin: 0 0 14px;
 }
 
+.scenario__head-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .scenario__title {
   font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0;
 }
 
-.note-link {
-  border: none;
-  background: none;
-  color: var(--teal-600);
+.round-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.round-tab {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--lnb-side);
+  color: var(--ink-2);
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.round-tab--on {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--color-text-inverse);
+}
+
+.memo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--lnb-side);
+  color: var(--ink);
   font-weight: 600;
   font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
-  padding: 0;
+}
+
+.memo-btn:hover {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
 }
 
 .filter {
@@ -379,7 +470,6 @@ function onBulkConfirm(items) {
   margin-bottom: 10px;
 }
 
-.filter__row--5 { grid-template-columns: repeat(5, 1fr); }
 .filter__row--4 { grid-template-columns: repeat(4, 1fr); }
 .filter__row--3 { grid-template-columns: 1.2fr 1fr; }
 
@@ -503,6 +593,78 @@ function onBulkConfirm(items) {
   cursor: pointer;
 }
 .toolbar__spacer { flex: 1; }
+
+.split-btn {
+  position: relative;
+  display: flex;
+  height: 28px;
+  border-radius: 7px;
+  overflow: visible;
+}
+
+.split-btn__main,
+.split-btn__toggle {
+  border: none;
+  background: var(--teal);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.split-btn__main {
+  padding: 0 12px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  border-radius: 7px 0 0 7px;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.split-btn__main:hover,
+.split-btn__toggle:hover {
+  background: var(--teal-600);
+}
+
+.split-btn__toggle {
+  width: 26px;
+  border-radius: 0 7px 7px 0;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+}
+
+.split-btn__toggle--on {
+  background: var(--teal-600);
+}
+
+.split-btn__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--lnb-side);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.12));
+}
+
+.split-btn__item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.split-btn__item:hover {
+  background: var(--teal-50);
+  color: var(--teal-600);
+}
 
 .listcard {
   background: var(--lnb-side);
