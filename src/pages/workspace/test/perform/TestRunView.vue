@@ -10,14 +10,12 @@ import {
   matchTestRunFilters,
   isCaseDimmed,
 } from '@/entities/test-run/mock/testRun'
-import { getDefectList, updateDefect, addDefect } from '@/entities/defect/mock/testDefect'
-import TestErrorRegisterModal from '@/pages/workspace/test/perform/TestErrorRegisterModal.vue'
+import { getDefectList } from '@/entities/defect/mock/testDefect'
+import ErrorDetailModal from '@/pages/workspace/test/defects/ErrorDetailModal.vue'
 import TestRunTesterChangeModal from '@/pages/workspace/test/perform/TestRunTesterChangeModal.vue'
 import TestRunInfoModal from '@/pages/workspace/test/perform/TestRunInfoModal.vue'
 import TestNoteModal from '@/pages/workspace/test/scenario/TestNoteModal.vue'
 import { scenarioMeta } from '@/entities/scenario/mock/scenario'
-import DefectDetailModal from '@/pages/workspace/test/defects/DefectDetailModal.vue'
-import BaseModal from '@/shared/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
@@ -31,8 +29,6 @@ const rows = ref([])
 const expanded = ref(new Set())
 const myTestsOnly = ref(false)
 const errorTarget = ref(null)
-const showErrorDetail = ref(false)
-const errorDetailTarget = ref(null)
 const filterExpanded = ref(false)
 const showTesterChange = ref(false)
 const showRunInfo = ref(false)
@@ -127,12 +123,6 @@ function isMyColumn(name) {
   return !currentUser.value || name === currentUser.value
 }
 
-// 오류등록/조치여부는 담당자별이 아니라 절차(스텝) 1건당 공용으로 관리한다 (SB p162, POP-S-UAT-13).
-// 내가 담당한 테스터 컬럼 중 '오류'로 표시된 항목이 있으면 그 컬럼을 등록 대상으로 사용한다.
-function myErrorTesterFor(row, step) {
-  return row.testers.find((name) => isMyColumn(name) && step.byTester[name]?.result === '오류')
-}
-
 function openTesterChange() {
   showTesterChange.value = true
 }
@@ -164,64 +154,35 @@ function onCommonNoteSave(text) {
   scenarioMeta.commonNote[mode.value] = text
 }
 
-function viewErrors(row, step) {
-  // 케이스 + 절차 단위로 등록된 오류를 모두 보여준다 (담당자별로 쪼개지 않음).
-  const list = getDefectList(mode.value).filter(
-    (d) => d.caseId === row.caseId && d.stepNo === step.no,
-  )
-  if (!list.length) {
-    window.alert('등록된 오류가 없습니다.')
-    return
-  }
-  errorDetailTarget.value = list[0]
-  showErrorDetail.value = true
-}
-
-function onErrorDetailSave(updates) {
-  if (!errorDetailTarget.value) return
-  updateDefect(errorDetailTarget.value.id, updates)
-  const refreshed = getDefectList(mode.value).find((d) => d.id === errorDetailTarget.value.id)
-  if (!refreshed) return
-  errorDetailTarget.value = refreshed
-  const row = rows.value.find((r) => r.caseId === refreshed.caseId)
-  const step = row?.steps.find((s) => s.no === refreshed.stepNo)
-  if (step) step.fixStatus = refreshed.status
-  // 결함 "조치확인(테스터 입력)" 결과(수정완료/재처리요청)를 원래 오류를 등록한
-  // 테스터의 결과 셀에 자동 동기화한다 (SB p.165 테스트결과 자동변경정책).
-  if (step && refreshed.tester && ['수정완료', '재처리요청', 'DEV확인', '운영확인'].includes(refreshed.result)) {
-    const cell = step.byTester[refreshed.tester]
-    if (cell) {
-      cell.result = refreshed.result
-      cell.executedAt = (refreshed.updatedAt || '').slice(0, 10) || cell.executedAt
-    }
-    recalcRow(row)
-  }
-}
-
-function openErrorRegister(row, step, testerName) {
+function openError(row, step) {
+  const testerName = row.testers.find((name) => isMyColumn(name)) || ''
   errorTarget.value = { row, step, testerName }
 }
 
-function closeErrorRegister() {
+function closeError() {
   errorTarget.value = null
 }
 
-function onErrorRegistered(payload) {
-  const { row, step, testerName } = errorTarget.value
-  // 결함관리(PAG-S-UAT-14)·오류 목록(POP-S-UAT-13 사이드바)에 실제로 반영되도록 결함을 등록한다.
-  const newDefect = addDefect(payload, mode.value)
-  const cell = step.byTester[testerName]
-  if (cell) {
-    cell.result = '오류'
-    if (!cell.executedAt) cell.executedAt = '2026-04-17'
+/** 오류등록 팝업(ErrorDetailModal)에서 등록/조치/확인이 저장될 때마다 호출된다.
+ * 오류등록/조치여부는 절차(스텝) 1건당 공용 컬럼이라, 등록한 테스터의 결과셀과
+ * step.fixStatus, 케이스 집계(errorCount/fixPending)를 여기서 동기화한다. */
+function onErrorChanged(defect) {
+  const row = rows.value.find((r) => r.caseId === defect.caseId)
+  if (!row) return
+  const step = row.steps.find((s) => s.no === defect.stepNo)
+  if (step) {
+    step.fixStatus = defect.status
+    const cell = step.byTester[defect.tester]
+    if (cell) {
+      cell.result = defect.result
+      cell.executedAt = (defect.updatedAt || defect.registeredAt || '').slice(0, 10) || cell.executedAt
+    }
   }
-  // 조치여부는 절차(스텝) 1건에 공용으로 붙는다 — 담당자별로 각각 생기지 않는다.
-  step.fixStatus = newDefect.status
-  row.errorCount = (row.errorCount || 0) + 1
-  row.fixPending = (row.fixPending || 0) + 1
-  row.result = '오류'
+  const caseDefects = getDefectList(mode.value).filter((d) => d.caseId === row.caseId)
+  row.errorCount = caseDefects.length
+  row.fixPending = caseDefects.filter((d) => !['처리완료', '오류아님', '수정제외'].includes(d.status)).length
+  row.fixDone = caseDefects.filter((d) => d.status === '처리완료').length
   recalcRow(row)
-  closeErrorRegister()
 }
 
 function setStepResult(row, step, testerName, result) {
@@ -490,18 +451,10 @@ function onExcelDownload() {
                     {{ step.byTester[name]?.executedAt || '-' }}
                   </td>
                 </template>
-                <!-- 오류등록/조치여부는 담당자별이 아니라 절차(케이스) 1건당 공용 컬럼이다. -->
+                <!-- 오류등록/조치여부는 담당자별이 아니라 절차(케이스) 1건당 공용 컬럼이다.
+                     등록과 조회가 동일한 팝업(ErrorDetailModal)을 쓰므로 버튼은 하나면 된다. -->
                 <td class="center error-actions">
-                  <button
-                    type="button"
-                    class="link-btn link-btn--register"
-                    :disabled="!myErrorTesterFor(row, step)"
-                    :title="myErrorTesterFor(row, step) ? '' : '본인이 담당한 절차의 결과를 \'오류\'로 설정하면 등록할 수 있습니다.'"
-                    @click="openErrorRegister(row, step, myErrorTesterFor(row, step))"
-                  >
-                    등록
-                  </button>
-                  <button type="button" class="link-btn link-btn--lookup" @click="viewErrors(row, step)">조회</button>
+                  <button type="button" class="link-btn" @click="openError(row, step)">오류등록</button>
                 </td>
                 <td class="center">
                   <span
@@ -522,13 +475,15 @@ function onExcelDownload() {
       <p v-if="!filtered.length" class="empty">조회 결과가 없습니다.</p>
     </div>
 
-    <TestErrorRegisterModal
+    <ErrorDetailModal
       :visible="!!errorTarget"
       :case-row="errorTarget?.row"
       :step="errorTarget?.step"
+      :tester-name="errorTarget?.testerName"
       :mode="mode"
-      @close="closeErrorRegister"
-      @register="onErrorRegistered"
+      :config="config"
+      @close="closeError"
+      @changed="onErrorChanged"
     />
     <TestRunTesterChangeModal
       v-model="showTesterChange"
@@ -542,9 +497,6 @@ function onExcelDownload() {
       anchor-top-right
       @save="onCommonNoteSave"
     />
-    <BaseModal :visible="showErrorDetail" title="오류 상세" wide @close="showErrorDetail = false">
-      <DefectDetailModal :row="errorDetailTarget" :config="config" @save="onErrorDetailSave" />
-    </BaseModal>
   </div>
 </template>
 
@@ -958,29 +910,13 @@ function onExcelDownload() {
   border: none;
   background: none;
   color: var(--teal-600);
+  font-weight: 700;
   cursor: pointer;
   font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
-.link-btn:disabled {
-  color: var(--muted);
-  cursor: not-allowed;
-}
-
 .error-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.link-btn--register {
-  color: var(--teal-600);
-  font-weight: 700;
-}
-
-.link-btn--lookup {
-  color: var(--muted);
+  text-align: center;
 }
 
 .fix-tag {
