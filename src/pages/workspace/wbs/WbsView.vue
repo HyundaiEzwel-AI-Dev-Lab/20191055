@@ -405,8 +405,8 @@ function onCalendarSelect(task) {
       <div class="view-toggle">
         <span class="wbs__progress">
           총 공정률
-          <span class="progress-gauge" :style="{ '--p': totalProgress }">
-            <span class="progress-gauge__hole"><b>{{ totalProgress }}%</b></span>
+          <span class="progress-bar">
+            <span class="progress-bar__fill" :style="{ width: `${totalProgress}%` }">{{ totalProgress }}%</span>
           </span>
         </span>
         <button
@@ -771,32 +771,30 @@ function onCalendarSelect(task) {
   white-space: nowrap;
 }
 
-.progress-gauge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
+.progress-bar {
+  display: inline-block;
   position: relative;
-  border-radius: 50%;
-  background: conic-gradient(var(--teal-500) calc(var(--p) * 1%), var(--line-2) 0);
+  width: 160px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid var(--ink-2);
+  border-radius: 10px;
+  background: var(--lnb-side);
+  overflow: hidden;
 }
 
-.progress-gauge__hole {
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: var(--lnb-side);
+.progress-bar__fill {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.progress-gauge__hole b {
-  color: var(--teal-600);
-  font-size: calc(10.5px + var(--font-size-offset, 0px));
+  height: 100%;
+  min-width: 28px;
+  background: linear-gradient(180deg, var(--muted), var(--ink-2));
+  border-right: 1px solid var(--ink-2);
+  color: var(--color-text-inverse, #fff);
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .card {

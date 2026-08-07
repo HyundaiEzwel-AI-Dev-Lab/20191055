@@ -11,9 +11,8 @@ import {
   pageSizeOptions,
   defectStatusClass,
 } from '@/shared/lib/testConfig'
-import { getDefectList, matchDefectFilters, computeDefectKpi, updateDefect } from '@/entities/defect/mock/testDefect'
-import DefectDetailModal from '@/pages/workspace/test/defects/DefectDetailModal.vue'
-import BaseModal from '@/shared/ui/BaseModal.vue'
+import { getDefectList, matchDefectFilters, computeDefectKpi } from '@/entities/defect/mock/testDefect'
+import ErrorDetailModal from '@/pages/workspace/test/defects/ErrorDetailModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { useAuthStore } from '@/app/stores/auth'
@@ -99,13 +98,8 @@ function openDetail(row) {
   showDetail.value = true
 }
 
-function onDefectSave(updates) {
-  if (!detailTarget.value) return
-  const targetId = detailTarget.value.id
-  updateDefect(targetId, updates)
+function onErrorChanged() {
   loadData()
-  const updated = rows.value.find((r) => r.id === targetId)
-  if (updated) detailTarget.value = updated
 }
 
 function onExcelDownload() {
@@ -274,9 +268,15 @@ function onExcelDownload() {
       </div>
     </div>
 
-    <BaseModal :visible="showDetail" title="오류 상세" wide @close="showDetail = false">
-      <DefectDetailModal :row="detailTarget" :config="config" @save="onDefectSave" />
-    </BaseModal>
+    <ErrorDetailModal
+      :visible="showDetail"
+      :case-row="detailTarget"
+      :initial-defect-id="detailTarget?.id"
+      :mode="mode"
+      :config="config"
+      @close="showDetail = false"
+      @changed="onErrorChanged"
+    />
 
     <div v-if="totalPages > 1" class="pager">
       <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">이전</button>
