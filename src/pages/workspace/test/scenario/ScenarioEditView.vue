@@ -1,6 +1,6 @@
 <script setup>
 // PAG-S-UAT-04 시나리오 편집 (전용 페이지)
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTestContext } from '@/app/composables/useTestContext'
 import { getScenarioEditGroups, saveScenarioCase } from '@/entities/scenario/mock/scenario'
@@ -24,6 +24,7 @@ const showReqSearch = ref(false)
 const reqSearchCase = ref(null)
 const collapsedCaseIds = ref(new Set())
 const allCollapsed = ref(false)
+const showLoadMenu = ref(false)
 let caseSeq = 100
 
 function loadGroups() {
@@ -34,7 +35,8 @@ function loadGroups() {
       steps: c.steps.map((s) => ({ ...s })),
     })),
   }))
-  selectedRound.value = mode.value === 'uat' ? '운영1차' : '3차'
+  const roundOptions = config.value.roundOptions.filter((r) => r !== '전체')
+  selectedRound.value = String(route.query.round || '') || roundOptions[0]
   highlightCaseId.value = String(route.query.caseId || '')
   collapsedCaseIds.value = new Set()
   allCollapsed.value = false
@@ -43,7 +45,16 @@ function loadGroups() {
 onMounted(loadGroups)
 watch(mode, loadGroups)
 
-const pageTitle = computed(() => `시나리오 편집 (${config.value.label})`)
+function closeLoadMenuOnOutsideClick(e) {
+  if (!e.target.closest('.split-btn')) showLoadMenu.value = false
+}
+watch(showLoadMenu, (open) => {
+  if (open) document.addEventListener('mousedown', closeLoadMenuOnOutsideClick)
+  else document.removeEventListener('mousedown', closeLoadMenuOnOutsideClick)
+})
+onUnmounted(() => document.removeEventListener('mousedown', closeLoadMenuOnOutsideClick))
+
+const pageTitle = computed(() => `시나리오 편집 (${config.value.label} ${selectedRound.value})`)
 
 function nextCaseId(prefix = 'TC') {
   caseSeq += 1
@@ -151,6 +162,7 @@ function removeCase(group, caseRow) {
 }
 
 function openScreenSearch() {
+  showLoadMenu.value = false
   showScreenSearch.value = true
 }
 
@@ -220,10 +232,12 @@ function saveAll() {
 }
 
 function loadFromWbs() {
+  showLoadMenu.value = false
   showWbsLoad.value = true
 }
 
 function copyFromLibrary() {
+  showLoadMenu.value = false
   showLibCopy.value = true
 }
 
@@ -269,14 +283,14 @@ function onLibraryConfirm(cases) {
   <div class="scenario-edit">
     <div class="head">
       <h1 class="scenario-edit__title">{{ pageTitle }}</h1>
-      <label class="round-sel">
-        <span>차수</span>
-        <select v-model="selectedRound">
-          <option v-for="o in config.roundOptions.filter((r) => r !== '전체')" :key="o" :value="o">
-            {{ o }}
-          </option>
-        </select>
-      </label>
+      <button
+        v-if="groups.length"
+        type="button"
+        class="btn btn--ghost btn--sm"
+        @click="toggleAllCollapse"
+      >
+        {{ allCollapsed ? '전체열기' : '전체접기' }}
+      </button>
       <div class="head__spacer" />
       <button type="button" class="btn btn--primary" @click="saveAll">시나리오 저장</button>
     </div>
@@ -285,19 +299,28 @@ function onLibraryConfirm(cases) {
 
     <div class="toolbar card">
       <div class="toolbar__right">
-        <button type="button" class="btn btn--ghost" @click="loadFromWbs">불러오기</button>
-        <button type="button" class="btn btn--ghost" @click="copyFromLibrary">라이브러리 복사</button>
-        <button type="button" class="btn btn--ghost" @click="openScreenSearch">테스트대상 신규등록</button>
+        <div class="split-btn">
+          <button type="button" class="split-btn__main" @click="loadFromWbs">불러오기</button>
+          <button
+            type="button"
+            class="split-btn__toggle"
+            :class="{ 'split-btn__toggle--on': showLoadMenu }"
+            @click="showLoadMenu = !showLoadMenu"
+          >
+            ▾
+          </button>
+          <div v-if="showLoadMenu" class="split-btn__menu">
+            <button type="button" class="split-btn__item" @click="loadFromWbs">시나리오 불러오기</button>
+            <button type="button" class="split-btn__item" @click="copyFromLibrary">라이브러리복사</button>
+            <button type="button" class="split-btn__item" @click="openScreenSearch">테스트대상 신규등록</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <div v-if="!groups.length" class="empty-groups card">
-      등록된 테스트대상이 없습니다. "불러오기", "라이브러리 복사" 또는 "테스트대상 신규등록"으로 추가하세요.
+      등록된 테스트대상이 없습니다. "불러오기"로 추가하세요.
     </div>
-
-    <button v-else type="button" class="btn btn--ghost btn--sm expand-all-btn" @click="toggleAllCollapse">
-      {{ allCollapsed ? '전체열기' : '전체접기' }}
-    </button>
 
     <div v-for="group in groups" :key="`${group.reqId}-${group.screenName}`" class="target card">
       <div class="target__head">
@@ -414,8 +437,75 @@ function onLibraryConfirm(cases) {
   gap: 8px;
 }
 
-.expand-all-btn {
-  margin-bottom: 10px;
+.split-btn {
+  position: relative;
+  display: flex;
+  height: 32px;
+  border-radius: 7px;
+}
+
+.split-btn__main,
+.split-btn__toggle {
+  border: none;
+  background: var(--teal);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.split-btn__main {
+  padding: 0 14px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  border-radius: 7px 0 0 7px;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.split-btn__main:hover,
+.split-btn__toggle:hover {
+  background: var(--teal-600);
+}
+
+.split-btn__toggle {
+  width: 30px;
+  border-radius: 0 7px 7px 0;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+}
+
+.split-btn__toggle--on {
+  background: var(--teal-600);
+}
+
+.split-btn__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--lnb-side);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.12));
+}
+
+.split-btn__item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.split-btn__item:hover {
+  background: var(--teal-50);
+  color: var(--teal-600);
 }
 
 .btn {
@@ -453,24 +543,6 @@ function onLibraryConfirm(cases) {
 .btn--ghost:hover {
   border-color: var(--teal-100);
   color: var(--teal-600);
-}
-
-.round-sel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.round-sel select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
-  color: var(--ink);
 }
 
 .notice {
