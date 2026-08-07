@@ -403,7 +403,12 @@ function onCalendarSelect(task) {
         <BaseTooltip :text="wbsMeta.hint" />
       </h1>
       <div class="view-toggle">
-        <span class="wbs__progress">총 공정률 <b>{{ totalProgress }}%</b></span>
+        <span class="wbs__progress">
+          총 공정률
+          <span class="progress-gauge" :style="{ '--p': totalProgress }">
+            <span class="progress-gauge__hole"><b>{{ totalProgress }}%</b></span>
+          </span>
+        </span>
         <button
           type="button"
           class="view-toggle__btn"
@@ -754,8 +759,11 @@ function onCalendarSelect(task) {
 }
 
 .wbs__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-right: 4px;
-  padding: 5px 10px;
+  padding: 4px 12px 4px 14px;
   background: var(--teal-50);
   border-radius: 999px;
   font-size: calc(12px + var(--font-size-offset, 0px));
@@ -763,9 +771,31 @@ function onCalendarSelect(task) {
   white-space: nowrap;
 }
 
-.wbs__progress b {
+.progress-gauge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  position: relative;
+  border-radius: 50%;
+  background: conic-gradient(var(--teal-500) calc(var(--p) * 1%), var(--line-2) 0);
+}
+
+.progress-gauge__hole {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--lnb-side);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-gauge__hole b {
   color: var(--teal-600);
-  font-size: calc(14px + var(--font-size-offset, 0px));
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
 
