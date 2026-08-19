@@ -11,6 +11,8 @@ import {
   matchHolidayFilters,
 } from '@/entities/holiday/holiday'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const allRows = ref(holidayList.map((r) => ({ ...r })))
@@ -19,11 +21,22 @@ const applied = ref({ ...filters.value })
 const selectedIds = ref([])
 const markedForDelete = ref([])
 
+const yearSelectOptions = yearOptions.map((y) => ({ value: y, label: `${y}년` }))
+
 const filtered = computed(() =>
   allRows.value
     .filter((r) => matchHolidayFilters(r, applied.value))
     .sort((a, b) => a.date.localeCompare(b.date)),
 )
+
+const filterTags = computed(() => {
+  const a = applied.value
+  const tags = []
+  if (a.year && Number(a.year) !== 2026) tags.push({ key: 'year', label: '연도', value: `${a.year}년` })
+  if (a.type && a.type !== '전체') tags.push({ key: 'type', label: '구분', value: a.type })
+  if (a.keyword) tags.push({ key: 'keyword', label: '휴무일명', value: a.keyword })
+  return tags
+})
 
 function isPast(date) {
   return date < holidayMockToday
@@ -36,6 +49,13 @@ function search() {
 
 function resetFilters() {
   filters.value = { year: 2026, type: '전체', keyword: '' }
+  search()
+}
+
+function removeFilterTag(key) {
+  if (key === 'year') filters.value.year = 2026
+  else if (key === 'type') filters.value.type = '전체'
+  else if (key === 'keyword') filters.value.keyword = ''
   search()
 }
 
@@ -123,36 +143,19 @@ function onExcelDownload() {
   <div class="admin-page">
     <div class="notice">ⓘ {{ holidayMeta.hint }}</div>
 
-    <section class="filter card">
-      <div class="filter__row filter__row--3">
-        <div class="filter__field">
-          <label>연도</label>
-          <select v-model="filters.year" class="filter__select">
-            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}년</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>구분</label>
-          <select v-model="filters.type" class="filter__select">
-            <option v-for="o in holidayTypeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>휴무일명</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="휴무일명 검색"
-            @keyup.enter="search"
-          />
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:search="filters.keyword"
+      search-placeholder="휴무일명 검색"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.year" label="연도" :options="yearSelectOptions" empty-label="" />
+        <FilterSelectPill v-model="filters.type" label="구분" :options="holidayTypeOptions" />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">

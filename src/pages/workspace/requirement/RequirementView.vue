@@ -23,6 +23,9 @@ import RequirementFormModal from '@/pages/workspace/requirement/RequirementFormM
 import RequirementBulkRegisterModal from '@/pages/workspace/requirement/RequirementBulkRegisterModal.vue'
 import RequirementScreenSearchModal from '@/pages/workspace/requirement/RequirementScreenSearchModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { addRequirementHistory } from '@/entities/project/mock/projectHistory'
 import { useProjectStore } from '@/app/stores/project'
@@ -68,6 +71,38 @@ const showScreenSearchModal = ref(false)
 const screenSettingSystem = ref('')
 
 const bizCategoryFilterOptions = computed(() => bizCategoryMap[filters.value.system] || [])
+const systemPillOptions = [{ value: '', label: '시스템 선택' }, ...systemOptions]
+const bizCategoryPillOptions = computed(() => [
+  { value: '', label: '업무구분 선택' },
+  ...bizCategoryFilterOptions.value,
+])
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const tags = []
+  if (f.keyword) tags.push({ key: 'keyword', label: '통합검색', value: f.keyword })
+  if (f.taskType && f.taskType !== '전체') tags.push({ key: 'taskType', label: '업무유형', value: f.taskType })
+  if (f.system) tags.push({ key: 'system', label: '시스템', value: f.system })
+  if (f.bizCategory) tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
+  if (f.status && f.status !== '전체') tags.push({ key: 'status', label: '상태', value: f.status })
+  if (f.priority && f.priority !== '전체') tags.push({ key: 'priority', label: '우선순위', value: f.priority })
+  if (f.confirm && f.confirm !== '전체') tags.push({ key: 'confirm', label: '요건확정', value: f.confirm })
+  if (f.periodType && f.periodType !== '등록일') {
+    tags.push({ key: 'periodType', label: '기간유형', value: f.periodType })
+  }
+  if (
+    f.dateFrom !== '2026-01-01' ||
+    f.dateTo !== '2026-01-31' ||
+    (f.periodType && f.periodType !== '등록일')
+  ) {
+    tags.push({
+      key: 'dateRange',
+      label: f.periodType || '기간',
+      value: `${f.dateFrom || '…'} ~ ${f.dateTo || '…'}`,
+    })
+  }
+  return tags
+})
 
 const confirmSelectOptions = ['미확정', '확정']
 const confirmTooltip =
@@ -130,8 +165,38 @@ function search() {
   expandAll.value = false
 }
 
+function removeFilterTag(key) {
+  const defaults = {
+    keyword: '',
+    taskType: '전체',
+    system: '',
+    bizCategory: '',
+    status: '전체',
+    priority: '전체',
+    confirm: '전체',
+    periodType: '등록일',
+    dateFrom: '2026-01-01',
+    dateTo: '2026-01-31',
+  }
+  if (key === 'dateRange') {
+    filters.value.dateFrom = defaults.dateFrom
+    filters.value.dateTo = defaults.dateTo
+  } else if (key === 'system') {
+    filters.value.system = ''
+    filters.value.bizCategory = ''
+  } else if (key in defaults) {
+    filters.value[key] = defaults[key]
+  }
+  search()
+}
+
 function onSystemFilterChange() {
   filters.value.bizCategory = ''
+}
+
+function onSystemSelect(value) {
+  filters.value.system = value
+  onSystemFilterChange()
 }
 
 function toggleExpandAll() {
@@ -512,87 +577,45 @@ function onPageSizeChange() {
     </h1>
 
     <!-- 검색조건 -->
-    <section class="filter card">
-      <div class="filter__row filter__row--7">
-        <div class="filter__field">
-          <label>통합검색</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="요구사항명, ID"
-          />
-        </div>
-        <div class="filter__field">
-          <label>업무유형</label>
-          <select v-model="filters.taskType" class="filter__select">
-            <option v-for="o in taskTypeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>시스템</label>
-          <select v-model="filters.system" class="filter__select" @change="onSystemFilterChange">
-            <option value="">시스템 선택</option>
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="filters.bizCategory" class="filter__select" :disabled="!filters.system">
-            <option value="">업무구분 선택</option>
-            <option v-for="b in bizCategoryFilterOptions" :key="b" :value="b">{{ b }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>상태</label>
-          <select v-model="filters.status" class="filter__select">
-            <option v-for="o in statusOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>우선순위</label>
-          <select v-model="filters.priority" class="filter__select">
-            <option v-for="o in priorityOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>요건확정</label>
-          <select v-model="filters.confirm" class="filter__select">
-            <option v-for="o in confirmOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="filterExpanded" class="filter__row filter__row--3">
-        <div class="filter__field">
-          <label>기간</label>
-          <select v-model="filters.periodType" class="filter__select">
-            <option v-for="p in periodOptions" :key="p" :value="p">{{ p }}</option>
-          </select>
-        </div>
-        <div class="filter__field filter__field--range">
-          <label>&nbsp;</label>
-          <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-            <span>~</span>
-            <input v-model="filters.dateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-          </div>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        class="filter__expand"
-        @click="filterExpanded = !filterExpanded"
-      >
-        {{ filterExpanded ? '▲ 검색조건 접기' : '＋ 검색조건 확장' }}
-      </button>
-
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="요구사항명, ID"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.taskType" label="업무유형" :options="taskTypeOptions" />
+        <FilterSelectPill
+          :model-value="filters.system"
+          label="시스템"
+          :options="systemPillOptions"
+          empty-label="시스템 선택"
+          @update:model-value="onSystemSelect"
+        />
+        <FilterSelectPill v-model="filters.status" label="상태" :options="statusOptions" />
+      </template>
+      <template #expand>
+        <FilterSelectPill
+          v-model="filters.bizCategory"
+          label="업무구분"
+          :options="bizCategoryPillOptions"
+          empty-label="업무구분 선택"
+          :disabled="!filters.system"
+        />
+        <FilterSelectPill v-model="filters.priority" label="우선순위" :options="priorityOptions" />
+        <FilterSelectPill v-model="filters.confirm" label="요건확정" :options="confirmOptions" />
+        <FilterSelectPill v-model="filters.periodType" label="기간" :options="periodOptions" />
+        <FilterDateRange
+          :from="filters.dateFrom"
+          :to="filters.dateTo"
+          @update:from="filters.dateFrom = $event"
+          @update:to="filters.dateTo = $event"
+        />
+      </template>
+    </SearchFilterBar>
 
     <p class="notice card">{{ requirementMeta.notice }}</p>
 
@@ -898,75 +921,6 @@ function onPageSizeChange() {
   background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
-}
-
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-
-.filter__row {
-  display: grid;
-  gap: 10px 14px;
-  margin-bottom: 10px;
-}
-
-.filter__row--7 {
-  grid-template-columns: repeat(7, 1fr);
-}
-
-.filter__row--4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
-}
-
-.filter__range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter__range .filter__input {
-  flex: 1;
-}
-
-.filter__expand {
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 10px;
-  font-family: inherit;
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 .notice {

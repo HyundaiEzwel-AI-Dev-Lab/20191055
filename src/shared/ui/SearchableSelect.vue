@@ -1,11 +1,14 @@
 <script setup>
-// 검색 가능한 셀렉트박스 — SB PAG-M-PST-01 §2b: 한 글자 이상 입력 시 선택 가능한 옵션 노출
+// 검색 가능한 셀렉트박스 — SB PAG-M-PST-01 §2b
 import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: '선택' },
+  /** pill: 라벨|값 결합 검색 필터 바용 */
+  variant: { type: String, default: 'default' },
+  label: { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -24,6 +27,8 @@ const filtered = computed(() => {
   if (!q) return []
   return props.options.filter((o) => o.toLowerCase().includes(q))
 })
+
+const isPill = computed(() => props.variant === 'pill')
 
 function onFocus() {
   open.value = true
@@ -48,8 +53,21 @@ function onBlur() {
 </script>
 
 <template>
-  <div class="ssel">
+  <div class="ssel" :class="{ 'ssel--pill': isPill }">
+    <div v-if="isPill" class="sfb-pill__face sfb-pill__face--fill sfb-pill__face--select">
+      <span v-if="label" class="sfb-pill__label">{{ label }}</span>
+      <span v-if="label" class="sfb-pill__sep">|</span>
+      <input
+        v-model="query"
+        class="sfb-pill__text"
+        type="text"
+        :placeholder="modelValue || placeholder"
+        @focus="onFocus"
+        @blur="onBlur"
+      />
+    </div>
     <input
+      v-else
       v-model="query"
       class="ssel__input filter__select"
       type="text"
@@ -72,6 +90,11 @@ function onBlur() {
 .ssel {
   position: relative;
 }
+.ssel--pill {
+  display: block;
+  width: 100%;
+  min-width: 160px;
+}
 .ssel__input {
   cursor: text;
 }
@@ -85,8 +108,8 @@ function onBlur() {
   padding: 4px 0;
   list-style: none;
   background: var(--lnb-side);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--lnb-line);
+  border-radius: 8px;
   box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
   max-height: 180px;
   overflow-y: auto;

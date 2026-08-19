@@ -6,6 +6,8 @@ import { useTestContext } from '@/app/composables/useTestContext'
 import { getProgressData, donutStyle } from '@/entities/test-progress/mock/testProgress'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { useAuthStore } from '@/app/stores/auth'
 
@@ -178,6 +180,20 @@ function resetFilters() {
   search()
 }
 
+const filterTags = computed(() => {
+  const f = applied.value
+  const tags = []
+  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '시스템', value: f.system })
+  if (f.tester?.trim()) tags.push({ key: 'tester', label: '테스터', value: f.tester })
+  return tags
+})
+
+function removeFilterTag(key) {
+  if (key === 'tester') filters.value.tester = ''
+  else if (key === 'system') filters.value.system = '전체'
+  search()
+}
+
 function onExcelDownload() {
   if (!data.value) return
   const label = `진척관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`
@@ -203,30 +219,19 @@ function onExcelDownload() {
     </div>
     <p class="progress__hint">테스트 진척·결함 처리 현황 · 1시간마다 갱신 (목업 {{ data.updatedAt }})</p>
 
-    <section class="filter card">
-      <div class="filter__row">
-        <div class="filter__field">
-          <label>시스템</label>
-          <select v-model="filters.system" class="filter__inp">
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>테스터</label>
-          <input
-            v-model="filters.tester"
-            class="filter__inp"
-            type="text"
-            placeholder="테스터명"
-            @keyup.enter="search"
-          />
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:search="filters.tester"
+      search-placeholder="테스터명"
+      :show-expand="false"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.system" label="시스템" :options="systemOptions" />
+      </template>
+    </SearchFilterBar>
 
     <div class="kpi-grid">
       <div class="kpi-card card">
@@ -632,46 +637,6 @@ function onExcelDownload() {
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--muted);
   margin: 0 0 14px;
-}
-
-.filter {
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-
-.filter__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 160px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.filter__inp {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.filter__actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 .empty-row {

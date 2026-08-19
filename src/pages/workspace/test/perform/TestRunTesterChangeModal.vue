@@ -360,8 +360,8 @@ function saveSchedule() {
   height: 22px;
   padding: 0 4px 0 8px;
   border-radius: 12px;
-  background: var(--teal-50);
-  color: var(--teal-700);
+  background: var(--teal);
+  color: var(--teal-fg);
   font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
@@ -369,7 +369,7 @@ function saveSchedule() {
   border: none;
   background: none;
   cursor: pointer;
-  color: var(--teal-700);
+  color: var(--teal-fg);
   font-size: calc(10px + var(--font-size-offset, 0px));
 }
 

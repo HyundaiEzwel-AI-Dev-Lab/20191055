@@ -14,6 +14,9 @@ import { pageSizeOptions } from '@/shared/lib/commonOptions'
 import DelayTaskModal from '@/pages/integrated/dashboard/DelayTaskModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import { mockExcelDownload, flattenPersonProjects } from '@/shared/file-excel/excelDownload'
 import { useProjectStore } from '@/app/stores/project'
 
@@ -126,6 +129,40 @@ function search() {
   currentPage.value = 1
 }
 
+const FILTER_TAG_META = [
+  { key: 'dept', label: '부서', skip: (v) => !v || v === '전체' },
+  { key: 'member', label: '담당자' },
+  { key: 'project', label: '프로젝트' },
+  { key: 'stage', label: '프로젝트 상태', skip: (v) => !v || v === '전체' },
+  { key: 'schedule', label: '계획준수', skip: (v) => !v || v === '전체' },
+]
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  return FILTER_TAG_META
+    .filter((m) => {
+      const v = f[m.key]
+      if (m.skip) return !m.skip(v)
+      return v !== '' && v != null
+    })
+    .map((m) => ({ key: m.key, label: m.label, value: String(f[m.key]) }))
+})
+
+const FILTER_CLEAR_DEFAULTS = {
+  dept: '전체',
+  member: '',
+  project: '',
+  stage: '전체',
+  schedule: '전체',
+}
+
+function removeFilterTag(key) {
+  const cleared = FILTER_CLEAR_DEFAULTS[key] ?? ''
+  filters.value[key] = cleared
+  appliedFilters.value[key] = cleared
+  search()
+}
+
 function onExcelDownload() {
   const rows = flattenPersonProjects(filteredRecords.value, (person, proj) => ({
     no: person.no,
@@ -199,61 +236,49 @@ function formatExecProgress(progress) {
     </div>
 
     <!-- 검색조건 -->
-    <section class="filter card">
-      <div class="filter__row">
-        <div class="filter__field">
-          <label>부서</label>
-          <select v-model="filters.dept" class="filter__select">
-            <option v-for="d in deptOptions" :key="d" :value="d">{{ d }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>담당자</label>
-          <input
-            v-model="filters.member"
-            class="filter__input"
-            type="text"
-            placeholder="이름 또는 사번"
-            @keyup.enter="search"
-          />
-        </div>
-        <div class="filter__field">
-          <label>프로젝트</label>
-          <input
-            v-model="filters.project"
-            class="filter__input"
-            type="text"
-            placeholder="프로젝트명 또는 ID"
-            @keyup.enter="search"
-          />
-        </div>
-      </div>
-
-      <div v-if="filterExpanded" class="filter__row filter__row--expand">
-        <div class="filter__field">
-          <label>프로젝트 상태</label>
-          <select v-model="filters.stage" class="filter__select">
-            <option v-for="s in stageOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>계획준수</label>
-          <select v-model="filters.schedule" class="filter__select">
-            <option v-for="s in scheduleOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-      </div>
-
-      <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        검색조건
-        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
-      </button>
-
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      :show-search="false"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill
+          label="부서"
+          v-model="filters.dept"
+          :options="deptOptions"
+          empty-label="전체"
+        />
+        <FilterTextPill
+          label="담당자"
+          v-model="filters.member"
+          placeholder="이름 또는 사번"
+          @enter="search"
+        />
+        <FilterTextPill
+          label="프로젝트"
+          v-model="filters.project"
+          placeholder="프로젝트명 또는 ID"
+          @enter="search"
+        />
+      </template>
+      <template #expand>
+        <FilterSelectPill
+          label="프로젝트 상태"
+          v-model="filters.stage"
+          :options="stageOptions"
+          empty-label="전체"
+        />
+        <FilterSelectPill
+          label="계획준수"
+          v-model="filters.schedule"
+          :options="scheduleOptions"
+          empty-label="전체"
+        />
+      </template>
+    </SearchFilterBar>
 
     <p class="tech-resource__query-time">조회시점 {{ techResourceMeta.queryTime }}</p>
 
@@ -540,112 +565,6 @@ function formatExecProgress(progress) {
   width: 3px;
   border-radius: 2px;
   background: var(--teal);
-}
-
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 16px;
-}
-
-.filter__row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 10px 14px;
-}
-
-.filter__row--expand {
-  margin-top: 10px;
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 200px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  background: var(--lnb-hover);
-  border: 1px solid var(--lnb-line);
-  border-radius: 7px;
-  padding: 0 10px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-family: inherit;
-  color: var(--lnb-txt);
-}
-
-.filter__input {
-  background: var(--lnb-side);
-}
-
-.filter__expand {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  border: none;
-  background: none;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--teal-600);
-  cursor: pointer;
-  font-family: inherit;
-  padding: 0;
-}
-
-.filter__expand-icon {
-  display: inline-block;
-  transition: transform var(--transition-fast);
-}
-
-.filter__expand-icon.is-open {
-  transform: rotate(180deg);
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 7px;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn--primary {
-  background: var(--teal);
-  color: var(--color-text-inverse);
-}
-
-.btn--primary:hover {
-  background: var(--teal-600);
-}
-
-.btn--ghost {
-  background: var(--lnb-side);
-  border-color: var(--lnb-line);
-  color: var(--lnb-txt);
-}
-
-.btn--ghost:hover {
-  border-color: var(--teal-100);
-  color: var(--teal-600);
 }
 
 .kpi-row {
@@ -949,10 +868,6 @@ function formatExecProgress(progress) {
 }
 
 @media (max-width: 1200px) {
-  .filter__row,
-  .filter__row--expand {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .kpi-row {
     flex-wrap: wrap;
   }

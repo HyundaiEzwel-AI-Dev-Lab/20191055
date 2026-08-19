@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppShell from '@/app/layouts/AppShell.vue'
 import LoadingOverlay from '@/shared/ui/LoadingOverlay.vue'
 import { useLoading } from '@/app/composables/useLoading'
-import { useThemeStore } from '@/app/stores/theme'
+import { darkConcepts, useThemeStore } from '@/app/stores/theme'
 
 const themeStore = useThemeStore()
 
@@ -18,7 +18,7 @@ watch(
   ([loginPage, concept]) => {
     document.documentElement.setAttribute(
       'data-concept',
-      loginPage && concept === 'dark' ? 'default' : concept,
+      loginPage && darkConcepts.includes(concept) ? 'default' : concept,
     )
   },
   { immediate: true },

@@ -17,6 +17,9 @@ import {
 } from '@/entities/test-library/mock/testLibrary'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const filters = ref(createFilters())
@@ -152,6 +155,39 @@ function search() {
 
 function resetFilters() {
   filters.value = createFilters()
+  search()
+}
+
+const systemFilterOptions = computed(() =>
+  systemOptions.map((o) => (o === '전체' ? { value: '전체', label: '선택' } : o)),
+)
+
+const bizFilterOptions = computed(() =>
+  bizOptions.map((o) => (o === '전체' ? { value: '전체', label: '선택' } : o)),
+)
+
+const filterTags = computed(() => {
+  const f = applied.value
+  const tags = []
+  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '시스템구분', value: f.system })
+  if (f.bizCategory && f.bizCategory !== '전체') {
+    tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
+  }
+  if (f.screenName?.trim()) tags.push({ key: 'screenName', label: '화면', value: f.screenName })
+  if (f.caseName?.trim()) tags.push({ key: 'caseName', label: '케이스명', value: f.caseName })
+  if (f.sourceProject?.trim()) {
+    tags.push({ key: 'sourceProject', label: '프로젝트 출처', value: f.sourceProject })
+  }
+  if (f.openMonth) tags.push({ key: 'openMonth', label: '오픈월', value: f.openMonth })
+  if (f.registeredBy?.trim()) {
+    tags.push({ key: 'registeredBy', label: '등록자', value: f.registeredBy })
+  }
+  return tags
+})
+
+function removeFilterTag(key) {
+  if (key === 'system' || key === 'bizCategory') filters.value[key] = '전체'
+  else filters.value[key] = ''
   search()
 }
 
@@ -368,88 +404,64 @@ function onExcelDownload() {
     </div>
 
     <!-- 검색조건 -->
-    <section class="filter card">
-      <div class="filter__row filter__row--4">
-        <div class="filter__field">
-          <label>시스템구분</label>
-          <select v-model="filters.system" class="filter__select">
-            <option v-for="o in systemOptions" :key="o" :value="o">
-              {{ o === '전체' ? '선택' : o }}
-            </option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="filters.bizCategory" class="filter__select">
-            <option v-for="o in bizOptions" :key="o" :value="o">
-              {{ o === '전체' ? '선택' : o }}
-            </option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>화면 (메뉴)</label>
-          <div class="tlb-search-field">
-            <input
-              v-model="filters.screenName"
-              class="filter__input"
-              type="text"
-              readonly
-              placeholder="화면명"
-              @click="openScreenSearch('filter')"
-            />
+    <SearchFilterBar
+      v-model:search="filters.caseName"
+      search-placeholder="케이스명 2자 이상"
+      :show-expand="false"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill
+          v-model="filters.system"
+          label="시스템구분"
+          empty-label="선택"
+          :options="systemFilterOptions"
+        />
+        <FilterSelectPill
+          v-model="filters.bizCategory"
+          label="업무구분"
+          empty-label="선택"
+          :options="bizFilterOptions"
+        />
+        <FilterTextPill
+          v-model="filters.screenName"
+          label="화면"
+          placeholder="화면명"
+          readonly
+          @click="openScreenSearch('filter')"
+        >
+          <template #trailing>
             <button
               type="button"
-              class="tlb-icon-btn"
+              class="tlb-icon-btn tlb-icon-btn--pill"
               title="화면 검색"
-              @click="openScreenSearch('filter')"
+              @click.stop="openScreenSearch('filter')"
             >
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
             </button>
-          </div>
-        </div>
-        <div class="filter__field">
-          <label>케이스명</label>
-          <input
-            v-model="filters.caseName"
-            class="filter__input"
-            type="text"
-            placeholder="2자 이상"
-            @keyup.enter="search"
-          />
-        </div>
-        <div class="filter__field">
-          <label>프로젝트 출처</label>
-          <input
-            v-model="filters.sourceProject"
-            class="filter__input"
-            type="text"
-            placeholder="프로젝트명 또는 프로젝트ID"
-            @keyup.enter="search"
-          />
-        </div>
-        <div class="filter__field">
-          <label>프로젝트 오픈월</label>
-          <input v-model="filters.openMonth" class="filter__input" type="month" />
-        </div>
-        <div class="filter__field">
-          <label>등록자</label>
-          <input
-            v-model="filters.registeredBy"
-            class="filter__input"
-            type="text"
-            placeholder="등록자"
-            @keyup.enter="search"
-          />
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+          </template>
+        </FilterTextPill>
+        <FilterTextPill
+          v-model="filters.sourceProject"
+          label="프로젝트 출처"
+          placeholder="프로젝트명 또는 프로젝트ID"
+          @enter="search"
+        />
+        <FilterTextPill v-model="filters.openMonth" label="오픈월" type="month" />
+        <FilterTextPill
+          v-model="filters.registeredBy"
+          label="등록자"
+          placeholder="등록자"
+          @enter="search"
+        />
+      </template>
+    </SearchFilterBar>
 
     <div class="tlb-split">
       <!-- 좌: 테스트케이스 카드 목록 -->
@@ -793,6 +805,14 @@ function onExcelDownload() {
 .tlb-icon-btn:hover {
   color: var(--teal);
   border-color: var(--teal);
+}
+
+.tlb-icon-btn--pill {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  margin-right: -8px;
 }
 
 .tlb-split {

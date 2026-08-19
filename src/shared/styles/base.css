@@ -17,7 +17,8 @@ body {
   color-scheme: light;
 }
 
-:root[data-concept='dark'] {
+:root[data-concept='dark'],
+:root[data-concept='premium'] {
   color-scheme: dark;
 }
 
@@ -35,6 +36,29 @@ a {
 button {
   font-family: inherit;
   cursor: pointer;
+}
+
+/* 사용자가 입력한 일반 텍스트는 각 컨셉의 본문 색상 범위 안에서 표시한다.
+   포인트색은 버튼·선택·상태 표현에만 사용한다. */
+input,
+textarea,
+select,
+[contenteditable='true'] {
+  color: var(--lnb-txt);
+  caret-color: var(--lnb-txt);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--lnb-muted);
+  opacity: 1;
+}
+
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--lnb-txt);
+  caret-color: var(--lnb-txt);
 }
 
 ul,

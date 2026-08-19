@@ -97,7 +97,7 @@
 .admin-page .btn--primary,
 .modal .btn--primary {
   background: var(--teal);
-  color: #fff;
+  color: var(--teal-fg);
 }
 
 .admin-page .btn--primary:hover,

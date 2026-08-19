@@ -13,6 +13,8 @@ import {
 } from '@/entities/unit-test/mock/unitTest'
 import UnitTestDetailModal from '@/pages/workspace/unit-test/UnitTestDetailModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const auth = useAuthStore()
@@ -54,6 +56,28 @@ function resetFilters() {
 function search() {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+}
+
+const systemFilterOptions = computed(() =>
+  systemOptions.map((o) => (o === '전체' ? { value: '전체', label: '시스템 선택' } : o)),
+)
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const tags = []
+  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '시스템', value: f.system })
+  if (f.bizCategory && f.bizCategory !== '전체') {
+    tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
+  }
+  if (f.keyword?.trim()) tags.push({ key: 'keyword', label: '화면명', value: f.keyword })
+  if (f.status && f.status !== '전체') tags.push({ key: 'status', label: '테스트 상태', value: f.status })
+  return tags
+})
+
+function removeFilterTag(key) {
+  if (key === 'keyword') filters.value.keyword = ''
+  else filters.value[key] = '전체'
+  search()
 }
 
 function openDetail(row) {
@@ -147,42 +171,26 @@ function onDetailSave(payload) {
   <div class="unit-test">
     <h1 class="unit-test__title">단위테스트</h1>
 
-    <section class="filter card">
-      <div class="filter__row filter__row--4">
-        <div class="filter__field">
-          <label>시스템 선택</label>
-          <select v-model="filters.system" class="filter__select">
-            <option v-for="o in systemOptions" :key="o" :value="o">{{ o === '전체' ? '시스템 선택' : o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="filters.bizCategory" class="filter__select">
-            <option v-for="o in bizCategoryOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>화면명 검색</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="화면명 검색"
-            @keyup.enter="search"
-          />
-        </div>
-        <div class="filter__field">
-          <label>테스트 상태</label>
-          <select v-model="filters.status" class="filter__select">
-            <option v-for="o in unitResultOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:search="filters.keyword"
+      search-placeholder="화면명 검색"
+      :show-expand="false"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill
+          v-model="filters.system"
+          label="시스템"
+          empty-label="시스템 선택"
+          :options="systemFilterOptions"
+        />
+        <FilterSelectPill v-model="filters.bizCategory" label="업무구분" :options="bizCategoryOptions" />
+        <FilterSelectPill v-model="filters.status" label="테스트 상태" :options="unitResultOptions" />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
@@ -315,55 +323,39 @@ function onDetailSave(payload) {
   margin: 0 0 14px;
 }
 
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.filter__row--4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+}
+
+.btn--ghost {
+  background: var(--lnb-side);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn--ghost:hover {
+  border-color: var(--teal-100);
+  color: var(--teal-600);
 }
 
 .toolbar__count {

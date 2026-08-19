@@ -15,6 +15,8 @@ import {
   userStatusClass,
 } from '@/entities/user-admin/userMgmt'
 import BaseModal from '@/shared/ui/BaseModal.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 
 const rows = ref(userList.map((r) => ({ ...r })))
 const filters = ref({ keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' })
@@ -22,6 +24,24 @@ const applied = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
 const selectedIds = ref([])
+
+const deptSelectOptions = deptOptions.map((o) => ({ value: o, label: o === '전체' ? '선택' : o }))
+
+const filterTags = computed(() => {
+  const a = applied.value
+  const tags = []
+  if (a.keyword) {
+    tags.push({
+      key: 'keyword',
+      label: a.searchType === '아이디' ? '사번(ID)' : '이름',
+      value: a.keyword,
+    })
+  }
+  if (a.dept && a.dept !== '전체') tags.push({ key: 'dept', label: '소속팀', value: a.dept })
+  if (a.role && a.role !== '전체') tags.push({ key: 'role', label: '권한', value: a.role })
+  if (a.status && a.status !== '전체') tags.push({ key: 'status', label: '상태', value: a.status })
+  return tags
+})
 
 const showDetail = ref(false)
 const showRegister = ref(false)
@@ -56,6 +76,14 @@ function search() {
 
 function resetFilters() {
   filters.value = { keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' }
+  search()
+}
+
+function removeFilterTag(key) {
+  if (key === 'keyword') filters.value.keyword = ''
+  else if (key === 'dept') filters.value.dept = '전체'
+  else if (key === 'role') filters.value.role = '전체'
+  else if (key === 'status') filters.value.status = '전체'
   search()
 }
 
@@ -227,47 +255,21 @@ function saveRegister() {
   <div class="admin-page">
     <p class="notice">{{ userMgmtMeta.hint }}</p>
 
-    <section class="filter card">
-      <div class="filter__row filter__row--4">
-        <div class="filter__field">
-          <label>사용자</label>
-          <div class="filter__inline">
-            <select v-model="filters.searchType" class="filter__select filter__select--sm">
-              <option v-for="o in searchTypeOptions" :key="o" :value="o">{{ o }}</option>
-            </select>
-            <input
-              v-model="filters.keyword"
-              class="filter__input"
-              type="text"
-              :placeholder="filters.searchType === '아이디' ? '사번(ID) 입력' : '이름 입력'"
-              @keyup.enter="search"
-            />
-          </div>
-        </div>
-        <div class="filter__field">
-          <label>소속팀</label>
-          <select v-model="filters.dept" class="filter__select">
-            <option v-for="o in deptOptions" :key="o" :value="o">{{ o === '전체' ? '선택' : o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>권한</label>
-          <select v-model="filters.role" class="filter__select">
-            <option v-for="o in roleOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>상태</label>
-          <select v-model="filters.status" class="filter__select">
-            <option v-for="o in statusOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:search="filters.keyword"
+      :search-placeholder="filters.searchType === '아이디' ? '사번(ID) 입력' : '이름 입력'"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.searchType" label="구분" :options="searchTypeOptions" empty-label="이름" />
+        <FilterSelectPill v-model="filters.dept" label="소속팀" :options="deptSelectOptions" empty-label="선택" />
+        <FilterSelectPill v-model="filters.role" label="권한" :options="roleOptions" />
+        <FilterSelectPill v-model="filters.status" label="상태" :options="statusOptions" />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filtered.length }}</b>명</span>
@@ -447,21 +449,6 @@ function saveRegister() {
 </template>
 
 <style scoped>
-.filter__inline {
-  display: flex;
-  gap: 6px;
-}
-
-.filter__inline .filter__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.filter__select--sm {
-  width: 84px;
-  flex-shrink: 0;
-}
-
 .modal-field__inline {
   display: flex;
   gap: 8px;

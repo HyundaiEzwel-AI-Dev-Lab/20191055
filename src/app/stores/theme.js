@@ -7,9 +7,12 @@ const FONT_SIZE_KEY = 'hpms.fontSize'
 
 export const conceptOptions = [
   { value: 'default', label: '기본', desc: '현재 적용중인 화면' },
-  { value: 'premium', label: '프리미엄', desc: '카드 깊이감·모션을 다듬은 버전' },
+  { value: 'premium', label: '프리미엄', desc: 'Material 3 다크 톤 · 뉴트럴 그레이와 Google Blue 포인트' },
   { value: 'dark', label: '다크', desc: 'Claude Desktop 톤 · 따뜻한 near-black과 크림 텍스트' },
 ]
+
+/** 어두운 캔버스를 쓰는 컨셉. 로그인 화면은 이 목록이면 default로 대체된다. */
+export const darkConcepts = ['premium', 'dark']
 
 /** 1~5단계 · 단계당 +1px (1=기본 0px … 5=+4px). 구값 small/medium/large → 1/2/3 마이그레이션 */
 export const fontSizeOptions = [

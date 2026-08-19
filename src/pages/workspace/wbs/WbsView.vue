@@ -25,6 +25,9 @@ import WbsBulkScheduleModal from '@/pages/workspace/wbs/WbsBulkScheduleModal.vue
 import WbsRestartModal from '@/pages/workspace/wbs/WbsRestartModal.vue'
 import WbsCalendar from '@/pages/workspace/wbs/WbsCalendar.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { addScheduleChangeRequest } from '@/entities/approval/mock/approval'
@@ -57,6 +60,8 @@ const appliedFilters = ref({
   progressStatus: [...filters.value.progressStatus],
 })
 
+const filterExpanded = ref(false)
+
 const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
 const showReasonModal = ref(false)
@@ -72,12 +77,37 @@ const calYear = ref(2026)
 const calMonth = ref(4)
 
 const bizCategoryFilterOptions = computed(() => bizCategoryMap[filters.value.system] || [])
+const systemPillOptions = [{ value: '', label: '시스템 선택' }, ...systemOptions]
+const bizCategoryPillOptions = computed(() => [
+  { value: '', label: '업무구분 선택' },
+  ...bizCategoryFilterOptions.value,
+])
 
 const statusFilterLabel = computed(() => {
   const sel = filters.value.progressStatus || []
   if (!sel.length || sel.includes('전체')) return '전체'
   if (sel.length === 1) return sel[0]
   return `${sel[0]} 외 ${sel.length - 1}`
+})
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const tags = []
+  if (f.keyword) tags.push({ key: 'keyword', label: '통합검색', value: f.keyword })
+  if (f.taskType && f.taskType !== '전체') tags.push({ key: 'taskType', label: '업무유형', value: f.taskType })
+  if (f.system) tags.push({ key: 'system', label: '시스템', value: f.system })
+  if (f.bizCategory) tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
+  const statuses = f.progressStatus || []
+  if (statuses.length && !statuses.includes('전체')) {
+    tags.push({ key: 'progressStatus', label: '진행상태', value: statuses.join(', ') })
+  }
+  if (f.scheduleCompliance && f.scheduleCompliance !== '전체') {
+    tags.push({ key: 'scheduleCompliance', label: '계획준수', value: f.scheduleCompliance })
+  }
+  if (f.progressBaseDate && f.progressBaseDate !== wbsMeta.progressBaseDate) {
+    tags.push({ key: 'progressBaseDate', label: '공정률 기준날짜', value: f.progressBaseDate })
+  }
+  return tags
 })
 
 const filteredTasks = computed(() =>
@@ -140,12 +170,37 @@ function onSystemFilterChange() {
   filters.value.bizCategory = ''
 }
 
+function onSystemSelect(value) {
+  filters.value.system = value
+  onSystemFilterChange()
+}
+
 function search() {
   appliedFilters.value = {
     ...filters.value,
     progressStatus: [...filters.value.progressStatus],
   }
   statusFilterOpen.value = false
+}
+
+function removeFilterTag(key) {
+  if (key === 'progressStatus') {
+    filters.value.progressStatus = ['전체']
+  } else if (key === 'system') {
+    filters.value.system = ''
+    filters.value.bizCategory = ''
+  } else if (key === 'taskType') {
+    filters.value.taskType = '전체'
+  } else if (key === 'scheduleCompliance') {
+    filters.value.scheduleCompliance = '전체'
+  } else if (key === 'progressBaseDate') {
+    filters.value.progressBaseDate = wbsMeta.progressBaseDate
+  } else if (key === 'keyword') {
+    filters.value.keyword = ''
+  } else if (key === 'bizCategory') {
+    filters.value.bizCategory = ''
+  }
+  search()
 }
 
 function toggleStatusFilter(option) {
@@ -429,79 +484,71 @@ function onCalendarSelect(task) {
     </div>
 
     <!-- 검색 -->
-    <section v-if="viewMode === 'list'" class="filter card">
-      <div class="filter__row">
-        <div class="filter__field">
-          <label>통합검색</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="업무명"
-          />
-        </div>
-        <div class="filter__field">
-          <label>업무유형</label>
-          <select v-model="filters.taskType" class="filter__select">
-            <option v-for="o in taskTypeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>시스템</label>
-          <select v-model="filters.system" class="filter__select" @change="onSystemFilterChange">
-            <option value="">시스템 선택</option>
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="filters.bizCategory" class="filter__select" :disabled="!filters.system">
-            <option value="">업무구분 선택</option>
-            <option v-for="b in bizCategoryFilterOptions" :key="b" :value="b">{{ b }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>진행상태</label>
-          <div class="status-filter" @keydown.escape="statusFilterOpen = false">
-            <button
-              type="button"
-              class="status-filter__trigger"
-              @click="statusFilterOpen = !statusFilterOpen"
+    <SearchFilterBar
+      v-if="viewMode === 'list'"
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="업무명"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.taskType" label="업무유형" :options="taskTypeOptions" />
+        <FilterSelectPill
+          :model-value="filters.system"
+          label="시스템"
+          :options="systemPillOptions"
+          empty-label="시스템 선택"
+          @update:model-value="onSystemSelect"
+        />
+        <div class="status-filter" @keydown.escape="statusFilterOpen = false">
+          <button
+            type="button"
+            class="status-filter__trigger"
+            @click="statusFilterOpen = !statusFilterOpen"
+          >
+            <span class="status-filter__label">진행상태</span>
+            <span class="status-filter__sep">|</span>
+            <span class="status-filter__value">{{ statusFilterLabel }}</span>
+          </button>
+          <div v-if="statusFilterOpen" class="status-filter__panel">
+            <label
+              v-for="o in progressStatusOptions"
+              :key="o"
+              class="status-filter__item"
             >
-              {{ statusFilterLabel }}
-            </button>
-            <div v-if="statusFilterOpen" class="status-filter__panel">
-              <label
-                v-for="o in progressStatusOptions"
-                :key="o"
-                class="status-filter__item"
-              >
-                <input
-                  type="checkbox"
-                  :checked="isStatusChecked(o)"
-                  @change="toggleStatusFilter(o)"
-                />
-                {{ o }}
-              </label>
-            </div>
+              <input
+                type="checkbox"
+                :checked="isStatusChecked(o)"
+                @change="toggleStatusFilter(o)"
+              />
+              {{ o }}
+            </label>
           </div>
         </div>
-        <div class="filter__field">
-          <label>계획준수</label>
-          <select v-model="filters.scheduleCompliance" class="filter__select">
-            <option v-for="o in scheduleComplianceOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>공정률 기준날짜</label>
-          <input v-model="filters.progressBaseDate" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+        <FilterSelectPill
+          v-model="filters.scheduleCompliance"
+          label="계획준수"
+          :options="scheduleComplianceOptions"
+        />
+      </template>
+      <template #expand>
+        <FilterSelectPill
+          v-model="filters.bizCategory"
+          label="업무구분"
+          :options="bizCategoryPillOptions"
+          empty-label="업무구분 선택"
+          :disabled="!filters.system"
+        />
+        <FilterTextPill
+          v-model="filters.progressBaseDate"
+          label="공정률 기준날짜"
+          type="date"
+        />
+      </template>
+    </SearchFilterBar>
 
     <!-- 툴바 (SB 112): 좌측 건수·작업제외 / 우측 엑셀·액션 -->
     <div v-if="viewMode === 'list'" class="toolbar">
@@ -803,47 +850,6 @@ function onCalendarSelect(task) {
   border-radius: 10px;
 }
 
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px 14px;
-  margin-bottom: 12px;
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .toolbar {
   display: flex;
   align-items: center;
@@ -885,20 +891,48 @@ function onCalendarSelect(task) {
 }
 
 .status-filter__trigger {
-  width: 100%;
-  height: 32px;
-  padding: 0 28px 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 30px 0 14px;
+  border: 1px solid var(--sfb-line);
+  border-radius: var(--r-pill);
   font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  background: var(--lnb-side);
   text-align: left;
   cursor: pointer;
-  color: var(--ink-2);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237c8a92' d='M3 4.5L6 8l3-3.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
+  color: var(--lnb-logo);
+  white-space: nowrap;
+}
+
+.status-filter__trigger::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 9px;
+  height: 6px;
+  transform: translateY(-50%);
+  background-color: var(--sfb-label);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='black' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat center / 9px 6px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='black' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat center / 9px 6px;
+}
+
+.status-filter__label {
+  color: var(--lnb-muted);
+  font-weight: 600;
+}
+
+.status-filter__sep {
+  color: var(--sfb-line);
+}
+
+.status-filter__value {
+  font-weight: 600;
+  color: var(--lnb-logo);
 }
 
 .status-filter__panel {
