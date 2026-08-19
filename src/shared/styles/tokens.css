@@ -11,6 +11,10 @@
   --lnb-active-border: #e6e8ec;
   --lnb-dark: #1f2430;
   --lnb-hover: #f5f6f8;
+  /* 좌측 H 마크·프로젝트 등록 버튼 전용 */
+  --lnb-cta: #16223a;
+  --lnb-cta-hover: #1b2d4d;
+  --lnb-cta-fg: #ffffff;
 
   /* 전역 토큰 (LNB 컨셉 매핑) */
   --color-primary: var(--lnb-logo);
@@ -45,6 +49,9 @@
   --teal-400: #4fb8ab;
   --teal-50: #e6f4f2;
   --teal-100: #cfe9e5;
+  /* 포인트색을 배경으로 깔 때의 글자색. 밝은 포인트색(예: Spotify Green)
+     컨셉에서는 흰 글자가 읽히지 않으므로 컨셉별로 덮어쓴다. */
+  --teal-fg: #fff;
 
   /* 레거시 테스트 화면 팔레트 (단위테스트/시나리오/결함/진척 등) */
   --ink: #1f2a30;
@@ -126,42 +133,87 @@
   --font-size-offset: 4px;
 }
 
-/* ===== 화면 컨셉: 프리미엄 (내 정보 > 컨셉 변경에서 선택) =====
-   더 깊고 진한 틸/에메랄드 톤 + 카드 깊이감·라운드·모션을 다듬은 버전.
+/* ===== 화면 컨셉: 프리미엄 — Google Material 3 다크 스킴 =====
+   출처: google-material-dark.md ③ 컬러 시스템 (dark 기본값) · ⑦ elevation
+   surface #1F1F1F 캔버스 + surface-container #2D2D2D 카드 +
+   포인트 Google Blue(#4285F4). 채워진 버튼·선택 칩 위 글자는 흰색.
    새 색상 컨셉을 추가할 때는 이 블록처럼 :root[data-concept="..."]를
    만들고 --teal* 등 색상 토큰을 함께 덮어쓰면 된다. */
 :root[data-concept="premium"] {
-  --teal: #0d7d6f;
-  --teal-600: #0b6459;
-  --teal-700: #084d44;
-  --teal-500: var(--teal);
-  --teal-400: #45ab99;
-  --teal-50: #e4f4f1;
-  --teal-100: #c6e8e1;
+  /* Surfaces — M3 tonal elevation
+     surface #1F1F1F / container #2D2D2D / container-high #3C3C3C */
+  --lnb-bg: #1f1f1f;
+  --lnb-side: #2d2d2d;
+  --lnb-hover: #3c3c3c;
+  --lnb-dark: #151515;
+  --lnb-logo: #e8eaed;
+  --lnb-txt: #e3e3e3;
+  --lnb-muted: #9aa0a6;
+  --lnb-icon: #9aa0a6;
+  /* outline-variant(#3C4043)는 container 표면과 거의 구분되지 않아
+     표가 많은 화면에서 선이 사라진다 — outline(#5F6368)을 경계선으로 쓴다. */
+  --lnb-line: #5f6368;
+  --lnb-branch: #5f6368;
+  --lnb-active-border: #4285f4;
 
-  --lnb-logo: #142523;
-  --lnb-active-border: #cfe8e1;
+  /* Primary CTA: 선택된 칩·등록 버튼 — Google Blue fill + 흰 라벨 */
+  --color-primary: #4285f4;
+  --color-primary-hover: #8ab4f8;
+  --color-primary-light: #16223a;
+  --color-text-inverse: #ffffff;
+  --color-border-2: #80868b;
+  --color-text-2: #c4c7c5;
+  --color-success: #81c995;
+  --color-warning: #fdd663;
+  --color-danger: #f28b82;
+  --color-info: #8ab4f8;
+
+  /* Accent (탭·링크·선택·등록 버튼) — Google Blue fill, hover는 한 단계 밝게 */
+  --teal: #4285f4;
+  --teal-600: #8ab4f8;
+  --teal-700: #aecbfa;
+  --teal-500: var(--teal);
+  --teal-400: #1a73e8;
+  --teal-50: #16223a;
+  --teal-100: #1b2d4d;
+  --teal-fg: #ffffff;
+
+  --ink: #e3e3e3;
+  --ink-2: #c4c7c5;
+  --muted: #9aa0a6;
+  --line: #5f6368;
+  --line-2: #3c4043;
+  --field: #28292c;
+
+  /* Status (M3 dark semantic — Google 4색 다크 톤) */
+  --blue: #8ab4f8;
+  --blue-bg: #16223a;
+  --green: #81c995;
+  --green-bg: #1b2d22;
+  --red: #f28b82;
+  --red-bg: #2e1a17;
+  --orange: #fdd663;
+  --orange-bg: #322811;
+  /* tertiary(#D0BCFF)는 md에 컨테이너 값이 없어 같은 명도 규칙으로 파생 */
+  --purple: #d0bcff;
+  --purple-bg: #251e36;
+  --gray: #9aa0a6;
+  --gray-bg: #3c4043;
 
   --radius-sm: 9px;
   --radius-md: 13px;
   --radius-lg: 16px;
 
-  /* blur이 |spread|보다 충분히 커야 그림자가 카드와 같은 라운드로
-     부드럽게 번짐 — 그렇지 않으면 카드 아래로 각진 회색 사각형이
-     비쳐 보이는 아티팩트가 생긴다 (spread를 blur에 가깝게 크게 잡았던
-     이전 값에서 발생했던 문제). */
+  /* M3 elevation Level 1·2·3 (다크 스킴 값) */
   --shadow-sm:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 8px 10px -6px rgba(20, 30, 45, 0.1),
-    0 4px 6px -4px rgba(20, 30, 45, 0.08);
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 1px 3px 1px rgba(0, 0, 0, 0.3);
   --shadow-md:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 20px 25px -8px rgba(20, 30, 45, 0.18),
-    0 8px 10px -6px rgba(20, 30, 45, 0.1);
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 2px 6px 2px rgba(0, 0, 0, 0.3);
   --shadow-sidebar:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 10px 15px -6px rgba(20, 30, 45, 0.1),
-    0 4px 6px -4px rgba(20, 30, 45, 0.06);
+    0 4px 8px 3px rgba(0, 0, 0, 0.35),
+    0 1px 3px rgba(0, 0, 0, 0.55);
 
   --transition-fast: 220ms cubic-bezier(0.22, 0.75, 0.15, 1);
   --transition-normal: 340ms cubic-bezier(0.22, 0.75, 0.15, 1);

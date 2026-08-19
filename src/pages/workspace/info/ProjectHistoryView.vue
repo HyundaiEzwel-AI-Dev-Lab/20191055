@@ -23,6 +23,9 @@ import {
   createHistoryDefaultFilters,
   getPeriodDateRange,
 } from '@/entities/project/mock/projectHistory'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,6 +44,46 @@ const pageSize = ref(20)
 const currentPage = ref(1)
 const expandedId = ref(null)
 const hasSearched = ref(false)
+
+const searchField = computed({
+  get: () => (isIntegrated.value ? filters.value.projectQuery : filters.value.keyword),
+  set: (v) => {
+    if (isIntegrated.value) filters.value.projectQuery = v
+    else filters.value.keyword = v
+  },
+})
+
+const searchPlaceholder = computed(() =>
+  isIntegrated.value ? '프로젝트명 or 프로젝트ID 입력' : '변경항목, 변경자 검색',
+)
+
+const periodPillOptions = changePeriodOptions.map((o) => ({ value: o.value, label: o.label }))
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const defaults = createHistoryDefaultFilters()
+  const tags = []
+  if (f.category && f.category !== '전체') {
+    tags.push({ key: 'category', label: '변경구분', value: f.category })
+  }
+  if (f.period && f.period !== defaults.period) {
+    const opt = changePeriodOptions.find((o) => o.value === f.period)
+    tags.push({ key: 'period', label: '기간', value: opt?.label || f.period })
+  }
+  if (f.dateFrom !== defaults.dateFrom || f.dateTo !== defaults.dateTo) {
+    tags.push({
+      key: 'dateRange',
+      label: '변경일',
+      value: `${f.dateFrom || '…'} ~ ${f.dateTo || '…'}`,
+    })
+  }
+  if (f.projectQuery) tags.push({ key: 'projectQuery', label: '프로젝트', value: f.projectQuery })
+  if (f.devDept && f.devDept !== '전체') {
+    tags.push({ key: 'devDept', label: '담당개발부서', value: f.devDept })
+  }
+  if (f.keyword) tags.push({ key: 'keyword', label: '변경항목', value: f.keyword })
+  return tags
+})
 
 const colSpan = computed(() => (isIntegrated.value ? 7 : 5))
 
@@ -89,6 +132,11 @@ function onPeriodChange() {
   filters.value.dateTo = range.to
 }
 
+function onPeriodSelect(value) {
+  filters.value.period = value
+  onPeriodChange()
+}
+
 function search() {
   const { dateFrom, dateTo } = filters.value
   if (dateFrom && dateTo && dateFrom > dateTo) {
@@ -100,6 +148,27 @@ function search() {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   expandedId.value = null
+}
+
+function removeFilterTag(key) {
+  const defaults = createHistoryDefaultFilters()
+  if (key === 'dateRange') {
+    filters.value.dateFrom = defaults.dateFrom
+    filters.value.dateTo = defaults.dateTo
+    filters.value.period = defaults.period
+  } else if (key === 'period') {
+    filters.value.period = defaults.period
+    onPeriodChange()
+  } else if (key === 'category') {
+    filters.value.category = '전체'
+  } else if (key === 'devDept') {
+    filters.value.devDept = '전체'
+  } else if (key === 'projectQuery') {
+    filters.value.projectQuery = ''
+  } else if (key === 'keyword') {
+    filters.value.keyword = ''
+  }
+  search()
 }
 
 function toggleExpand(id) {
@@ -155,61 +224,41 @@ function wbsTaskPath(chg) {
 
 <template>
   <div class="project-history">
-    <section class="filter card">
-      <div class="filter__row" :class="isIntegrated ? 'filter__row--4' : 'filter__row--3'">
-        <div class="filter__field">
-          <label>변경구분</label>
-          <select v-model="filters.category" class="filter__select">
-            <option v-for="o in changeCategoryOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field filter__field--date">
-          <label>변경일</label>
-          <div class="filter__date">
-            <select v-model="filters.period" class="filter__select filter__select--period" @change="onPeriodChange">
-              <option v-for="o in changePeriodOptions" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-            <div class="filter__range">
-              <input v-model="filters.dateFrom" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
-              <span class="filter__range-sep">~</span>
-              <input v-model="filters.dateTo" class="filter__input filter__input--date" type="date" @click="$event.target.showPicker?.()" />
-            </div>
-          </div>
-        </div>
-        <div v-if="isIntegrated" class="filter__field">
-          <label>프로젝트</label>
-          <input
-            v-model="filters.projectQuery"
-            class="filter__input"
-            type="text"
-            placeholder="프로젝트명 or 프로젝트ID 입력"
-            @keyup.enter="search"
-          />
-        </div>
-        <div v-if="isIntegrated" class="filter__field">
-          <label>담당개발부서</label>
-          <select v-model="filters.devDept" class="filter__select">
-            <option v-for="o in historyDevDeptOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div v-if="!isIntegrated" class="filter__field">
-          <label>변경항목</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="변경항목, 변경자 검색"
-            @keyup.enter="search"
-          />
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:search="searchField"
+      :search-placeholder="searchPlaceholder"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill
+          v-model="filters.category"
+          label="변경구분"
+          :options="changeCategoryOptions"
+        />
+        <FilterSelectPill
+          :model-value="filters.period"
+          label="기간"
+          :options="periodPillOptions"
+          @update:model-value="onPeriodSelect"
+        />
+        <FilterDateRange
+          label="변경일"
+          :from="filters.dateFrom"
+          :to="filters.dateTo"
+          @update:from="filters.dateFrom = $event"
+          @update:to="filters.dateTo = $event"
+        />
+        <FilterSelectPill
+          v-if="isIntegrated"
+          v-model="filters.devDept"
+          label="담당개발부서"
+          :options="historyDevDeptOptions"
+        />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
@@ -462,86 +511,6 @@ function wbsTaskPath(chg) {
   font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row {
-  display: grid;
-  gap: 12px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row--3 {
-  grid-template-columns: minmax(140px, 0.8fr) minmax(280px, 1.6fr) minmax(140px, 1fr);
-}
-
-.filter__row--4 {
-  grid-template-columns: minmax(120px, 0.7fr) minmax(280px, 1.5fr) minmax(140px, 1fr) minmax(120px, 0.8fr);
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.filter__field label {
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  color: var(--lnb-muted);
-}
-
-.filter__input,
-.filter__select {
-  padding: 7px 10px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  border: 1px solid var(--lnb-line);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--lnb-side);
-  color: var(--lnb-txt);
-  font-family: inherit;
-}
-
-.filter__date {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter__select--period {
-  width: auto;
-  min-width: 110px;
-  flex-shrink: 0;
-}
-
-.filter__range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-.filter__range-sep {
-  color: var(--lnb-muted);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  flex-shrink: 0;
-}
-
-.filter__input--date {
-  flex: 1;
-  min-width: 0;
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .toolbar {
   display: flex;
   align-items: center;
@@ -609,7 +578,7 @@ function wbsTaskPath(chg) {
 }
 
 .data-table__row.open {
-  background: var(--teal-50);
+  background: var(--lnb-hover);
 }
 
 .col-no {
@@ -667,7 +636,7 @@ function wbsTaskPath(chg) {
 
 .detail-row td {
   padding: 0;
-  background: var(--teal-50);
+  background: var(--lnb-hover);
 }
 
 .detail-panel {
@@ -703,7 +672,7 @@ function wbsTaskPath(chg) {
   width: 160px;
   white-space: nowrap;
   vertical-align: top;
-  background: var(--teal-50);
+  background: var(--lnb-hover);
 }
 
 .detail-table td {

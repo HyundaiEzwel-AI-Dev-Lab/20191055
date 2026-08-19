@@ -14,6 +14,9 @@ import {
 import { getDefectList, matchDefectFilters, computeDefectKpi } from '@/entities/defect/mock/testDefect'
 import ErrorDetailModal from '@/pages/workspace/test/defects/ErrorDetailModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { useAuthStore } from '@/app/stores/auth'
 
@@ -93,6 +96,33 @@ function search() {
   currentPage.value = 1
 }
 
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const tags = []
+  if (f.keyword?.trim()) tags.push({ key: 'keyword', label: '통합검색', value: f.keyword })
+  if (f.tester?.trim()) tags.push({ key: 'tester', label: '등록자', value: f.tester })
+  if (f.status && f.status !== '전체') tags.push({ key: 'status', label: '조치상태', value: f.status })
+  if (f.round && f.round !== '전체') tags.push({ key: 'round', label: '차수', value: f.round })
+  if (f.assignee?.trim()) tags.push({ key: 'assignee', label: '조치자', value: f.assignee })
+  if (config.value.showDeployStatus && f.deployStatus && f.deployStatus !== '전체') {
+    tags.push({ key: 'deployStatus', label: '배포상태', value: f.deployStatus })
+  }
+  if (f.grade && f.grade !== '전체') tags.push({ key: 'grade', label: '오류등급', value: f.grade })
+  if (f.bizCategory && f.bizCategory !== '전체') {
+    tags.push({ key: 'bizCategory', label: '업무범주', value: f.bizCategory })
+  }
+  return tags
+})
+
+function removeFilterTag(key) {
+  if (key === 'keyword' || key === 'tester' || key === 'assignee') {
+    filters.value[key] = ''
+  } else {
+    filters.value[key] = '전체'
+  }
+  search()
+}
+
 function openDetail(row) {
   detailTarget.value = row
   showDetail.value = true
@@ -132,65 +162,33 @@ function onExcelDownload() {
   <div class="defect">
     <h1 class="defect__title">{{ pageTitle }}</h1>
 
-    <section class="filter card">
-      <div class="filter__row filter__row--auto">
-        <div class="filter__field">
-          <label>통합검색</label>
-          <input v-model="filters.keyword" class="filter__input" type="text" placeholder="케이스명, 케이스ID, 오류제목, 오류ID" />
-        </div>
-        <div class="filter__field">
-          <label>등록자</label>
-          <input v-model="filters.tester" class="filter__input" type="text" placeholder="등록자" />
-        </div>
-        <div class="filter__field">
-          <label>조치상태</label>
-          <select v-model="filters.status" class="filter__select">
-            <option v-for="o in defectStatusOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>차수</label>
-          <select v-model="filters.round" class="filter__select">
-            <option v-for="o in config.roundOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="filterExpanded" class="filter__row filter__row--auto">
-        <div class="filter__field">
-          <label>조치자</label>
-          <input v-model="filters.assignee" class="filter__input" type="text" placeholder="조치자" />
-        </div>
-        <div v-if="config.showDeployStatus" class="filter__field">
-          <label>배포상태</label>
-          <select v-model="filters.deployStatus" class="filter__select">
-            <option v-for="o in deployStatusOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>오류등급</label>
-          <select v-model="filters.grade" class="filter__select">
-            <option v-for="o in defectGradeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무범주</label>
-          <select v-model="filters.bizCategory" class="filter__select">
-            <option v-for="o in bizCategoryOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-
-      <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        검색조건
-        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
-      </button>
-
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="케이스명, 케이스ID, 오류제목, 오류ID"
+      panel-class="sfb__panel-grid--auto"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterTextPill v-model="filters.tester" label="등록자" placeholder="등록자" />
+        <FilterSelectPill v-model="filters.status" label="조치상태" :options="defectStatusOptions" />
+        <FilterSelectPill v-model="filters.round" label="차수" :options="config.roundOptions" />
+      </template>
+      <template #expand>
+        <FilterTextPill v-model="filters.assignee" label="조치자" placeholder="조치자" />
+        <FilterSelectPill
+          v-if="config.showDeployStatus"
+          v-model="filters.deployStatus"
+          label="배포상태"
+          :options="deployStatusOptions"
+        />
+        <FilterSelectPill v-model="filters.grade" label="오류등급" :options="defectGradeOptions" />
+        <FilterSelectPill v-model="filters.bizCategory" label="업무범주" :options="bizCategoryOptions" />
+      </template>
+    </SearchFilterBar>
 
     <div class="kpi-row">
       <div class="kpi-card"><span class="kpi-card__lab">접수</span><span class="kpi-card__num">{{ kpi.received }}</span></div>
@@ -297,102 +295,6 @@ function onExcelDownload() {
   font-size: calc(18px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 0 0 14px;
-}
-
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.filter__row--auto { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
-}
-
-.filter__expand {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 10px;
-  font-family: inherit;
-}
-
-.filter__expand-icon {
-  display: inline-block;
-  transition: transform var(--transition-fast);
-}
-
-.filter__expand-icon.is-open {
-  transform: rotate(180deg);
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 7px;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn--primary {
-  background: var(--teal);
-  color: var(--color-text-inverse);
-}
-
-.btn--primary:hover {
-  background: var(--teal-600);
-}
-
-.btn--ghost {
-  background: var(--lnb-side);
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.btn--ghost:hover {
-  border-color: var(--teal-100);
-  color: var(--teal-600);
 }
 
 .kpi-row {

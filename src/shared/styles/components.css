@@ -325,8 +325,8 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  background: var(--teal);
+  color: var(--teal-fg);
   border-radius: 999px;
   font-size: calc(var(--font-size-xs) + var(--font-size-offset, 0px));
 }

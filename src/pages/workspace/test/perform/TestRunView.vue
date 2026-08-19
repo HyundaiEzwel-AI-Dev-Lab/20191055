@@ -18,6 +18,10 @@ import TestNoteModal from '@/pages/workspace/test/scenario/TestNoteModal.vue'
 import { scenarioMeta } from '@/entities/scenario/mock/scenario'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const { mode, config, pageTitle } = useTestContext()
@@ -89,6 +93,55 @@ function resetFilters() {
     screenKeyword: '',
     dateFrom: '',
     dateTo: '',
+  }
+}
+
+/** 필터는 실시간 반영 — 조회 버튼은 Enter/클릭 진입점만 제공 */
+function search() {}
+
+const systemFilterOptions = computed(() =>
+  (config.value.systemOptions || []).map((s) =>
+    s === '전체' ? { value: '전체', label: '시스템 선택' } : s,
+  ),
+)
+
+const filterTags = computed(() => {
+  const f = filters.value
+  const tags = []
+  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '업무범주', value: f.system })
+  if (f.bizCategory && f.bizCategory !== '전체') {
+    tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
+  }
+  if (f.round && f.round !== '전체') tags.push({ key: 'round', label: '차수', value: f.round })
+  if (f.keyword?.trim()) tags.push({ key: 'keyword', label: '케이스', value: f.keyword })
+  if (f.tester?.trim()) tags.push({ key: 'tester', label: '테스터', value: f.tester })
+  if (myTestsOnly.value) tags.push({ key: 'myTestsOnly', label: '내 테스트만', value: 'ON' })
+  if (f.dateFrom || f.dateTo) {
+    tags.push({
+      key: 'dateRange',
+      label: '계획일',
+      value: `${f.dateFrom || ''} ~ ${f.dateTo || ''}`,
+    })
+  }
+  if (f.screenKeyword?.trim()) {
+    tags.push({ key: 'screenKeyword', label: '요구사항/화면명', value: f.screenKeyword })
+  }
+  if (f.executionType && f.executionType !== '전체') {
+    tags.push({ key: 'executionType', label: '수행구분', value: f.executionType })
+  }
+  return tags
+})
+
+function removeFilterTag(key) {
+  if (key === 'dateRange') {
+    filters.value.dateFrom = ''
+    filters.value.dateTo = ''
+  } else if (key === 'myTestsOnly') {
+    myTestsOnly.value = false
+  } else if (key === 'keyword' || key === 'tester' || key === 'screenKeyword') {
+    filters.value[key] = ''
+  } else {
+    filters.value[key] = '전체'
   }
 }
 
@@ -245,88 +298,55 @@ function onExcelDownload() {
   <div class="test-run">
     <h1 class="test-run__title">{{ pageTitle }}</h1>
 
-    <div class="filter card">
-      <div class="filter__row">
-        <div class="filter__field">
-          <label>업무범주</label>
-          <select v-model="filters.system" class="filter__inp">
-            <option value="전체">시스템 선택</option>
-            <option v-for="s in config.systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="filters.bizCategory" class="filter__inp">
-            <option v-for="o in config.bizCategoryOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>차수</label>
-          <select v-model="filters.round" class="filter__inp">
-            <option v-for="o in config.roundOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field filter__field--case">
-          <label>케이스</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__inp"
-            type="text"
-            placeholder="케이스명, 케이스 ID"
-          />
-        </div>
-        <div class="filter__field">
-          <label>테스터</label>
-          <input
-            v-model="filters.tester"
-            class="filter__inp"
-            type="text"
-            placeholder="테스터"
-          />
-        </div>
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="케이스명, 케이스 ID"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill
+          v-model="filters.system"
+          label="업무범주"
+          empty-label="시스템 선택"
+          :options="systemFilterOptions"
+        />
+        <FilterSelectPill
+          v-model="filters.bizCategory"
+          label="업무구분"
+          :options="config.bizCategoryOptions"
+        />
+        <FilterSelectPill v-model="filters.round" label="차수" :options="config.roundOptions" />
+        <FilterTextPill v-model="filters.tester" label="테스터" placeholder="테스터" />
         <label class="chk chk--toggle">
           <input v-model="myTestsOnly" type="checkbox" />
           <span class="chk__switch"></span>
           내 테스트만
         </label>
-      </div>
-
-      <div v-if="filterExpanded" class="filter__row">
-        <div class="filter__field filter__field--range">
-          <label>계획일</label>
-          <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__inp" type="date" @click="$event.target.showPicker?.()" />
-            <span>~</span>
-            <input v-model="filters.dateTo" class="filter__inp" type="date" @click="$event.target.showPicker?.()" />
-          </div>
-        </div>
-        <div class="filter__field filter__field--wide">
-          <label>요구사항/화면명</label>
-          <input
-            v-model="filters.screenKeyword"
-            class="filter__inp"
-            type="text"
-            placeholder="요구사항 ID, 화면명"
-          />
-        </div>
-        <div class="filter__field">
-          <label>수행구분</label>
-          <select v-model="filters.executionType" class="filter__inp">
-            <option v-for="o in config.executionTypeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-
-      <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        검색조건
-        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
-      </button>
-
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary">조회</button>
-      </div>
-    </div>
+      </template>
+      <template #expand>
+        <FilterDateRange
+          label="계획일"
+          :from="filters.dateFrom"
+          :to="filters.dateTo"
+          @update:from="filters.dateFrom = $event"
+          @update:to="filters.dateTo = $event"
+        />
+        <FilterTextPill
+          v-model="filters.screenKeyword"
+          label="요구사항/화면명"
+          placeholder="요구사항 ID, 화면명"
+        />
+        <FilterSelectPill
+          v-model="filters.executionType"
+          label="수행구분"
+          :options="config.executionTypeOptions"
+        />
+      </template>
+    </SearchFilterBar>
 
     <p v-if="hasOutOfPeriod" class="period-banner">
       ⚠ 테스트 가능 기간이 아닌 케이스가 포함되어 있습니다. 딤 처리된 케이스는 기간 외 케이스입니다.
@@ -513,94 +533,6 @@ function onExcelDownload() {
   margin: 0 0 14px;
 }
 
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.filter__field--case {
-  width: 300px;
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 120px;
-}
-
-.filter__field--wide {
-  flex: 1;
-  min-width: 180px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.filter__inp {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.filter__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.filter__field--range {
-  min-width: 220px;
-}
-
-.filter__range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter__range .filter__inp {
-  flex: 1;
-}
-
-.filter__expand {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 10px;
-  font-family: inherit;
-}
-
-.filter__expand-icon {
-  display: inline-block;
-  transition: transform var(--transition-fast);
-}
-
-.filter__expand-icon.is-open {
-  transform: rotate(180deg);
-}
-
 .btn {
   height: 32px;
   padding: 0 14px;
@@ -658,8 +590,10 @@ function onExcelDownload() {
 
 .chk--toggle {
   margin-right: 0;
-  margin-left: auto;
+  margin-left: 0;
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .chk--toggle input {

@@ -21,6 +21,11 @@ import { getScheduleChange } from '@/entities/dashboard/mock/scheduleChange'
 import ScheduleChangeModal from '@/pages/integrated/dashboard/ScheduleChangeModal.vue'
 import RequirementListModal from '@/pages/integrated/dashboard/RequirementListModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
+import SearchableSelect from '@/shared/ui/SearchableSelect.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { useProjectStore } from '@/app/stores/project'
 
@@ -28,6 +33,11 @@ const router = useRouter()
 const projectStore = useProjectStore()
 
 const bizCategoryOptions = [...new Set(Object.values(bizCategoryMap).flat())]
+const selectEmptyOption = { value: '', label: '선택' }
+const devDeptPillOptions = [selectEmptyOption, ...devDepts]
+const initiatorPillOptions = [selectEmptyOption, ...initiatorOptions]
+const devTypePillOptions = [selectEmptyOption, ...devTypeOptions]
+const summaryPillOptions = [selectEmptyOption, ...summaryOptions]
 
 function emptyFilters() {
   return {
@@ -55,6 +65,33 @@ const appliedFilters = ref({ ...filters.value })
 const activeKpi = ref('total')
 const pageSize = ref(20)
 const currentPage = ref(1)
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const tags = []
+  if (f.keyword) tags.push({ key: 'keyword', label: '프로젝트', value: f.keyword })
+  if (f.requestDept) tags.push({ key: 'requestDept', label: '요청부서', value: f.requestDept })
+  if (f.devDept) tags.push({ key: 'devDept', label: '담당개발부서', value: f.devDept })
+  if (f.stage && f.stage !== '전체') tags.push({ key: 'stage', label: '처리단계', value: f.stage })
+  if (f.openDateFrom || f.openDateTo) {
+    tags.push({
+      key: 'openDate',
+      label: '오픈일',
+      value: `${f.openDateFrom || '…'} ~ ${f.openDateTo || '…'}`,
+    })
+  }
+  if (f.manager) tags.push({ key: 'manager', label: '담당자', value: f.manager })
+  if (f.itVoc) tags.push({ key: 'itVoc', label: 'IT-VOC', value: f.itVoc })
+  if (f.jira) tags.push({ key: 'jira', label: 'JIRA', value: f.jira })
+  if (f.initiator) tags.push({ key: 'initiator', label: '발의주체', value: f.initiator })
+  if (f.devType) tags.push({ key: 'devType', label: '개발구분', value: f.devType })
+  if (f.summary) tags.push({ key: 'summary', label: '적요', value: f.summary })
+  if (f.systems.length) tags.push({ key: 'systems', label: '시스템구분', value: f.systems.join(', ') })
+  if (f.bizCategories.length) {
+    tags.push({ key: 'bizCategories', label: '업무구분', value: f.bizCategories.join(', ') })
+  }
+  return tags
+})
 
 const showScheduleModal = ref(false)
 const scheduleModalData = ref(null)
@@ -99,8 +136,23 @@ function resetFilters() {
 }
 
 function search() {
-  appliedFilters.value = { ...filters.value }
+  appliedFilters.value = {
+    ...filters.value,
+    systems: [...filters.value.systems],
+    bizCategories: [...filters.value.bizCategories],
+  }
   currentPage.value = 1
+}
+
+function removeFilterTag(key) {
+  const empty = emptyFilters()
+  if (key === 'openDate') {
+    filters.value.openDateFrom = ''
+    filters.value.openDateTo = ''
+  } else if (key in empty) {
+    filters.value[key] = empty[key]
+  }
+  search()
 }
 
 function toggleSystem(system) {
@@ -232,115 +284,80 @@ function onPageSizeChange() {
     </section>
 
     <!-- 검색조건 -->
-    <section class="filter card">
-      <div class="filter__row">
-        <div class="filter__field">
-          <label>프로젝트</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="프로젝트명 또는 프로젝트ID"
-            @keyup.enter="search"
-          />
-        </div>
-        <div class="filter__field">
-          <label>요청부서</label>
-          <input
-            v-model="filters.requestDept"
-            class="filter__input"
-            list="request-dept-options"
-            type="text"
-            placeholder="입력하여 검색"
-            @keyup.enter="search"
-          />
-          <datalist id="request-dept-options">
-            <option v-for="d in requestDepts" :key="d" :value="d" />
-          </datalist>
-        </div>
-        <div class="filter__field">
-          <label>담당개발부서</label>
-          <select v-model="filters.devDept" class="filter__select">
-            <option value="">선택</option>
-            <option v-for="d in devDepts" :key="d" :value="d">{{ d }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>처리단계</label>
-          <select v-model="filters.stage" class="filter__select">
-            <option v-for="s in stageOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="filterExpanded" class="filter__expand-area">
-        <div class="filter__row filter__row--expand">
-          <div class="filter__field">
-            <label>오픈일</label>
-            <div class="filter__range">
-              <input v-model="filters.openDateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-              <span>~</span>
-              <input v-model="filters.openDateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-            </div>
-          </div>
-          <div class="filter__field">
-            <label>담당자</label>
-            <input
-              v-model="filters.manager"
-              class="filter__input"
-              type="text"
-              placeholder="담당자명"
-              @keyup.enter="search"
-            />
-          </div>
-          <div class="filter__field">
-            <label>IT-VOC</label>
-            <input
-              v-model="filters.itVoc"
-              class="filter__input"
-              type="text"
-              placeholder="IT-VOC 번호"
-              @keyup.enter="search"
-            />
-          </div>
-          <div class="filter__field">
-            <label>JIRA</label>
-            <input
-              v-model="filters.jira"
-              class="filter__input"
-              type="text"
-              placeholder="JIRA 번호"
-              @keyup.enter="search"
-            />
-          </div>
-          <div class="filter__field">
-            <label>발의주체</label>
-            <select v-model="filters.initiator" class="filter__select">
-              <option value="">선택</option>
-              <option v-for="o in initiatorOptions" :key="o" :value="o">{{ o }}</option>
-            </select>
-          </div>
-          <div class="filter__field">
-            <label>개발구분</label>
-            <select v-model="filters.devType" class="filter__select">
-              <option value="">선택</option>
-              <option v-for="o in devTypeOptions" :key="o" :value="o">{{ o }}</option>
-            </select>
-          </div>
-          <div class="filter__field">
-            <label>적요</label>
-            <select v-model="filters.summary" class="filter__select">
-              <option value="">선택</option>
-              <option v-for="o in summaryOptions" :key="o" :value="o">{{ o }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="filter__row filter__row--expand">
-          <div class="filter__field filter__field--checks">
-            <label>시스템구분</label>
-            <div class="filter__checks">
-              <label v-for="s in systemOptions" :key="s" class="filter__check">
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="프로젝트명 또는 프로젝트ID"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <SearchableSelect
+          v-model="filters.requestDept"
+          variant="pill"
+          label="요청부서"
+          :options="requestDepts"
+          placeholder="입력하여 검색"
+        />
+        <FilterSelectPill
+          v-model="filters.devDept"
+          label="담당개발부서"
+          :options="devDeptPillOptions"
+          empty-label="선택"
+        />
+        <FilterSelectPill v-model="filters.stage" label="처리단계" :options="stageOptions" />
+      </template>
+      <template #expand>
+        <FilterDateRange
+          label="오픈일"
+          :from="filters.openDateFrom"
+          :to="filters.openDateTo"
+          @update:from="filters.openDateFrom = $event"
+          @update:to="filters.openDateTo = $event"
+        />
+        <FilterTextPill
+          v-model="filters.manager"
+          label="담당자"
+          placeholder="담당자명"
+          @enter="search"
+        />
+        <FilterTextPill
+          v-model="filters.itVoc"
+          label="IT-VOC"
+          placeholder="IT-VOC 번호"
+          @enter="search"
+        />
+        <FilterTextPill
+          v-model="filters.jira"
+          label="JIRA"
+          placeholder="JIRA 번호"
+          @enter="search"
+        />
+        <FilterSelectPill
+          v-model="filters.initiator"
+          label="발의주체"
+          :options="initiatorPillOptions"
+          empty-label="선택"
+        />
+        <FilterSelectPill
+          v-model="filters.devType"
+          label="개발구분"
+          :options="devTypePillOptions"
+          empty-label="선택"
+        />
+        <FilterSelectPill
+          v-model="filters.summary"
+          label="적요"
+          :options="summaryPillOptions"
+          empty-label="선택"
+        />
+        <div class="sfb-check-groups" style="grid-column: 1 / -1">
+          <div class="sfb-check-group">
+            <span class="sfb-check-group__label">시스템구분</span>
+            <div class="sfb-check-group__list">
+              <label v-for="s in systemOptions" :key="s" class="sfb-check">
                 <input
                   type="checkbox"
                   :checked="filters.systems.includes(s)"
@@ -350,10 +367,10 @@ function onPageSizeChange() {
               </label>
             </div>
           </div>
-          <div class="filter__field filter__field--checks">
-            <label>업무구분</label>
-            <div class="filter__checks">
-              <label v-for="c in bizCategoryOptions" :key="c" class="filter__check">
+          <div class="sfb-check-group">
+            <span class="sfb-check-group__label">업무구분</span>
+            <div class="sfb-check-group__list">
+              <label v-for="c in bizCategoryOptions" :key="c" class="sfb-check">
                 <input
                   type="checkbox"
                   :checked="filters.bizCategories.includes(c)"
@@ -364,22 +381,8 @@ function onPageSizeChange() {
             </div>
           </div>
         </div>
-      </div>
-
-      <button
-        type="button"
-        class="filter__expand"
-        aria-label="검색조건 확장/접기"
-        @click="filterExpanded = !filterExpanded"
-      >
-        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
-      </button>
-
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+      </template>
+    </SearchFilterBar>
 
     <!-- 프로젝트 목록 -->
     <section class="card listcard">
@@ -516,53 +519,28 @@ function onPageSizeChange() {
   border-radius: 10px;
 }
 
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-
-.filter__row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px 14px;
-}
-
-.filter__expand-area {
+.sfb-check-groups {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 10px;
 }
 
-.filter__row--expand {
-  margin-top: 0;
-}
-
-.filter__range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.sfb-check-group__label {
+  display: block;
+  font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
-.filter__range .filter__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.filter__field--checks {
-  grid-column: span 2;
-}
-
-.filter__checks {
+.sfb-check-group__list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
-  padding: 6px 0 2px;
+  padding: 2px 0;
 }
 
-.filter__check {
+.sfb-check {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -570,95 +548,6 @@ function onPageSizeChange() {
   font-weight: 500;
   color: var(--lnb-txt);
   cursor: pointer;
-}
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  background: var(--lnb-hover);
-  border: 1px solid var(--lnb-line);
-  border-radius: 7px;
-  padding: 0 10px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-family: inherit;
-  color: var(--lnb-txt);
-}
-
-.filter__input {
-  background: var(--lnb-side);
-}
-
-.filter__expand {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  border: none;
-  background: none;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--teal-600);
-  cursor: pointer;
-  font-family: inherit;
-  padding: 0;
-}
-
-.filter__expand-icon {
-  display: inline-block;
-  transition: transform var(--transition-fast);
-}
-
-.filter__expand-icon.is-open {
-  transform: rotate(180deg);
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 7px;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn--primary {
-  background: var(--teal);
-  color: var(--color-text-inverse);
-}
-
-.btn--primary:hover {
-  background: var(--teal-600);
-}
-
-.btn--ghost {
-  background: var(--lnb-side);
-  border-color: var(--lnb-line);
-  color: var(--lnb-txt);
-}
-
-.btn--ghost:hover {
-  border-color: var(--teal-100);
-  color: var(--teal-600);
 }
 
 .kpi-row {
@@ -926,9 +815,6 @@ function onPageSizeChange() {
 @media (max-width: 1200px) {
   .kpi-row {
     grid-template-columns: repeat(3, 1fr);
-  }
-  .filter__row {
-    grid-template-columns: repeat(2, 1fr);
   }
   .listcard__toolbar {
     flex-wrap: wrap;

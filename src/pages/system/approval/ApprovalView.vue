@@ -15,6 +15,10 @@ import {
   approvalStatusClass,
 } from '@/entities/approval/mock/approval'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const router = useRouter()
@@ -37,12 +41,39 @@ const currentPage = ref(1)
 const selectedIds = ref([])
 const selectedRow = ref(rows[0] || null)
 
+const statusSelectOptions = approvalStatusOptions.map((o) => ({
+  value: o,
+  label: o === '전체' ? '선택' : o,
+}))
+const typeSelectOptions = requestTypeOptions.map((o) => ({
+  value: o,
+  label: o === '전체' ? '선택' : o,
+}))
+
 const filtered = computed(() => rows.filter((r) => matchApprovalFilters(r, applied.value)))
 const paged = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filtered.value.slice(start, start + pageSize.value)
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
+
+const filterTags = computed(() => {
+  const a = applied.value
+  const tags = []
+  if (a.status && a.status !== '전체') tags.push({ key: 'status', label: '승인상태', value: a.status })
+  if (a.type && a.type !== '전체') tags.push({ key: 'type', label: '요청유형', value: a.type })
+  if (a.project) tags.push({ key: 'project', label: '프로젝트명', value: a.project })
+  if (a.requester) tags.push({ key: 'requester', label: '요청자', value: a.requester })
+  if (a.dateType && a.dateType !== '요청일') tags.push({ key: 'dateType', label: '날짜구분', value: a.dateType })
+  if (a.dateFrom || a.dateTo) {
+    tags.push({
+      key: 'dateRange',
+      label: '기간',
+      value: `${a.dateFrom || '…'} ~ ${a.dateTo || '…'}`,
+    })
+  }
+  return tags
+})
 
 const scheduleDetailRows = computed(() => {
   if (!selectedRow.value || selectedRow.value.type !== '일정') return []
@@ -89,6 +120,19 @@ function resetFilters() {
     dateType: '요청일',
     dateFrom: '',
     dateTo: '',
+  }
+  search()
+}
+
+function removeFilterTag(key) {
+  if (key === 'status') filters.value.status = '전체'
+  else if (key === 'type') filters.value.type = '전체'
+  else if (key === 'project') filters.value.project = ''
+  else if (key === 'requester') filters.value.requester = ''
+  else if (key === 'dateType') filters.value.dateType = '요청일'
+  else if (key === 'dateRange') {
+    filters.value.dateFrom = ''
+    filters.value.dateTo = ''
   }
   search()
 }
@@ -173,50 +217,26 @@ function onExcelDownload() {
 
 <template>
   <div class="admin-page">
-    <section class="filter card">
-      <div class="filter__row filter__row--5">
-        <div class="filter__field">
-          <label>승인상태</label>
-          <select v-model="filters.status" class="filter__select">
-            <option v-for="o in approvalStatusOptions" :key="o" :value="o">{{ o === '전체' ? '선택' : o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>요청유형</label>
-          <select v-model="filters.type" class="filter__select">
-            <option v-for="o in requestTypeOptions" :key="o" :value="o">{{ o === '전체' ? '선택' : o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>프로젝트명</label>
-          <input v-model="filters.project" class="filter__input" type="text" placeholder="프로젝트명" @keyup.enter="search" />
-        </div>
-        <div class="filter__field">
-          <label>요청자</label>
-          <input v-model="filters.requester" class="filter__input" type="text" placeholder="요청자" @keyup.enter="search" />
-        </div>
-        <div class="filter__field">
-          <label>날짜구분</label>
-          <select v-model="filters.dateType" class="filter__select">
-            <option v-for="o in dateTypeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="filter__row filter__row--2">
-        <div class="filter__field">
-          <label>기간</label>
-          <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-            <span class="filter__range-sep">~</span>
-            <input v-model="filters.dateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-          </div>
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      :show-search="false"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.status" label="승인상태" :options="statusSelectOptions" empty-label="선택" />
+        <FilterSelectPill v-model="filters.type" label="요청유형" :options="typeSelectOptions" empty-label="선택" />
+        <FilterTextPill v-model="filters.project" label="프로젝트명" placeholder="프로젝트명" @enter="search" />
+        <FilterTextPill v-model="filters.requester" label="요청자" placeholder="요청자" @enter="search" />
+        <FilterSelectPill v-model="filters.dateType" label="날짜구분" :options="dateTypeOptions" empty-label="요청일" />
+        <FilterDateRange
+          label="기간"
+          v-model:from="filters.dateFrom"
+          v-model:to="filters.dateTo"
+        />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">승인요청 내역 · 총 <b>{{ filtered.length }}</b>건</span>
@@ -405,22 +425,6 @@ function onExcelDownload() {
 </template>
 
 <style scoped>
-.filter__range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter__range .filter__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.filter__range-sep {
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-}
-
 .detail-card__head {
   display: flex;
   align-items: center;

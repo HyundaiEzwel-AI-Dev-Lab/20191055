@@ -12,6 +12,10 @@ import {
 import ScenarioBulkRegisterModal from '@/pages/workspace/test/scenario/ScenarioBulkRegisterModal.vue'
 import TestNoteModal from '@/pages/workspace/test/scenario/TestNoteModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { addScenarioCases } from '@/entities/scenario/mock/scenario'
 import { useAuthStore } from '@/app/stores/auth'
@@ -101,6 +105,42 @@ function search() {
   appliedFilters.value = { ...filters.value, round: selectedRound.value }
   currentPage.value = 1
   expandedIds.value = new Set()
+}
+
+const filterTags = computed(() => {
+  const f = appliedFilters.value
+  const tags = []
+  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '시스템', value: f.system })
+  if (f.bizCategory && f.bizCategory !== '전체') {
+    tags.push({ key: 'bizCategory', label: '업무범주', value: f.bizCategory })
+  }
+  if (f.executionType && f.executionType !== '전체') {
+    tags.push({ key: 'executionType', label: '수행구분', value: f.executionType })
+  }
+  if (f.keyword?.trim()) tags.push({ key: 'keyword', label: '케이스', value: f.keyword })
+  if (f.dateFrom || f.dateTo) {
+    tags.push({
+      key: 'dateRange',
+      label: '계획일',
+      value: `${f.dateFrom || ''} ~ ${f.dateTo || ''}`,
+    })
+  }
+  if (f.screenKeyword?.trim()) {
+    tags.push({ key: 'screenKeyword', label: '요구사항/화면명', value: f.screenKeyword })
+  }
+  return tags
+})
+
+function removeFilterTag(key) {
+  if (key === 'dateRange') {
+    filters.value.dateFrom = ''
+    filters.value.dateTo = ''
+  } else if (key === 'keyword' || key === 'screenKeyword') {
+    filters.value[key] = ''
+  } else {
+    filters.value[key] = '전체'
+  }
+  search()
 }
 
 function selectRound(round) {
@@ -204,67 +244,39 @@ function onBulkConfirm(items) {
       </button>
     </div>
 
-    <section class="filter card">
-      <div class="filter__row filter__row--4">
-        <div class="filter__field">
-          <label>시스템</label>
-          <select v-model="filters.system" class="filter__select">
-            <option v-for="o in systemOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무범주</label>
-          <select v-model="filters.bizCategory" class="filter__select">
-            <option v-for="o in bizCategoryOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>케이스 검색</label>
-          <input
-            v-model="filters.keyword"
-            class="filter__input"
-            type="text"
-            placeholder="케이스 ID, 케이스명"
-          />
-        </div>
-        <div class="filter__field">
-          <label>수행구분</label>
-          <select v-model="filters.executionType" class="filter__select">
-            <option v-for="o in config.executionTypeOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="filterExpanded" class="filter__row filter__row--3">
-        <div class="filter__field filter__field--range">
-          <label>계획일</label>
-          <div class="filter__range">
-            <input v-model="filters.dateFrom" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-            <span>~</span>
-            <input v-model="filters.dateTo" class="filter__input" type="date" @click="$event.target.showPicker?.()" />
-          </div>
-        </div>
-        <div class="filter__field">
-          <label>요구사항/화면명</label>
-          <input
-            v-model="filters.screenKeyword"
-            class="filter__input"
-            type="text"
-            placeholder="화면명, 요구사항 ID"
-          />
-        </div>
-      </div>
-
-      <button type="button" class="filter__expand" @click="filterExpanded = !filterExpanded">
-        검색조건
-        <span class="filter__expand-icon" :class="{ 'is-open': filterExpanded }">▾</span>
-      </button>
-
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="케이스 ID, 케이스명"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="filters.system" label="시스템" :options="systemOptions" />
+        <FilterSelectPill v-model="filters.bizCategory" label="업무범주" :options="bizCategoryOptions" />
+        <FilterSelectPill
+          v-model="filters.executionType"
+          label="수행구분"
+          :options="config.executionTypeOptions"
+        />
+      </template>
+      <template #expand>
+        <FilterDateRange
+          label="계획일"
+          :from="filters.dateFrom"
+          :to="filters.dateTo"
+          @update:from="filters.dateFrom = $event"
+          @update:to="filters.dateTo = $event"
+        />
+        <FilterTextPill
+          v-model="filters.screenKeyword"
+          label="요구사항/화면명"
+          placeholder="화면명, 요구사항 ID"
+        />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
@@ -455,118 +467,6 @@ function onBulkConfirm(items) {
 }
 
 .memo-btn:hover {
-  border-color: var(--teal-100);
-  color: var(--teal-600);
-}
-
-.filter {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.filter__row {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.filter__row--4 { grid-template-columns: repeat(4, 1fr); }
-.filter__row--3 { grid-template-columns: 1.2fr 1fr; }
-
-.filter__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter__field label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.filter__input,
-.filter__select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  background: var(--field);
-  color: var(--ink);
-}
-
-.filter__range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter__range .filter__input { flex: 1; }
-
-.filter__expand {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: none;
-  background: none;
-  color: var(--teal-600);
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 10px;
-  font-family: inherit;
-}
-
-.filter__expand-icon {
-  display: inline-block;
-  transition: transform var(--transition-fast);
-}
-
-.filter__expand-icon.is-open {
-  transform: rotate(180deg);
-}
-
-.filter__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 7px;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn--sm {
-  height: 28px;
-  padding: 0 10px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.btn--primary {
-  background: var(--teal);
-  color: var(--color-text-inverse);
-}
-
-.btn--primary:hover {
-  background: var(--teal-600);
-}
-
-.btn--ghost {
-  background: var(--lnb-side);
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.btn--ghost:hover {
   border-color: var(--teal-100);
   color: var(--teal-600);
 }

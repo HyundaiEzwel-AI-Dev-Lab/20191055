@@ -532,12 +532,17 @@ function nextWaiting() {
 .stat-chip--gray { background: var(--gray-bg); color: var(--gray); }
 .stat-chip--red { background: var(--red-bg); color: var(--red); }
 
-/* 다크모드: 아이콘은 항상 흰색 + 배지 배경을 반투명 흰색으로 (밝은 배경 위 흰 아이콘은 안 보이므로 배경도 조정) */
+/* 다크 계열: 아이콘은 항상 흰색 + 배지 배경을 반투명 흰색으로 (밝은 배경 위 흰 아이콘은 안 보이므로 배경도 조정) */
 :root[data-concept='dark'] .stat-chip--brand .stat-chip__icon,
 :root[data-concept='dark'] .stat-chip--blue .stat-chip__icon,
 :root[data-concept='dark'] .stat-chip--orange .stat-chip__icon,
 :root[data-concept='dark'] .stat-chip--gray .stat-chip__icon,
-:root[data-concept='dark'] .stat-chip--red .stat-chip__icon {
+:root[data-concept='dark'] .stat-chip--red .stat-chip__icon,
+:root[data-concept='premium'] .stat-chip--brand .stat-chip__icon,
+:root[data-concept='premium'] .stat-chip--blue .stat-chip__icon,
+:root[data-concept='premium'] .stat-chip--orange .stat-chip__icon,
+:root[data-concept='premium'] .stat-chip--gray .stat-chip__icon,
+:root[data-concept='premium'] .stat-chip--red .stat-chip__icon {
   color: #fff;
   background: rgba(255, 255, 255, 0.16);
 }

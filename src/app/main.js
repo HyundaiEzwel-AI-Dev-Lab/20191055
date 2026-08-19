@@ -8,6 +8,7 @@ import '@/shared/styles/base.css'
 import '@/shared/styles/components.css'
 import '@/shared/styles/layout.css'
 import '@/shared/styles/admin.css'
+import '@/shared/styles/search-filter.css'
 
 const app = createApp(App)
 

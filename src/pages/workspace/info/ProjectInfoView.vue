@@ -1442,7 +1442,7 @@ select.inp--edit {
 .pill--on {
   background: var(--teal);
   border-color: var(--teal);
-  color: var(--color-text-inverse);
+  color: var(--teal-fg);
   box-shadow: 0 2px 6px rgba(17, 154, 138, 0.28);
 }
 
@@ -1466,7 +1466,7 @@ select.inp--edit {
 }
 
 .pill--on .pill__mark {
-  border-color: var(--color-text-inverse);
+  border-color: var(--teal-fg);
   background: var(--lnb-side);
   color: var(--teal);
 }
@@ -1502,11 +1502,11 @@ select.inp--edit {
   gap: 6px;
   height: 26px;
   padding: 0 6px 0 10px;
-  border: 1px solid var(--teal-100);
-  background: var(--teal-50);
+  border: 1px solid var(--teal);
+  background: var(--teal);
   border-radius: 20px;
   font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--teal-600);
+  color: var(--teal-fg);
 }
 
 .chip--person {
@@ -1516,7 +1516,7 @@ select.inp--edit {
 .chip__x {
   border: none;
   background: none;
-  color: var(--teal-600);
+  color: var(--teal-fg);
   opacity: 0.6;
   cursor: pointer;
   font-size: calc(11px + var(--font-size-offset, 0px));
@@ -1971,7 +1971,7 @@ select.inp--edit {
 
 .btn--primary {
   background: var(--teal);
-  color: var(--color-text-inverse);
+  color: var(--teal-fg);
 }
 
 .btn--primary:hover:not(:disabled) {

@@ -8,6 +8,9 @@ import {
   getScreenCodes,
 } from '@/entities/menu-mgmt/menuMgmt'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const selectedSystem = ref('HIMS')
@@ -33,6 +36,15 @@ const rows = computed(() => {
 
 const canAdd = computed(() => hasSearched.value && !!selectedSystem.value && !!selectedBiz.value)
 
+const filterTags = computed(() => {
+  const f = filters.value
+  const tags = []
+  if (f.id) tags.push({ key: 'id', label: '관리번호', value: f.id })
+  if (f.name) tags.push({ key: 'name', label: '화면명', value: f.name })
+  if (f.path) tags.push({ key: 'path', label: '화면경로', value: f.path })
+  return tags
+})
+
 watch(selectedSystem, (sys) => {
   const list = bizCategoriesBySystem[sys] || []
   selectedBiz.value = list.includes('고객사/제도') ? '고객사/제도' : list[0] || ''
@@ -52,6 +64,13 @@ function search() {
 
 function resetFilters() {
   filters.value = { id: '', name: '', path: '' }
+  search()
+}
+
+function removeFilterTag(key) {
+  if (key === 'id') filters.value.id = ''
+  else if (key === 'name') filters.value.name = ''
+  else if (key === 'path') filters.value.path = ''
   search()
 }
 
@@ -139,40 +158,21 @@ function onExcelDownload() {
   <div class="admin-page">
     <div class="notice">ⓘ {{ menuMgmtMeta.notice }}</div>
 
-    <section class="filter card">
-      <div class="filter__row filter__row--4">
-        <div class="filter__field">
-          <label>시스템</label>
-          <select v-model="selectedSystem" class="filter__select">
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>업무구분</label>
-          <select v-model="selectedBiz" class="filter__select">
-            <option v-for="b in bizList" :key="b" :value="b">{{ b }}</option>
-          </select>
-        </div>
-        <div class="filter__field">
-          <label>관리번호</label>
-          <input v-model="filters.id" class="filter__input" type="text" placeholder="관리번호 검색" @keyup.enter="search" />
-        </div>
-        <div class="filter__field">
-          <label>화면명</label>
-          <input v-model="filters.name" class="filter__input" type="text" placeholder="화면명 검색" @keyup.enter="search" />
-        </div>
-      </div>
-      <div class="filter__row filter__row--2">
-        <div class="filter__field">
-          <label>화면경로</label>
-          <input v-model="filters.path" class="filter__input" type="text" placeholder="화면경로 검색" @keyup.enter="search" />
-        </div>
-      </div>
-      <div class="filter__actions">
-        <button type="button" class="btn btn--ghost" @click="resetFilters">초기화</button>
-        <button type="button" class="btn btn--primary" @click="search">조회</button>
-      </div>
-    </section>
+    <SearchFilterBar
+      :show-search="false"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <FilterSelectPill v-model="selectedSystem" label="시스템" :options="systemOptions" empty-label="" />
+        <FilterSelectPill v-model="selectedBiz" label="업무구분" :options="bizList" empty-label="" />
+        <FilterTextPill v-model="filters.id" label="관리번호" placeholder="관리번호 검색" @enter="search" />
+        <FilterTextPill v-model="filters.name" label="화면명" placeholder="화면명 검색" @enter="search" />
+        <FilterTextPill v-model="filters.path" label="화면경로" placeholder="화면경로 검색" @enter="search" />
+      </template>
+    </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">화면코드 · 총 <b>{{ rows.length }}</b>건</span>
