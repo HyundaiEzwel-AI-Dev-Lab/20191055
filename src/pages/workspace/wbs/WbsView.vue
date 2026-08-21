@@ -114,6 +114,12 @@ const selectedRows = computed(() => tasks.value.filter((t) => selectedIds.value.
 const totalProgress = computed(() => calcTotalProgress(tasks.value))
 const canManageSchedule = computed(() => authStore.user?.role !== '사용자')
 
+// h-pms 원본: 채움 위%가 라벨과 겹칠 때도 읽히도록, 채움 영역만 clip한 대비색 라벨을 겹쳐 그린다.
+function progressOnFillClip(pct) {
+  const n = Math.min(100, Math.max(0, Number(pct) || 0))
+  return `inset(0 ${100 - n}% 0 0)`
+}
+
 onMounted(() => {
   tasks.value = getWbsTasks(authStore.user?.id)
   tasks.value.forEach((t) => {
@@ -651,12 +657,14 @@ function onCalendarSelect(task) {
                 <div class="prog-bar prog-bar--labeled">
                   <i :style="{ width: `${row.planProgress}%` }" />
                   <span>{{ row.planProgress }}%</span>
+                  <span class="prog-bar__pct--onfill" :style="{ clipPath: progressOnFillClip(row.planProgress) }">{{ row.planProgress }}%</span>
                 </div>
               </td>
               <td>
                 <div class="prog-bar prog-bar--labeled">
                   <i :style="{ width: `${row.execProgress}%` }" />
                   <span>{{ row.execProgress }}%</span>
+                  <span class="prog-bar__pct--onfill" :style="{ clipPath: progressOnFillClip(row.execProgress) }">{{ row.execProgress }}%</span>
                 </div>
               </td>
               <td>
@@ -1122,6 +1130,10 @@ function onCalendarSelect(task) {
   font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--ink);
+}
+
+.prog-bar__pct--onfill {
+  color: var(--color-text-inverse, #fff);
 }
 
 .system-path {
