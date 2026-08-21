@@ -36,6 +36,31 @@ watch(
 )
 const waitingProjects = computed(() => bundle.value.waitingProjects)
 
+const barsFilled = ref(false)
+function startBarAnimation() {
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      barsFilled.value = true
+    }, 60)
+  })
+}
+onMounted(startBarAnimation)
+watch(() => auth.user?.id, () => startBarAnimation())
+
+function toStageType(stage) {
+  const map = {
+    접수: 'recv',
+    협의중: 'recv',
+    처리중: 'prog',
+    개발: 'prog',
+    설계: 'prog',
+    테스트: 'test',
+    완료: 'done',
+    반려: 'rej',
+  }
+  return map[stage] || 'prog'
+}
+
 const avatarPalette = ['#119a8a', '#7c5cf0', '#f59e0b', '#ec4899', '#3b82f6', '#22c55e']
 function avatarColor(i) {
   return avatarPalette[i % avatarPalette.length]
@@ -217,8 +242,8 @@ function nextWaiting() {
 </script>
 
 <template>
-  <div class="inbox">
-    <div class="summary">
+  <div class="my-work hp-anim-enter">
+    <div class="summary card card--panel">
       <div class="summary__stats">
         <div class="stat-chip stat-chip--brand">
           <span class="stat-chip__icon">
@@ -226,55 +251,50 @@ function nextWaiting() {
               <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
             </svg>
           </span>
-          <div class="stat-chip__body">
-            <b>{{ summary.progressProjects }}</b>
-            <span>진행 프로젝트</span>
-          </div>
+          <div class="stat-chip__body"><b>{{ summary.progressProjects }}</b><span>진행 프로젝트</span></div>
         </div>
         <div class="stat-chip stat-chip--blue">
           <span class="stat-chip__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3.5" y="5" width="4" height="4" rx="1" />
-              <path d="M10.5 7h10" />
-              <rect x="3.5" y="15" width="4" height="4" rx="1" />
-              <path d="M10.5 17h10" />
+              <rect x="3.5" y="5" width="4" height="4" rx="1" /><path d="M10.5 7h10" />
+              <rect x="3.5" y="15" width="4" height="4" rx="1" /><path d="M10.5 17h10" />
             </svg>
           </span>
-          <div class="stat-chip__body">
-            <b>{{ summary.myTasks }}</b>
-            <span>내 할 일</span>
-          </div>
+          <div class="stat-chip__body"><b>{{ summary.myTasks }}</b><span>내 할 일</span></div>
         </div>
         <div class="stat-chip stat-chip--orange">
           <span class="stat-chip__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="8.5" />
-              <path d="M12 7.5V12l3 2" />
+              <circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" />
             </svg>
           </span>
-          <div class="stat-chip__body">
-            <b>{{ summary.weekDue }}</b>
-            <span>금주 마감</span>
-          </div>
+          <div class="stat-chip__body"><b>{{ summary.weekDue }}</b><span>금주 마감</span></div>
         </div>
         <div class="stat-chip stat-chip--gray">
           <span class="stat-chip__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="8.5" />
-              <path d="M10 9v6M14 9v6" />
+              <circle cx="12" cy="12" r="8.5" /><path d="M10 9v6M14 9v6" />
             </svg>
           </span>
-          <div class="stat-chip__body">
-            <b>{{ summary.waiting }}</b>
-            <span>대기</span>
-          </div>
+          <div class="stat-chip__body"><b>{{ summary.waiting }}</b><span>대기</span></div>
         </div>
-        <!-- 지연 칩은 SB 초과분이라 숨긴다. 행 강조(delayed)와 summary.delayed는 유지. -->
+        <!-- SB-PAG-M-MY-01-R01은 요약 칩 4종(진행·내할일·금주마감·대기). 지연 칩은 SB 초과분이라 숨긴다.
+             행 강조(delayed)와 summary.delayed는 유지 — 칩을 되살릴 때 백엔드를 다시 안 건드리게.
+        <div class="stat-chip stat-chip--red">
+          <span class="stat-chip__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round" />
+              <path d="M12 9.5v4" stroke-linecap="round" />
+              <circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <div class="stat-chip__body"><b>{{ summary.delayed }}</b><span>지연</span></div>
+        </div>
+        -->
       </div>
-      <div class="summary__sp"></div>
       <div class="viewtoggle">
-        <span :class="{ on: viewMode === 'card' }" @click="viewMode = 'card'">카드형</span>
-        <span :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">캘린더형</span>
+        <button type="button" :class="{ on: viewMode === 'card' }" @click="viewMode = 'card'">카드형</button>
+        <button type="button" :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">캘린더형</button>
       </div>
     </div>
 
@@ -288,37 +308,29 @@ function nextWaiting() {
             <button type="button" class="roll__btn" :disabled="projectPage >= maxProjectPage" @click="nextProjects">▶</button>
           </div>
         </div>
-
         <div v-if="progressProjects.length" class="pcards">
-          <button
-            v-for="p in pagedProjects"
-            :key="p.id"
-            type="button"
-            class="pcard"
-            :class="p.stageType"
-            @click="openProject(p, '/workspace/dashboard')"
-          >
+          <button v-for="p in pagedProjects" :key="p.id" type="button"
+                  class="pcard" :class="toStageType(p.stage)" @click="openProject(p)">
             <div class="pcard__top">
-              <span class="pcard__dday">{{ p.openDate }} ( <b class="pcard__dday-tag">{{ p.dday }}</b> )</span>
-              <span class="stbadge" :class="p.stageType">{{ p.stage }}</span>
+              <span class="pcard__dday">
+                {{ p.openDate }}
+                <template v-if="p.dday"> ( <b class="pcard__dday-tag">{{ p.dday }}</b> )</template>
+              </span>
+              <span class="stbadge" :class="toStageType(p.stage)">{{ p.stage }}</span>
             </div>
             <div class="pcard__name">{{ p.name }}</div>
             <div class="pcard__prog">
-              <div class="bar"><i :style="{ width: p.progress + '%' }"></i></div>
+              <div class="bar hp-anim-progress" :class="{ 'is-filled': barsFilled }">
+                <i :style="{ width: barsFilled ? p.progress + '%' : '0%' }"></i>
+              </div>
               <span class="pct">{{ p.progress }}%</span>
             </div>
             <div class="pcard__stats">
               <div class="mini-stat mini-stat--assign">
                 <div class="avatar-stack">
-                  <span
-                    v-for="(person, i) in p.assignees.slice(0, 3)"
-                    :key="i"
-                    class="avatar-stack__item"
-                    :style="{ background: avatarColor(i) }"
-                  >{{ person.charAt(0) }}</span>
-                  <span v-if="p.members > 3" class="avatar-stack__item avatar-stack__more">
-                    +{{ p.members - 3 }}
-                  </span>
+                  <span v-for="(person, i) in p.assignees.slice(0, 3)" :key="i"
+                        class="avatar-stack__item" :style="{ background: avatarColor(i) }">{{ person.charAt(0) }}</span>
+                  <span v-if="p.members > 3" class="avatar-stack__item avatar-stack__more">+{{ p.members - 3 }}</span>
                 </div>
                 <span class="mini-stat__lab">배정</span>
               </div>
@@ -345,7 +357,7 @@ function nextWaiting() {
             </div>
           </button>
         </div>
-        <div v-else class="empty">• 배정된 프로젝트가 없습니다.</div>
+        <div v-else class="empty">배정된 프로젝트가 없습니다.</div>
       </section>
 
       <section class="block">
@@ -356,14 +368,20 @@ function nextWaiting() {
             <button type="button" class="roll__btn" :disabled="taskPage >= maxTaskPage" @click="nextTasks">▶</button>
           </div>
         </div>
-
         <div v-if="cardTasks.length" class="listcard">
           <table class="tbl">
             <thead>
               <tr>
+                <!-- 열 순서는 SB-PAG-M-MY-01-T01~T04 그대로다(업무명 → 마감일 → 프로젝트명 → 공정률).
+                     FO 목업은 프로젝트명을 앞에 뒀지만 SB를 따른다(2026-08-20 사용자 결정). -->
                 <th>업무명</th>
                 <th>마감일 (D-day)</th>
                 <th>프로젝트명</th>
+                <!-- 아래 3열은 FO 목업 이관분 초과라 숨긴다.
+                     formatDateRange/planProgress 표시를 되살릴 때 주석만 해제하면 된다. -->
+                <!-- <th>계획일정</th> -->
+                <!-- <th>실행일정</th> -->
+                <!-- <th>계획공정률</th> -->
                 <th>공정률</th>
                 <th></th>
               </tr>
@@ -383,6 +401,9 @@ function nextWaiting() {
                   <span v-if="t.delayed" class="stbadge rej ml">지연</span>
                 </td>
                 <td class="ell">{{ t.project }}</td>
+                <!-- <td>{{ formatDateRange(t.planStart, t.planEnd) }}</td> -->
+                <!-- <td>{{ t.execStart ? formatDateRange(t.execStart, t.execEnd) : '-' }}</td> -->
+                <!-- <td>{{ t.planProgress === null ? '-%' : t.planProgress + '%' }}</td> -->
                 <td>{{ t.progress === null ? '-%' : t.progress + '%' }}</td>
                 <td class="more-cell" @click.stop>
                   <button type="button" class="more-btn" @click="toggleMore($event, t)">⋯</button>
@@ -391,7 +412,7 @@ function nextWaiting() {
             </tbody>
           </table>
         </div>
-        <div v-else class="empty">• 진행중인 업무가 없습니다.</div>
+        <div v-else class="empty">진행중인 업무가 없습니다.</div>
       </section>
 
       <section class="block">
@@ -402,549 +423,240 @@ function nextWaiting() {
             <button type="button" class="roll__btn" :disabled="waitingPage >= maxWaitingPage" @click="nextWaiting">▶</button>
           </div>
         </div>
-
         <div v-if="waitingProjects.length" class="wcards">
-          <button
-            v-for="w in pagedWaiting"
-            :key="w.id"
-            type="button"
-            class="wcard click"
-            @click="openProject(w, '/workspace/info')"
-          >
+          <button v-for="w in pagedWaiting" :key="w.id" type="button" class="wcard" @click="openProject(w, '/workspace/info')">
             <div class="wcard__meta">{{ w.owner }} | {{ w.openDate }}</div>
             <div class="wcard__name">{{ w.name }}</div>
-            <span class="stbadge recv">{{ w.stage }}</span>
+            <span class="stbadge" :class="toStageType(w.stage)">{{ w.stage }}</span>
           </button>
         </div>
-        <div v-else class="empty">• 접수된 프로젝트가 없습니다.</div>
+        <div v-else class="empty">접수된 프로젝트가 없습니다.</div>
       </section>
     </template>
 
-    <InboxCalendar v-else :tasks="myTasks" @saved="onCalendarSaved" />
-
-    <Teleport to="body">
-      <div
-        v-if="moreMenu"
-        class="more-layer"
-        :style="{ left: `${moreMenu.x}px`, top: `${moreMenu.y}px` }"
-        @click.stop
-      >
-        <button type="button" @click="onScheduleManage(moreMenu.task)">일정관리</button>
-        <button type="button" @click="onWbsDetail(moreMenu.task)">WBS 상세</button>
-      </div>
-    </Teleport>
+    <InboxCalendar v-else :tasks="myTasks" @saved="loadBundle" />
 
     <WbsScheduleModal
-      v-model="showScheduleModal"
-      :task="scheduleTarget"
+      :tasks="scheduleTarget ? [scheduleTarget] : []"
+      @close="scheduleTarget = null"
       @save="onScheduleSave"
       @open-multi-change="onOpenMultiChangeFromSchedule"
     />
     <WbsBulkScheduleModal
-      v-model="showBulkScheduleModal"
+      v-if="showBulkModal"
       :tasks="bulkTargets"
-      @request="onBulkScheduleRequest"
+      :members="bulkMembers"
+      @close="closeBulkModal"
+      @request-plan-change="onRequestPlanChange"
+      @request-hold="onRequestHold"
     />
   </div>
 </template>
 
 <style scoped>
-.inbox {
-  font-family: var(--font-family);
-  color: var(--lnb-txt);
-  padding: 4px 24px 28px;
-}
+/* font-size는 --font-size-* 토큰 또는 calc(Npx + var(--font-size-offset))을 쓴다.
+   rem은 --font-size-offset에 반응하지 않아 내설정>글자 크기가 먹지 않는다(layout.css:3-11 선례). */
 
-/* 요약 바 */
-.summary {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 14px;
-  padding: 12px 16px;
-  font-size: calc(13px + var(--font-size-offset, 0px));
-  color: var(--lnb-txt);
-  margin-bottom: 12px;
-  box-shadow: var(--shadow-sm);
-}
-.summary__stats {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.summary__sp {
-  flex: 1;
-}
+.my-work { padding: 4px 24px 28px; }
+
+/* 요약 바 — 배경·테두리·라운드·그림자는 card card--panel이 준다 */
+.summary { display: flex; align-items: center; gap: 18px; padding: 12px 16px; margin-bottom: 12px; font-size: var(--font-size-md); }
+.summary__stats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* 요약 스탯 칩 */
 .stat-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 160px;
-  box-sizing: border-box;
-  padding: 7px 14px 7px 10px;
-  border-radius: 12px;
-  transition: transform 0.15s;
+  display: flex; align-items: center; gap: 10px;
+  width: 160px; box-sizing: border-box; padding: 7px 14px 7px 10px;
+  border-radius: var(--radius-md); transition: transform var(--transition-fast);
 }
-.stat-chip:hover {
-  transform: translateY(-2px);
-}
+.stat-chip:hover { transform: translateY(-2px); }
 .stat-chip__icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  /* 칩 배경(--*-bg) 위에 얹는 반투명 흰 타일. 토큰으로 뺄 수 없어 리터럴로 둔다 */
   background: rgba(255, 255, 255, 0.85);
 }
-.stat-chip__icon svg {
-  width: 16px;
-  height: 16px;
-}
-.stat-chip__body {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-.stat-chip__body b {
-  font-size: calc(17px + var(--font-size-offset, 0px));
-  font-weight: 800;
-}
-.stat-chip__body span {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  opacity: 0.8;
-  font-weight: 600;
-}
+.stat-chip__icon svg { width: 16px; height: 16px; }
+.stat-chip__body { display: flex; flex-direction: column; line-height: 1.2; white-space: nowrap; }
+.stat-chip__body b { font-size: calc(17px + var(--font-size-offset)); font-weight: 800; }
+.stat-chip__body span { font-size: var(--font-size-xs); opacity: 0.8; font-weight: 600; }
 
 .stat-chip--brand { background: var(--gray-bg); color: var(--lnb-logo); }
-.stat-chip--brand .stat-chip__icon { color: var(--lnb-logo); }
 .stat-chip--blue { background: var(--blue-bg); color: var(--blue); }
 .stat-chip--orange { background: var(--orange-bg); color: var(--orange); }
 .stat-chip--gray { background: var(--gray-bg); color: var(--gray); }
 .stat-chip--red { background: var(--red-bg); color: var(--red); }
 
-/* 다크 계열: 아이콘은 항상 흰색 + 배지 배경을 반투명 흰색으로 (밝은 배경 위 흰 아이콘은 안 보이므로 배경도 조정) */
-:root[data-concept='dark'] .stat-chip--brand .stat-chip__icon,
-:root[data-concept='dark'] .stat-chip--blue .stat-chip__icon,
-:root[data-concept='dark'] .stat-chip--orange .stat-chip__icon,
-:root[data-concept='dark'] .stat-chip--gray .stat-chip__icon,
-:root[data-concept='dark'] .stat-chip--red .stat-chip__icon,
-:root[data-concept='premium'] .stat-chip--brand .stat-chip__icon,
-:root[data-concept='premium'] .stat-chip--blue .stat-chip__icon,
-:root[data-concept='premium'] .stat-chip--orange .stat-chip__icon,
-:root[data-concept='premium'] .stat-chip--gray .stat-chip__icon,
-:root[data-concept='premium'] .stat-chip--red .stat-chip__icon {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-}
-.viewtoggle {
-  display: inline-flex;
-  border: 1px solid var(--lnb-line);
-  border-radius: 8px;
-  background: var(--lnb-side);
-  overflow: hidden;
-}
-.viewtoggle span {
-  padding: 6px 14px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  cursor: pointer;
-}
-.viewtoggle span.on {
-  background: var(--lnb-hover);
-  color: var(--lnb-logo);
-  font-weight: 700;
-}
+/* 다크 계열 컨셉에서는 칩 배경이 어두워 흰 타일 위 아이콘이 안 보인다 — 타일을 반투명으로 낮추고
+   아이콘을 흰색으로 고정한다. --color-text-inverse는 다크에서 어두운 색이라 쓸 수 없다.
+   목업은 칩 5종 × 컨셉 2종 = 10셀렉터로 적었는데, 셀렉터 특이도가 이미 이기므로 2개로 줄인다. */
+:root[data-concept='dark'] .stat-chip__icon,
+:root[data-concept='premium'] .stat-chip__icon { color: #fff; background: rgba(255, 255, 255, 0.16); }
 
-/* 블록 공통 */
-.block {
-  margin-bottom: 18px;
+/* 뷰 토글 — 마크업은 button 유지(목업은 span), 색만 목업에 맞춘다 */
+.viewtoggle {
+  margin-left: auto; display: inline-flex; overflow: hidden;
+  border: 1px solid var(--lnb-line); border-radius: var(--radius-md); background: var(--lnb-side);
 }
-.block__head {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
+.viewtoggle button {
+  padding: 6px 14px; border: none; background: transparent;
+  font-size: var(--font-size-sm); font-family: inherit; color: var(--lnb-muted); cursor: pointer;
 }
-.block__head h3 {
-  font-size: calc(14px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  margin: 0;
-}
-.block__head .cnt {
-  color: var(--lnb-logo);
-}
-.block__head--tasks {
-  gap: 8px;
-}
-.block__head--tasks .roll--hover {
-  margin-left: auto;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-}
-.block__head--tasks.has-pager:hover .roll--hover {
-  opacity: 1;
-  pointer-events: auto;
-}
-.roll {
-  margin-left: auto;
-  display: flex;
-  gap: 4px;
-}
+.viewtoggle button.on { background: var(--lnb-hover); color: var(--lnb-logo); font-weight: 700; }
+
+/* 안내문구 — SB 결정 ⑧로 카드형 최상단(목업은 대기 블록 하단) */
+.guide { margin: 0 0 12px; font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted); line-height: 1.55; }
+
+/* 블록 공통 — 목업 .block은 여백만 갖는다. 카드 질감은 내용물이 각자 갖는다 */
+.block { margin-bottom: 18px; }
+.block__head { display: flex; align-items: center; margin-bottom: 10px; }
+.block__head h3 { font-size: var(--font-size-lg); font-weight: 700; margin: 0; }
+.block__head .cnt { color: var(--lnb-logo); }
+.block__head--tasks { gap: 8px; }
+.block__head--tasks .roll--hover { margin-left: auto; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+/* 호버 전용 페이저 — 목업 그대로다(§9-3 확정). hover가 없는 기기에서는 페이저에 도달할 수 없다는
+   점을 알고 택했다. 되살릴 방법은 §9-4에 남겼다 */
+.block__head--tasks.has-pager:hover .roll--hover { opacity: 1; pointer-events: auto; }
+.roll { margin-left: auto; display: flex; gap: 4px; }
 .roll__btn {
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--lnb-line);
-  border-radius: 6px;
-  background: var(--lnb-side);
-  color: var(--lnb-txt);
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  cursor: pointer;
+  width: 26px; height: 26px; border: 1px solid var(--lnb-line); border-radius: var(--radius-sm);
+  background: var(--lnb-side); color: var(--lnb-txt);
+  font-size: calc(10px + var(--font-size-offset)); cursor: pointer;
 }
-.roll__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+.roll__btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* 진행중 프로젝트 카드 */
-.pcards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
+.pcards, .wcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .pcard {
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-left: 4px solid var(--lnb-line);
-  border-radius: 14px;
-  padding: 16px 18px;
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--lnb-side); border: 1px solid var(--lnb-line);
+  border-left: 4px solid var(--lnb-line); border-radius: var(--radius-card);
+  padding: 16px 18px; box-shadow: var(--shadow-sm);
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
-  width: 100%;
 }
+/* SB-PAG-M-MY-01-R05 "마우스오버 시 테두리 강조" — 목업은 부상+그림자만 줬다. 둘을 함께 둔다.
+   좌측 띠는 처리단계 색이라 건드리지 않고 위·우·아래 세 변만 강조한다(border-color 일괄 지정은
+   .pcard.prog 등과 같은 특이도라 순서에 따라 띠 색을 덮는다). */
 .pcard:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
+  border-top-color: var(--lnb-logo);
+  border-right-color: var(--lnb-logo);
+  border-bottom-color: var(--lnb-logo);
 }
+/* 좌측 띠 색 = 처리단계. 분류는 toStageType(공통코드 STATUS → recv/prog/test/done/rej) */
 .pcard.recv { border-left-color: var(--gray); }
 .pcard.prog { border-left-color: var(--blue); }
 .pcard.test { border-left-color: var(--orange); }
 .pcard.done { border-left-color: var(--green); }
 .pcard.rej { border-left-color: var(--red); }
-.pcard__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.pcard__dday {
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-}
-.pcard__dday-tag {
-  color: var(--red);
-  font-weight: 700;
-}
+.pcard__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pcard__dday { font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted); }
+/* D-day는 카드에서 가장 먼저 읽혀야 하는 값이다 */
+.pcard__dday-tag { color: var(--red); font-weight: 700; }
+/* 2줄 클램프 + min-height — 이름 길이가 달라도 카드 아래쪽 요소 높이가 어긋나지 않는다 */
 .pcard__name {
-  font-size: calc(13.5px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  line-height: 1.4;
-  margin-bottom: 12px;
-  min-height: 2.8em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: calc(13.5px + var(--font-size-offset)); font-weight: 700; line-height: 1.4;
+  margin-bottom: 12px; min-height: 2.8em; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.pcard__prog {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.bar {
-  flex: 1;
-  height: 8px;
-  background: var(--line-2);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.bar i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--teal), var(--lnb-logo));
-  border-radius: 8px;
-}
-.pct {
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-  font-weight: 800;
-  color: var(--lnb-logo);
-  width: 38px;
-  text-align: right;
-}
-.pcard__stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
+.pcard__prog { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.bar { flex: 1; height: 8px; background: var(--line-2); border-radius: 999px; overflow: hidden; }
+/* 채움도 트랙과 같은 라운드를 받는다 — 없으면 끝단이 트랙 라운드에 잘려 뭉툭해진다 */
+.bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--teal), var(--lnb-logo)); }
+.pct { width: 38px; text-align: right; font-size: calc(12.5px + var(--font-size-offset)); font-weight: 800; color: var(--lnb-logo); }
+
+.pcard__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .mini-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px 4px;
-  border-radius: 9px;
-  background: var(--lnb-hover);
-  min-height: 52px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 8px 4px; border-radius: var(--radius-md);
+  background: var(--lnb-hover); min-height: 52px;
 }
-.mini-stat__row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.mini-stat__icon {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-}
-.mini-stat__num {
-  font-size: calc(15px + var(--font-size-offset, 0px));
-  font-weight: 800;
-  color: var(--lnb-logo);
-}
-.mini-stat__lab {
-  font-size: calc(10.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  font-weight: 600;
-}
+.mini-stat__row { display: flex; align-items: center; gap: 5px; }
+.mini-stat__icon { width: 15px; height: 15px; flex-shrink: 0; }
+.mini-stat__num { font-size: calc(15px + var(--font-size-offset)); font-weight: 800; color: var(--lnb-logo); }
+.mini-stat__lab { font-size: calc(10.5px + var(--font-size-offset)); color: var(--lnb-muted); font-weight: 600; }
 .mini-stat--assign { background: var(--gray-bg); }
 .mini-stat--task { background: var(--blue-bg); }
-.mini-stat--task .mini-stat__num,
-.mini-stat--task .mini-stat__icon { color: var(--blue); }
+.mini-stat--task .mini-stat__num, .mini-stat--task .mini-stat__icon { color: var(--blue); }
 .mini-stat--done { background: var(--green-bg); }
-.mini-stat--done .mini-stat__num,
-.mini-stat--done .mini-stat__icon { color: var(--green); }
+.mini-stat--done .mini-stat__num, .mini-stat--done .mini-stat__icon { color: var(--green); }
 
 /* 배정 아바타 스택 */
-.avatar-stack {
-  display: flex;
-  align-items: center;
-}
+.avatar-stack { display: flex; align-items: center; }
 .avatar-stack__item {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  width: 20px; height: 20px; border-radius: 50%;
+  /* 겹친 아바타 사이를 갈라주는 링. 칩 배경과 같은 색이어야 파인 것처럼 보인다 */
   border: 2px solid var(--gray-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(9.5px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  color: var(--color-text-inverse);
-  margin-left: -6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: calc(9.5px + var(--font-size-offset)); font-weight: 700;
+  /* 목업 그대로 --color-text-inverse를 쓴다(§9 확정). 배경은 테마 무관 고정 팔레트(avatarPalette)인데
+     이 토큰은 다크 컨셉에서 어두운 색(#141413)이 된다 — 팔레트 색마다 대비가 갈리므로
+     §11-11 육안 확인 대상이다. 안 읽히면 그때 #fff 고정으로 바꾼다 */
+  color: var(--color-text-inverse); margin-left: -6px;
 }
-.avatar-stack__item:first-child {
-  margin-left: 0;
-}
-.avatar-stack__more {
-  background: var(--lnb-logo) !important;
-}
+.avatar-stack__item:first-child { margin-left: 0; }
+/* +N은 인원수 표기라 팔레트 색을 쓰지 않는다. 목업은 인라인 style을 이기려고 !important를
+   썼지만 우리 +N 배지에는 :style 바인딩이 없어 필요 없다 */
+.avatar-stack__more { background: var(--lnb-logo); }
 
-/* 상태 뱃지 */
+/* 상태 뱃지 — 5분류. 라벨은 useCode('STATUS'), 색 분류는 toStageType */
 .stbadge {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 20px;
-  display: inline-block;
-  white-space: nowrap;
+  display: inline-block; white-space: nowrap;
+  font-size: var(--font-size-xs); font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  color: var(--gray); background: var(--gray-bg);
 }
-.stbadge.recv {
-  color: var(--gray);
-  background: var(--gray-bg);
-}
-.stbadge.prog {
-  color: var(--blue);
-  background: var(--blue-bg);
-}
-.stbadge.test {
-  color: var(--orange);
-  background: var(--orange-bg);
-}
-.stbadge.done {
-  color: var(--green);
-  background: var(--green-bg);
-}
-.stbadge.rej {
-  color: var(--red);
-  background: var(--red-bg);
-}
-.stbadge.ml {
-  margin-left: 6px;
-}
+.stbadge.recv { color: var(--gray); background: var(--gray-bg); }
+.stbadge.prog { color: var(--blue); background: var(--blue-bg); }
+.stbadge.test { color: var(--orange); background: var(--orange-bg); }
+.stbadge.done { color: var(--green); background: var(--green-bg); }
+.stbadge.rej { color: var(--red); background: var(--red-bg); }
+.stbadge.ml { margin-left: 6px; }
 
-/* 내 할 일 테이블 */
-.listcard {
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-}
+/* 내 할 일 테이블 — .listcard는 전역(components.css:73)이 카드 질감을 준다 */
+.tbl { width: 100%; border-collapse: collapse; font-size: calc(12.5px + var(--font-size-offset)); }
 .tbl thead th {
-  background: var(--lnb-hover);
-  color: var(--lnb-txt);
-  font-weight: 600;
-  text-align: center;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--lnb-line);
-  white-space: nowrap;
+  background: var(--lnb-hover); color: var(--lnb-txt); font-weight: 600; text-align: center;
+  padding: 9px 12px; border-bottom: 1px solid var(--lnb-line); white-space: nowrap;
 }
-.tbl tbody td {
-  padding: 11px 12px;
-  border-bottom: 1px solid var(--lnb-line);
-  color: var(--lnb-txt);
-}
-.tbl tbody tr:last-child td {
-  border-bottom: none;
-}
-.tbl tbody tr.click {
-  cursor: pointer;
-}
-.tbl tbody tr.click:hover {
-  background: var(--teal-50);
-}
-.tbl tbody tr.row--alert td {
-  box-shadow: inset 0 0 0 1px var(--red);
-}
-.tbl tbody tr.row--alert td:first-child {
-  box-shadow: inset 2px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red);
-}
-.tbl tbody tr.row--alert td:last-child {
-  box-shadow: inset -2px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red);
-}
-.ell {
-  max-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dday {
-  color: var(--lnb-muted);
-}
-.delay {
-  color: var(--red);
-  font-weight: 700;
-}
-.due-cell {
-  white-space: nowrap;
-}
+.tbl tbody td { padding: 11px 12px; border-bottom: 1px solid var(--lnb-line); color: var(--lnb-txt); }
+/* 마지막 행 밑줄을 지운다 — .listcard 테두리와 겹쳐 이중선이 된다 */
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr.click { cursor: pointer; }
+.tbl tbody tr.click:hover { background: var(--teal-50); }
+/* SB-PAG-M-MY-01-R08 — 금주 마감·지연 행 빨간 테두리 강조(목업에 없는 우리 규칙) */
+.tbl tbody tr.row--alert td { box-shadow: inset 0 0 0 1px var(--red); }
+.tbl tbody tr.row--alert td:first-child { box-shadow: inset 2px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red); }
+.tbl tbody tr.row--alert td:last-child { box-shadow: inset -2px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red); }
+.ell { max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.due-cell { white-space: nowrap; }
+.dday { color: var(--lnb-muted); }
+/* .dday 뒤에 온다 — 지연이면 D-day도 빨강으로 덮는다 */
+.delay { color: var(--red); font-weight: 700; }
 
 /* 대기 카드 */
-.wcards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
 .wcard {
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 10px;
-  padding: 14px 16px;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
+  width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--lnb-side); border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-lg); padding: 14px 16px;
 }
-.wcard:hover {
-  border-color: var(--lnb-logo);
-}
-.wcard__meta {
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  margin-bottom: 8px;
-}
-.wcard__name {
-  font-size: calc(13.5px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  margin-bottom: 10px;
-}
+.wcard:hover { border-color: var(--lnb-logo); }
+.wcard__meta { font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted); margin-bottom: 8px; }
+.wcard__name { font-size: calc(13.5px + var(--font-size-offset)); font-weight: 700; margin-bottom: 10px; }
 
 .empty {
-  background: var(--lnb-side);
-  border: 1px dashed var(--lnb-line);
-  border-radius: 10px;
-  padding: 22px;
-  color: var(--lnb-muted);
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
+  background: var(--lnb-side); border: 1px dashed var(--lnb-line); border-radius: var(--radius-lg);
+  padding: 22px; color: var(--lnb-muted); font-size: calc(12.5px + var(--font-size-offset));
 }
+/* 목업은 문구 앞에 "• "를 박아놨다. 문구 자체를 바꾸면 기획 소관이 되므로 CSS로 붙인다 —
+   보이는 결과는 목업과 같고 textContent는 그대로라 spec도 안 깨진다 */
+.empty::before { content: '• '; }
 
-.guide {
-  margin: 0 0 12px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  line-height: 1.55;
-}
-
-.more-cell {
-  text-align: center;
-}
+.more-cell { text-align: center; }
 .more-btn {
-  border: none;
-  background: transparent;
-  font-size: calc(18px + var(--font-size-offset, 0px));
-  line-height: 1;
-  cursor: pointer;
-  color: var(--lnb-muted);
-  padding: 2px 6px;
-  border-radius: 6px;
+  border: none; background: transparent; line-height: 1; cursor: pointer;
+  font-size: calc(18px + var(--font-size-offset)); color: var(--lnb-muted);
+  padding: 2px 6px; border-radius: var(--radius-sm);
 }
-.more-btn:hover {
-  background: var(--lnb-hover);
-  color: var(--lnb-logo);
-}
-
-.more-layer {
-  position: fixed;
-  z-index: 10000;
-  min-width: 132px;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
-.more-layer button {
-  border: none;
-  background: transparent;
-  text-align: left;
-  padding: 8px 12px;
-  font-size: calc(12.5px + var(--font-size-offset, 0px));
-  font-family: inherit;
-  color: var(--lnb-txt);
-  cursor: pointer;
-  border-radius: 6px;
-}
-.more-layer button:hover {
-  background: var(--teal-50);
-  color: var(--teal-700);
-}
+.more-btn:hover { background: var(--lnb-hover); color: var(--lnb-logo); }
 </style>

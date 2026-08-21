@@ -15,7 +15,7 @@ export const projectDashboardMeta = {
   ],
 }
 
-export function getProjectDashboard(projectId, projectName, userId) {
+export function buildProjectDashboardMock(projectId, projectName, userId) {
   void projectId
   if (userId === EMPTY_DATA_USER_ID) {
     return {
@@ -212,4 +212,34 @@ export function statusTone(status) {
     'done-delay': 'delay',
   }
   return map[status] || 'muted'
+}
+
+/** h-pms ProjectDashboardPage API shape (0~1 rates, asOf, wbsItemId) */
+export function toApiDashboard(raw) {
+  if (!raw) return null
+  const pct = (v) => (typeof v === 'number' && v > 1 ? v / 100 : v ?? 0)
+  return {
+    asOf: raw.updatedAt?.replace(' ', 'T') || raw.updatedAt,
+    totalProgress: {
+      execRate: pct(raw.totalProgress?.execRate),
+      planRate: pct(raw.totalProgress?.planRate),
+      diffLabel: raw.totalProgress?.diffLabel || '',
+      planPeriod: raw.totalProgress?.planPeriod || { start: '', end: '' },
+      execPeriod: raw.totalProgress?.execPeriod || { start: '', end: '' },
+    },
+    scheduleCards: raw.scheduleCards || [],
+    delaySummary: raw.delaySummary || { expectedDelay: 0, normal: 0, expectedShorten: 0 },
+    typeSummary: raw.typeSummary || [],
+    details: (raw.details || []).map((row) => ({
+      ...row,
+      wbsItemId: row.wbsItemId || row.id,
+      taskName: row.taskName || row.taskType,
+    })),
+  }
+}
+
+/** Async adapter for synced h-pms dashboard page (projectKey ignored — uses store in view) */
+export async function getProjectDashboard(_projectKey, projectId, projectName, userId) {
+  void _projectKey
+  return toApiDashboard(buildProjectDashboardMock(projectId, projectName, userId))
 }

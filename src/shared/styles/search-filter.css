@@ -1,6 +1,13 @@
-/* ===== 검색 필터 바 (SearchFilterBar) =====
-   스펙: 카드 + 한 줄 툴바 + 원형 더보기 + 펼침 패널
-   색상은 전부 컨셉 토큰(tokens.css)에서 파생 — 리터럴 색상 금지 */
+/*
+ * 검색 필터 바 — 카드 + 한 줄 툴바 + 원형 더보기 + 펼침 패널.
+ * FO 목업에서 확정된 형태를 옮긴 것이다(`docs/mock-sync/`, HPMS `SEARCH_FILTER_BAR_SPEC.md`).
+ *
+ * 색은 전부 컨셉 토큰(`tokens.css`)에서 파생한다. 리터럴 색을 박으면 다크·프리미엄 컨셉에서
+ * 묻힌다 — `data-concept`가 `--lnb-*`/`--teal*`만 바꾸기 때문이다.
+ *
+ * 기존 `.filter`/`.filter__*`(admin.css·layout.css)는 모달 내부 폼에서 계속 쓰므로 남겨 둔다.
+ * 이 파일은 화면 상단 검색 영역 전용이다.
+ */
 
 :root {
   --sfb-line: var(--lnb-line);
@@ -12,7 +19,7 @@
   --sfb-primary-hover: var(--teal-600);
   --sfb-tag-bg: var(--teal-50);
   --sfb-tag-fg: var(--teal-600);
-  /* 포인트 버튼 라벨 — 기존 .btn--primary(admin.css)와 동일 규칙 */
+  /* 포인트 버튼 라벨 — `.btn--primary`(admin.css)와 같은 규칙이다. */
   --sfb-primary-fg: var(--teal-fg);
 }
 
@@ -24,6 +31,7 @@
   box-shadow: var(--shadow-sm);
   padding: 12px 14px 18px;
   margin-bottom: 22px;
+  /* 원형 더보기가 카드 테두리에 절반 걸치고, 펼침이 높이를 밀어내야 한다. */
   overflow: visible;
   height: auto;
   box-sizing: border-box;
@@ -31,15 +39,16 @@
 
 .sfb__toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px 10px;
+  min-width: 0;
 }
 
 .sfb__search {
   position: relative;
-  flex: 1 1 180px;
-  min-width: 160px;
+  flex: 1 1 160px;
+  min-width: 120px;
   max-width: 280px;
 }
 
@@ -62,7 +71,7 @@
   border: none;
   border-radius: var(--r-pill);
   background: var(--sfb-field);
-  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-md);
   font-family: inherit;
   color: var(--sfb-value);
   outline: none;
@@ -74,11 +83,31 @@
 
 .sfb__fields {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/*
+ * 툴바 기간은 남는 칸을 먹지 않는다. `sfb-w-3xl`을 주면 승인관리처럼 옆 필의 두 배가 된다.
+ * 날짜·아이콘이 들어가는 만큼만 쓴다.
+ */
+.sfb__fields > .sfb-date {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+.sfb__fields > .sfb-date .hp-dp {
+  flex: 0 0 auto;
+}
+
+.sfb__fields > .sfb-date .hp-dp__input.sfb-date__input {
+  flex: none;
+  width: 7.4em;
+  min-width: 7.4em;
 }
 
 .sfb__actions {
@@ -93,12 +122,15 @@
   height: 40px;
   padding: 0 18px;
   border-radius: var(--r-pill);
-  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-md);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .sfb__btn--ghost {
@@ -123,7 +155,7 @@
   border-color: var(--sfb-primary-hover);
 }
 
-/* 원형 더보기 — 카드 하단 테두리에 절반 걸침 */
+/* 원형 더보기 — 카드 하단 테두리에 절반 걸친다. */
 .sfb__more {
   position: absolute;
   left: 50%;
@@ -140,9 +172,10 @@
   z-index: 2;
 }
 
-/* +/− 는 텍스트 글리프 대신 막대로 그린다 — 폰트 메트릭(수학축이 중앙보다
-   위에 있음) 때문에 글리프를 쓰면 원 안에서 위로 치우쳐 보인다.
-   8px 박스 + 2px 막대라 오프셋이 정수로 떨어져 흐려짐도 없다. */
+/*
+ * +/− 를 텍스트 글리프로 쓰지 않는다. 폰트의 수학축이 시각 중앙보다 위에 있어 원 안에서
+ * 위로 치우쳐 보인다. 8px 박스 + 2px 막대라 오프셋이 정수로 떨어져 흐려지지도 않는다.
+ */
 .sfb__more-icon {
   position: absolute;
   top: 50%;
@@ -168,6 +201,7 @@
   height: 2px;
 }
 
+/* 펼치면 세로 막대만 숨겨 "−"가 된다. */
 .sfb__more-icon::after {
   top: 0;
   bottom: 0;
@@ -199,6 +233,45 @@
   gap: 10px 12px;
 }
 
+/*
+ * 일 단위 기간은 JIRA 같은 텍스트 필과 같이 4열 1칸을 채운다.
+ * 두 칸을 쓰면 과하게 넓고, 아이콘을 글자 옆에 두면 1칸에 안 들어 겹친다.
+ * 아이콘은 칸 안 오른쪽에 두고, 날짜 쪽 padding으로 자리를 비워 겹치지 않게 한다.
+ */
+.sfb__panel-grid > .sfb-date:not(.sfb-date--month) {
+  width: 100%;
+  min-width: 0;
+}
+
+.sfb__panel-grid > .sfb-date--month {
+  grid-column: span 2;
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+}
+
+/*
+ * 오픈월 + 등록자처럼 두 칸만 있는 펼침. 4열 그리드에 넣으면 오픈월(max-content)이
+ * 옆 칸으로 넘쳐 등록자와 겹친다.
+ */
+.sfb__panel-grid--month-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.sfb__panel-grid--month-row > .sfb-date--month {
+  flex: 0 0 auto;
+  grid-column: auto;
+}
+
+.sfb__panel-grid--month-row > .sfb-pill {
+  flex: 1 1 180px;
+  min-width: 160px;
+  max-width: 280px;
+}
+
 .sfb__panel-grid--auto {
   display: flex;
   flex-wrap: wrap;
@@ -209,6 +282,44 @@
   flex: 1 1 180px;
   min-width: 160px;
   max-width: 280px;
+}
+
+/* 펼침 패널 안에서 한 줄을 다 쓰는 칸(체크박스 그룹 등). */
+.sfb__panel-full {
+  grid-column: 1 / -1;
+}
+
+/*
+ * 체크박스 그룹은 알약에 넣을 수 없다(값이 여러 개다). 라벨을 위에 두는 종전 형태를 유지하되
+ * 글자·색만 검색 영역 토큰에 맞춘다.
+ */
+.sfb__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sfb__group-label {
+  font-size: var(--font-size-xs);
+  color: var(--sfb-label);
+  font-weight: 600;
+}
+
+.sfb__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.sfb__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--sfb-value);
+  cursor: pointer;
 }
 
 .sfb__tags {
@@ -224,7 +335,7 @@
 }
 
 .sfb__tags-label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-xs);
   color: var(--sfb-label);
   font-weight: 600;
   margin-right: 2px;
@@ -239,7 +350,7 @@
   border-radius: var(--r-pill);
   background: var(--sfb-tag-bg);
   color: var(--sfb-tag-fg);
-  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-xs);
   font-weight: 600;
 }
 
@@ -263,7 +374,7 @@
   opacity: 1;
 }
 
-/* ===== 라벨|값 결합 필 (select / text / date) ===== */
+/* ===== 라벨|값 결합 필 ===== */
 
 .sfb-pill {
   position: relative;
@@ -272,17 +383,23 @@
   min-width: 0;
 }
 
+.sfb-pill--fill {
+  display: flex;
+  width: 100%;
+}
+
 .sfb-pill__face {
   position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
   height: 40px;
+  /* 우측 30px는 화살표 자리다. 화면에서 inline으로 덮으면 화살표가 값에 밀린다. */
   padding: 0 30px 0 14px;
   border: 1px solid var(--sfb-line);
   border-radius: var(--r-pill);
   background: var(--lnb-side);
-  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-md);
   white-space: nowrap;
   box-sizing: border-box;
   min-width: 0;
@@ -293,10 +410,16 @@
   width: 100%;
 }
 
+/* 화살표가 없는 텍스트 필은 좌우 여백을 같게 둔다. */
+.sfb-pill__face--text {
+  padding-right: 14px;
+}
+
 .sfb-pill__label {
   color: var(--sfb-label);
   font-weight: 600;
   flex-shrink: 0;
+  font-size: var(--font-size-sm);
 }
 
 .sfb-pill__sep {
@@ -317,8 +440,10 @@
   font-weight: 500;
 }
 
-/* 커스텀 화살표 — padding-right 재정의 금지.
-   컨셉별 색상을 따르도록 mask + background-color로 그린다. */
+/*
+ * 화살표는 SVG background-image가 아니라 mask + background-color로 그린다.
+ * stroke 색을 hex로 박으면 다크 컨셉에서 배경에 묻힌다.
+ */
 .sfb-pill__face--select::after {
   content: '';
   position: absolute;
@@ -328,11 +453,14 @@
   height: 6px;
   transform: translateY(-50%);
   background-color: var(--sfb-label);
-  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="black" stroke-width="1.6" fill="none"/></svg>') no-repeat center / 9px 6px;
-  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="black" stroke-width="1.6" fill="none"/></svg>') no-repeat center / 9px 6px;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="black" stroke-width="1.6" fill="none"/></svg>')
+    no-repeat center / 9px 6px;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="black" stroke-width="1.6" fill="none"/></svg>')
+    no-repeat center / 9px 6px;
   pointer-events: none;
 }
 
+/* 실제 select는 투명하게 겹쳐 둔다 — 클릭·키보드·네이티브 목록을 그대로 쓴다. */
 .sfb-pill__native {
   position: absolute;
   inset: 0;
@@ -356,7 +484,7 @@
 
 .sfb-pill__text {
   flex: 1;
-  min-width: 60px;
+  min-width: 40px;
   border: none;
   background: transparent;
   outline: none;
@@ -373,24 +501,32 @@
   font-weight: 500;
 }
 
-/* 날짜 범위 */
+/* ===== 날짜 범위 ===== */
+
 .sfb-date {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 8px 0 10px;
   border: 1px solid var(--sfb-line);
   border-radius: var(--r-pill);
   background: var(--lnb-side);
   box-sizing: border-box;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sfb-date--fill {
+  display: flex;
+  width: 100%;
 }
 
 .sfb-date__label {
   color: var(--sfb-label);
   font-weight: 600;
-  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
 }
 
@@ -399,24 +535,181 @@
   flex-shrink: 0;
 }
 
-.sfb-date__input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--sfb-value);
-  min-width: 0;
-  width: 118px;
-  cursor: pointer;
-  padding: 0;
-}
-
 .sfb-date__tilde {
   color: var(--sfb-label);
   font-weight: 600;
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+/*
+ * 검색 영역 날짜는 `HpDatePicker`다. Safari 네이티브 달력(연도 스피너)과 Chrome 달력이
+ * 달라, 브라우저가 달력을 그리게 두면 HPMS(Chrome)와 사파리 화면이 어긋난다.
+ */
+.sfb-date .hp-dp {
+  position: relative;
+  align-self: stretch;
+  min-width: 0;
+  flex: 1 1 0;
+  gap: 0;
+}
+
+.sfb-date .hp-dp__input.sfb-date__input {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 0;
+  height: auto;
+  padding: 0 16px 0 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  font-size: var(--font-size-xs);
+  font-family: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--sfb-value);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.sfb-date--fill .hp-dp__input.sfb-date__input {
+  width: 100%;
+}
+
+/*
+ * `top: 50% + translateY(-50%)`는 Safari에서 button 기본 line-height만큼 아이콘이 위로 뜬다.
+ * 알약 높이에 버튼을 붙이고 안에서 가운데 맞춘다.
+ */
+.sfb-date .hp-dp .hp-dp__icon {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  flex: none;
+}
+
+.sfb-date .hp-dp .hp-dp__icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.sfb-date.sfb-date--month {
+  overflow: visible;
+  width: max-content;
+  padding: 0 16px 0 12px;
+  gap: 8px;
+}
+
+.sfb-date.sfb-date--month .hp-dp {
+  position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  gap: 6px;
+}
+
+.sfb-date.sfb-date--month .hp-dp__input.sfb-date__input {
+  width: 74px;
+  min-width: 74px;
+  max-width: 74px;
+  flex: none;
+  padding: 0;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  letter-spacing: 0;
+}
+
+.sfb-date.sfb-date--month .hp-dp__icon {
+  position: static;
+  right: auto;
+  top: auto;
+  transform: none;
+  flex: 0 0 16px;
+}
+
+.sfb-date.sfb-date--month .hp-dp__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 입력칸 옆 돋보기. 테두리를 주면 알약 안에 단추가 하나 더 생긴 것처럼 보인다. */
+.sfb-pill button[aria-label*="검색"] {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ===== 필 폭 유틸 =====
+   값은 선호 폭이다. 자리가 남으면 그 이상 커지지 않고, 부족하면 비율대로 줄어든다
+   (툴바를 두 줄로 접지 않기 위해서다). */
+.sfb-w-xs {
+  flex: 0.7 1 128px;
+  max-width: 128px;
+  min-width: 92px;
+}
+
+.sfb-w-sm {
+  flex: 0.85 1 156px;
+  max-width: 156px;
+  min-width: 104px;
+}
+
+.sfb-w-md {
+  flex: 1 1 190px;
+  max-width: 190px;
+  min-width: 112px;
+}
+
+.sfb-w-lg {
+  flex: 1.15 1 230px;
+  max-width: 230px;
+  min-width: 128px;
+}
+
+.sfb-w-xl {
+  flex: 1.35 1 280px;
+  max-width: 280px;
+  min-width: 160px;
+}
+
+.sfb-w-2xl {
+  flex: 1.7 1 340px;
+  max-width: 340px;
+  min-width: 220px;
+}
+
+.sfb-w-3xl {
+  flex: 2.2 1 430px;
+  max-width: 430px;
+  min-width: 260px;
+}
+
+.sfb-w-xs,
+.sfb-w-sm,
+.sfb-w-md,
+.sfb-w-lg,
+.sfb-w-xl,
+.sfb-w-2xl,
+.sfb-w-3xl {
+  display: flex;
+}
+
+/* 폭을 지정한 필은 안쪽 face도 그 폭을 채운다 — 안 그러면 알약이 글자 길이대로 줄어든다. */
+.sfb-w-xs > .sfb-pill__face,
+.sfb-w-sm > .sfb-pill__face,
+.sfb-w-md > .sfb-pill__face,
+.sfb-w-lg > .sfb-pill__face,
+.sfb-w-xl > .sfb-pill__face,
+.sfb-w-2xl > .sfb-pill__face,
+.sfb-w-3xl > .sfb-pill__face {
+  width: 100%;
 }
 
 @media (max-width: 1100px) {
@@ -428,16 +721,5 @@
 @media (max-width: 720px) {
   .sfb__panel-grid {
     grid-template-columns: 1fr;
-  }
-
-  .sfb__search {
-    max-width: none;
-    flex-basis: 100%;
-  }
-
-  .sfb__actions {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-end;
   }
 }

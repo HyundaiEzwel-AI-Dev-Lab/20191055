@@ -9,20 +9,15 @@ defineProps({
   list: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update:modelValue', 'enter', 'click'])
-
-function onInput(e) {
-  emit('update:modelValue', e.target.value)
-}
-
-function onKeyup(e) {
-  if (e.key === 'Enter') emit('enter', e)
-}
+const emit = defineEmits(['update:modelValue', 'enter', 'focus', 'click'])
 </script>
 
 <template>
   <div class="sfb-pill" :class="{ 'sfb-pill--fill': fill }" @click="emit('click', $event)">
-    <div class="sfb-pill__face" :class="{ 'sfb-pill__face--fill': fill }">
+    <div
+      class="sfb-pill__face sfb-pill__face--text"
+      :class="{ 'sfb-pill__face--fill': fill }"
+    >
       <span class="sfb-pill__label">{{ label }}</span>
       <span class="sfb-pill__sep">|</span>
       <input
@@ -32,8 +27,10 @@ function onKeyup(e) {
         :placeholder="placeholder"
         :readonly="readonly"
         :list="list || undefined"
-        @input="onInput"
-        @keyup="onKeyup"
+        :aria-label="label"
+        @input="emit('update:modelValue', $event.target.value)"
+        @keyup.enter="emit('enter')"
+        @focus="emit('focus')"
       />
       <slot name="trailing" />
     </div>

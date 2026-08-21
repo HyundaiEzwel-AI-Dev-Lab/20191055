@@ -32,10 +32,9 @@ const form = ref(null)
 function flatten(units) {
   const byParent = new Map()
   for (const unit of units) {
-    const key = unit.parentId
-    const list = byParent.get(key) ?? []
+    const list = byParent.get(unit.parentId) ?? []
     list.push(unit)
-    byParent.set(key, list)
+    byParent.set(unit.parentId, list)
   }
   const result = []
   function walk(parentId, depth) {
@@ -210,18 +209,14 @@ function toggleActive(row) {
     savingId.value = null
   }
 }
-
-function resetSearch() {
-  keyword.value = ''
-}
 </script>
 
 <template>
-  <div class="admin-page">
+  <main class="admin-page hp-anim-enter">
     <SearchFilterBar
       v-model:search="keyword"
       search-placeholder="조직명 또는 조직장명"
-      @reset="resetSearch"
+      @reset="keyword = ''"
       @search="load"
     />
 
@@ -233,32 +228,32 @@ function resetSearch() {
         <input v-model="includeInactive" type="checkbox" @change="load" />
         비활성 포함
       </label>
-      <div class="toolbar__actions">
-        <button type="button" class="btn btn--primary btn--sm" @click="openCreate">조직 신설</button>
-      </div>
+      <button type="button" class="btn btn--primary btn--sm" @click="openCreate">조직 신설</button>
     </div>
 
     <div v-if="fallbackWarning" class="warn">{{ fallbackWarning }}</div>
 
-    <p class="hint">
-      {{ orgAdminMeta.hint }}
-      그 위 임원급으로는 올라가지 않습니다. 그래서 <b>조직장은 팀에만 지정</b>합니다.
+    <p class="notice">
+      승인자는 <b>신청자 소속 팀의 팀장</b>입니다. 팀장이 부재(공석·퇴직)면 대체 승인 조직 팀장이
+      승인자가 되며, 그 위 임원급으로는 올라가지 않습니다. 그래서 <b>조직장은 팀에만 지정</b>합니다 —
       담당·회사 조직장은 승인선에 쓰이지 않습니다.
-      WBS 변경요청은 테크 인력만 내므로 <b>승인 대상</b> 표시가 붙은 팀의 조직장만 실제 결재선입니다.
-      비활성은 하위 조직까지 함께 내리고 소속 인원을 미소속으로 전환합니다.
+      WBS 변경요청은 테크 인력만 내므로 <b>승인 대상</b> 표시가 붙은 팀(테크 인력이 있는 팀)의 조직장만
+      실제 결재선입니다. 그 외 조직은 소속·부서명 표시용입니다.
+      비활성은 하위 조직까지 함께 내리고 소속 인원을 미소속으로 전환합니다 — 미소속 인원은 사용자
+      관리 화면에서 찾아 재배정하세요.
     </p>
 
-    <div class="listcard">
+    <div class="listcard card--panel">
       <div class="listcard__scroll">
-        <table class="data-table org-table">
+        <table class="data-table" style="min-width: 900px">
           <thead>
             <tr>
               <th>조직</th>
-              <th class="col-kind">구분</th>
-              <th class="col-count">소속 인원</th>
-              <th class="col-leader">조직장</th>
-              <th class="col-fallback">대체 승인</th>
-              <th class="col-actions">관리</th>
+              <th style="width: 140px">구분</th>
+              <th style="width: 90px">소속 인원</th>
+              <th style="width: 260px">조직장</th>
+              <th style="width: 110px">대체 승인</th>
+              <th style="width: 180px">관리</th>
             </tr>
           </thead>
           <tbody>
@@ -269,7 +264,7 @@ function resetSearch() {
               </td>
               <td>
                 {{ orgUnitKindLabel(row.unitKind) }}
-                <span v-if="isApprovalScope(row)" class="badge-scope">승인 대상</span>
+                <span v-if="isApprovalScope(row)" class="badge badge--scope">승인 대상</span>
               </td>
               <td class="cell--center">{{ row.memberCount }}</td>
               <td>
@@ -291,7 +286,7 @@ function resetSearch() {
                 <span v-else class="tbl__muted">지정 불가</span>
               </td>
               <td class="cell--center">
-                <span v-if="row.approvalFallback" class="badge-fallback">대체 승인</span>
+                <span v-if="row.approvalFallback" class="badge badge--fallback">대체 승인</span>
                 <button
                   v-else-if="row.active && row.unitKind === 'TEAM'"
                   type="button"
@@ -301,7 +296,7 @@ function resetSearch() {
                 >
                   지정
                 </button>
-                <span v-else class="tbl__muted">-</span>
+                <span v-else class="tbl__muted">—</span>
               </td>
               <td>
                 <button
@@ -362,8 +357,8 @@ function resetSearch() {
           <input v-model="form.name" class="filter__input" type="text" maxlength="100" />
         </div>
       </div>
-      <p class="modal-note">
-        개발부서 코드(DEV_DEPARTMENT)와 이름이 연결된 조직은 이름을 바꿀 수 없습니다. 테크 리소스·실적
+      <p class="hint">
+        개발부서 코드(DEV_DEPARTMENT)와 이름이 연결된 조직은 이름을 바꿀 수 없습니다 — 테크 리소스·실적
         조회가 조직을 이름으로 찾기 때문입니다.
       </p>
       <template #footer>
@@ -373,73 +368,46 @@ function resetSearch() {
         </button>
       </template>
     </BaseModal>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.toolbar__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--lnb-txt);
-}
-
-.hint {
-  margin: 0 0 10px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  line-height: 1.55;
-  color: var(--lnb-muted);
-}
-
+.notice { margin: 0 0 10px; font-size: 0.78rem; color: var(--lnb-muted); line-height: 1.55; }
+.tbl__muted { color: var(--lnb-muted); }
+.empty { text-align: center !important; color: var(--lnb-muted); padding: 24px !important; }
+.cell--center { text-align: center; }
+.toolbar__toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+.row--inactive { opacity: 0.55; }
 .warn {
   margin: 0 0 10px;
   padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  border-radius: 6px;
+  font-size: 0.8rem;
   color: var(--orange);
   background: var(--orange-bg);
   border: 1px solid var(--orange);
 }
-
-.org-table {
-  min-width: 900px;
-}
-
-.col-kind { width: 140px; }
-.col-count { width: 90px; }
-.col-leader { width: 260px; }
-.col-fallback { width: 110px; }
-.col-actions { width: 180px; }
-
-.cell--center { text-align: center; }
-
-.row--inactive { opacity: 0.55; }
-
-.badge-scope {
+.badge--scope {
   display: inline-block;
   margin-left: 4px;
   padding: 0 6px;
-  border-radius: var(--r-pill);
-  font-size: calc(11px + var(--font-size-offset, 0px));
+  border-radius: 10px;
+  font-size: 0.68rem;
   border: 1px solid var(--lnb-line);
   color: var(--lnb-muted);
 }
-
-.badge-fallback {
+.badge--fallback {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: var(--r-pill);
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 600;
+  border-radius: 10px;
+  font-size: 0.72rem;
   border: 1px solid var(--teal);
   color: var(--teal);
   background: var(--teal-50);
 }
-
-.modal-note {
-  margin: 12px 0 0;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-}
+.modal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.modal-field { display: flex; flex-direction: column; gap: 4px; }
+.modal-field--wide { grid-column: 1 / -1; }
+.modal-field label { font-size: 0.78rem; color: var(--lnb-muted); }
+.hint { margin: 12px 0 0; font-size: 0.76rem; color: var(--lnb-muted); }
 </style>
