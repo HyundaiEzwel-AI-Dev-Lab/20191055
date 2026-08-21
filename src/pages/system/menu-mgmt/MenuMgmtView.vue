@@ -11,189 +11,303 @@ import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
-const selectedSystem = ref('HIMS')
-const selectedBiz = ref('고객사/제도')
-const allRows = ref(getScreenCodes(selectedSystem.value, selectedBiz.value))
-const selectedIds = ref([])
-const markedForDelete = ref([])
-const hasSearched = ref(true)
+const PAGE_SIZE_OPTIONS = [50, 100, 200]
 
-const filters = ref({ id: '', name: '', path: '' })
+const systemFilterOptions = computed(() => [
+  { value: '', label: '전체' },
+  ...systemOptions.map((s) => ({ value: s, label: s })),
+])
+
+const filters = ref({
+  keyword: '',
+  systemCode: 'HIMS',
+  workCategoryCode: '고객사/제도',
+  screenCode: '',
+  screenPath: '',
+})
+
+const selectedSystem = computed({
+  get: () => filters.value.systemCode,
+  set: (v) => { filters.value.systemCode = v },
+})
+const selectedBiz = computed({
+  get: () => filters.value.workCategoryCode,
+  set: (v) => { filters.value.workCategoryCode = v },
+})
 
 const bizList = computed(() => bizCategoriesBySystem[selectedSystem.value] || [])
-
-const rows = computed(() => {
-  const f = filters.value
-  return allRows.value.filter((r) => {
-    if (f.id && !r.id.toLowerCase().includes(f.id.trim().toLowerCase())) return false
-    if (f.name && !r.name.toLowerCase().includes(f.name.trim().toLowerCase())) return false
-    if (f.path && !r.path.toLowerCase().includes(f.path.trim().toLowerCase())) return false
-    return true
-  })
-})
-
-const canAdd = computed(() => hasSearched.value && !!selectedSystem.value && !!selectedBiz.value)
-
-const filterTags = computed(() => {
-  const f = filters.value
-  const tags = []
-  if (f.id) tags.push({ key: 'id', label: '관리번호', value: f.id })
-  if (f.name) tags.push({ key: 'name', label: '화면명', value: f.name })
-  if (f.path) tags.push({ key: 'path', label: '화면경로', value: f.path })
-  return tags
-})
+const workCategoryFilterOptions = computed(() => [
+  { value: '', label: '전체' },
+  ...bizList.value.map((b) => ({ value: b, label: b })),
+])
 
 watch(selectedSystem, (sys) => {
   const list = bizCategoriesBySystem[sys] || []
   selectedBiz.value = list.includes('고객사/제도') ? '고객사/제도' : list[0] || ''
 })
 
-watch([selectedSystem, selectedBiz], ([sys, biz]) => {
-  if (!biz) return
-  hasSearched.value = false
-  allRows.value = getScreenCodes(sys, biz)
-  selectedIds.value = []
+function toDraftRow(row, systemCode, biz) {
+  return {
+    id: row.id,
+    screenCode: row.id,
+    systemCode: systemCode || null,
+    workCategoryCode: row.bizCategory || biz || null,
+    screenPath: row.path || '',
+    screenName: row.name || '',
+    active: row.useYn === 'Y',
+    createdByName: row.createdBy === 'system' ? 'system' : row.createdBy,
+    createdAt: row.createdAt,
+    updatedByName: row.updatedBy ?? '-',
+    updatedAt: row.updatedAt,
+    systemManaged: !!row.linked,
+    isNew: !!row.isNew,
+  }
+}
+
+const draftRows = ref([])
+const selectedCodes = ref([])
+const markedForDelete = ref([])
+let newRowSeq = 0
+
+function loadDraftRows() {
+  const sys = filters.value.systemCode || 'HIMS'
+  const biz = filters.value.workCategoryCode || bizList.value[0] || ''
+  draftRows.value = getScreenCodes(sys, biz).map((r) => toDraftRow(r, sys, biz))
+  selectedCodes.value = []
   markedForDelete.value = []
+  currentPage.value = 1
+}
+
+watch([() => filters.value.systemCode, () => filters.value.workCategoryCode], loadDraftRows, { immediate: true })
+
+const filteredDraft = computed(() => {
+  const f = filters.value
+  return draftRows.value.filter((r) => {
+    if (f.keyword) {
+      const q = f.keyword.toLowerCase()
+      if (!r.screenCode.toLowerCase().includes(q) && !r.screenName.toLowerCase().includes(q)) return false
+    }
+    if (f.screenCode && !r.screenCode.toLowerCase().includes(f.screenCode.trim().toLowerCase())) return false
+    if (f.screenPath && !String(r.screenPath || '').toLowerCase().includes(f.screenPath.trim().toLowerCase())) return false
+    return true
+  })
 })
 
+const pageSize = ref(50)
+const currentPage = ref(1)
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredDraft.value.length / pageSize.value)))
+const visibleRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredDraft.value.slice(start, start + pageSize.value)
+})
+
+watch(totalPages, (max) => {
+  if (currentPage.value > max) currentPage.value = max
+})
+
+function rowKey(row) {
+  return row.isNew ? `new:${row.id}` : row.screenCode
+}
+
 function search() {
-  hasSearched.value = true
+  loadDraftRows()
 }
 
 function resetFilters() {
-  filters.value = { id: '', name: '', path: '' }
+  filters.value = {
+    keyword: '',
+    systemCode: 'HIMS',
+    workCategoryCode: '고객사/제도',
+    screenCode: '',
+    screenPath: '',
+  }
   search()
 }
 
-function removeFilterTag(key) {
-  if (key === 'id') filters.value.id = ''
-  else if (key === 'name') filters.value.name = ''
-  else if (key === 'path') filters.value.path = ''
-  search()
-}
-
-function toggleSelect(id) {
-  const idx = selectedIds.value.indexOf(id)
-  if (idx >= 0) selectedIds.value.splice(idx, 1)
-  else selectedIds.value.push(id)
+function toggleSelect(key) {
+  const idx = selectedCodes.value.indexOf(key)
+  if (idx >= 0) selectedCodes.value.splice(idx, 1)
+  else selectedCodes.value.push(key)
 }
 
 function toggleSelectAll(e) {
-  selectedIds.value = e.target.checked ? rows.value.filter((r) => !r.linked).map((r) => r.id) : []
+  selectedCodes.value = e.target.checked
+    ? visibleRows.value.filter((r) => !r.systemManaged).map(rowKey)
+    : []
 }
 
 function addRow() {
-  if (!canAdd.value) return
-  allRows.value.unshift({
-    id: String(20000 + allRows.value.length),
-    name: '신규 화면',
-    path: '',
-    bizCategory: selectedBiz.value,
-    useYn: 'Y',
-    createdBy: '김현대',
-    createdAt: '2026-05-21 00:00:00',
-    updatedBy: '-',
+  currentPage.value = 1
+  newRowSeq += 1
+  draftRows.value.unshift({
+    id: -newRowSeq,
+    screenCode: '',
+    systemCode: filters.value.systemCode || null,
+    workCategoryCode: filters.value.workCategoryCode || null,
+    screenPath: '',
+    screenName: '',
+    active: true,
+    createdByName: null,
+    createdAt: null,
+    updatedByName: null,
     updatedAt: null,
+    systemManaged: false,
     isNew: true,
   })
 }
 
-function removeRows() {
-  if (!selectedIds.value.length) {
+function removeSelected() {
+  if (!selectedCodes.value.length) {
     window.alert('삭제할 화면을 선택해 주세요.')
     return
   }
-  const linkedIds = new Set(allRows.value.filter((r) => r.linked).map((r) => r.id))
-  const deletable = selectedIds.value.filter((id) => !linkedIds.has(id))
-  if (deletable.length < selectedIds.value.length) {
-    window.alert('BO/FO 연동 화면은 삭제할 수 없습니다.')
+  const selected = draftRows.value.filter((r) => selectedCodes.value.includes(rowKey(r)))
+  if (selected.some((r) => r.systemManaged)) {
+    window.alert('연동 시스템 화면은 삭제할 수 없습니다.')
   }
-  const next = new Set(markedForDelete.value)
-  deletable.forEach((id) => next.add(id))
-  markedForDelete.value = [...next]
-  selectedIds.value = []
+  const deletable = selected.filter((r) => !r.systemManaged)
+  const droppedKeys = new Set(deletable.filter((r) => r.isNew).map(rowKey))
+  draftRows.value = draftRows.value.filter((r) => !droppedKeys.has(rowKey(r)))
+  markedForDelete.value = [
+    ...new Set([...markedForDelete.value, ...deletable.filter((r) => !r.isNew).map((r) => r.screenCode)]),
+  ]
+  selectedCodes.value = []
 }
 
-function saveRows() {
-  const remaining = allRows.value.filter((r) => !markedForDelete.value.includes(r.id))
-  const empty = remaining.find((r) => !String(r.name || '').trim())
-  if (empty) {
+function saveAll() {
+  const newRows = draftRows.value.filter((r) => r.isNew)
+  const invalidNew = newRows.find((r) => !r.systemCode || !r.screenName.trim())
+  if (invalidNew) {
+    window.alert('신규 행의 시스템과 화면명을 입력하세요.')
+    return
+  }
+  const emptyName = draftRows.value.find((r) => !r.isNew && !r.screenName.trim())
+  if (emptyName) {
     window.alert('화면명이 비어 있는 행이 있습니다.')
     return
   }
-  if (remaining.some((r) => r.isNew && !r.path.trim())) {
-    window.alert('신규 행의 화면경로를 입력해 주세요.')
-    return
-  }
-  if (!window.confirm(`선택 삭제 ${markedForDelete.value.length}건을 포함하여 저장하시겠습니까?`)) return
+  if (!window.confirm(
+    markedForDelete.value.length
+      ? `선택 삭제 ${markedForDelete.value.length}건을 포함하여 저장하시겠습니까?`
+      : '변경 사항을 저장하시겠습니까?',
+  )) return
+
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
-  remaining.forEach((r) => {
-    if (r.name) {
-      r.updatedBy = '김현대'
-      r.updatedAt = now
-    }
-    delete r.isNew
-  })
-  allRows.value = remaining
+  draftRows.value = draftRows.value
+    .filter((r) => !markedForDelete.value.includes(r.screenCode))
+    .map((r) => {
+      if (r.isNew) {
+        const code = String(20000 + draftRows.value.length + Math.floor(Math.random() * 100))
+        return {
+          ...r,
+          isNew: false,
+          screenCode: code,
+          id: code,
+          createdByName: '김현대',
+          createdAt: now,
+        }
+      }
+      if (r.screenName) {
+        return { ...r, updatedByName: '김현대', updatedAt: now }
+      }
+      return r
+    })
   markedForDelete.value = []
-  window.alert(`${remaining.length}건의 화면코드를 저장했습니다.`)
+  window.alert('저장했습니다.')
+}
+
+function onSystemChanged(row) {
+  if (!row.workCategoryCode) return
+  const allowed = bizCategoriesBySystem[row.systemCode] || []
+  if (!allowed.includes(row.workCategoryCode)) row.workCategoryCode = allowed[0] || null
+}
+
+function workCategoriesForRow(row) {
+  return (bizCategoriesBySystem[row.systemCode] || []).map((b) => ({ code: b, name: b }))
 }
 
 function onExcelDownload() {
-  mockExcelDownload(`화면코드_${selectedSystem.value}_${selectedBiz.value}`, rows.value, [
-    { key: 'id', label: '관리번호' },
-    { key: 'name', label: '화면명' },
-    { key: 'path', label: '화면경로' },
-    { key: 'useYn', label: '사용여부' },
-    { key: 'createdBy', label: '등록자' },
+  mockExcelDownload(`화면코드_${filters.value.systemCode}_${filters.value.workCategoryCode}`, filteredDraft.value, [
+    { key: 'screenCode', label: '화면코드' },
+    { key: 'screenName', label: '화면명' },
+    { key: 'screenPath', label: '화면경로' },
+    { key: 'active', label: '사용여부' },
+    { key: 'createdByName', label: '등록자' },
     { key: 'createdAt', label: '등록일시' },
-    { key: 'updatedBy', label: '수정자' },
+    { key: 'updatedByName', label: '수정자' },
   ])
 }
 </script>
 
 <template>
-  <div class="admin-page">
+  <main class="menu-mgmt-page admin-page hp-anim-enter">
     <div class="notice">ⓘ {{ menuMgmtMeta.notice }}</div>
 
-    <SearchFilterBar
-      :show-search="false"
-      :applied-tags="filterTags"
-      @reset="resetFilters"
-      @search="search"
-      @remove-tag="removeFilterTag"
-    >
+    <SearchFilterBar :show-search="false" @reset="resetFilters" @search="search">
       <template #primary>
-        <FilterSelectPill v-model="selectedSystem" label="시스템" :options="systemOptions" empty-label="" />
-        <FilterSelectPill v-model="selectedBiz" label="업무구분" :options="bizList" empty-label="" />
-        <FilterTextPill v-model="filters.id" label="관리번호" placeholder="관리번호 검색" @enter="search" />
-        <FilterTextPill v-model="filters.name" label="화면명" placeholder="화면명 검색" @enter="search" />
-        <FilterTextPill v-model="filters.path" label="화면경로" placeholder="화면경로 검색" @enter="search" />
+        <FilterSelectPill
+          v-model="filters.systemCode"
+          class="sfb-w-md"
+          label="시스템코드"
+          :options="systemFilterOptions"
+        />
+        <FilterSelectPill
+          v-model="filters.workCategoryCode"
+          class="sfb-w-md"
+          label="업무구분"
+          :options="workCategoryFilterOptions"
+        />
+        <FilterTextPill
+          v-model="filters.keyword"
+          class="sfb-w-lg"
+          label="검색어"
+          placeholder="화면코드/화면명 검색"
+          @enter="search"
+        />
+        <FilterTextPill
+          v-model="filters.screenCode"
+          class="sfb-w-md"
+          label="화면코드"
+          placeholder="화면코드 검색"
+          @enter="search"
+        />
+        <FilterTextPill
+          v-model="filters.screenPath"
+          class="sfb-w-xl"
+          label="화면경로"
+          placeholder="화면경로 검색"
+          @enter="search"
+        />
       </template>
     </SearchFilterBar>
 
     <div class="toolbar">
-      <span class="toolbar__count">화면코드 · 총 <b>{{ rows.length }}</b>건</span>
+      <span class="toolbar__count">화면코드 · 총 <b>{{ filteredDraft.length }}</b>건</span>
+      <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
+        <option v-for="n in PAGE_SIZE_OPTIONS" :key="n" :value="n">{{ n }}건씩 보기</option>
+      </select>
       <div class="toolbar__actions">
-        <button type="button" class="btn btn--ghost btn--sm" :disabled="!canAdd" @click="addRow">＋</button>
-        <button type="button" class="btn btn--ghost btn--sm" @click="removeRows">－</button>
-        <button type="button" class="btn btn--primary btn--sm" @click="saveRows">저장</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="addRow">＋</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="removeSelected">－</button>
+        <button type="button" class="btn btn--primary btn--sm" @click="saveAll">저장</button>
         <ExcelDownloadButton @click="onExcelDownload" />
       </div>
     </div>
 
-    <div class="listcard">
+    <div class="listcard card--panel">
       <div class="listcard__scroll">
-        <table class="data-table" style="min-width: 980px">
+        <table class="data-table">
           <thead>
             <tr>
               <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
-              <th>관리번호</th>
-              <th>화면명</th>
+              <th>화면코드</th>
+              <th>시스템</th>
               <th>업무구분</th>
               <th>화면경로</th>
+              <th>화면명</th>
               <th>사용여부</th>
               <th>등록자</th>
               <th>등록일시</th>
@@ -203,76 +317,86 @@ function onExcelDownload() {
           </thead>
           <tbody>
             <tr
-              v-for="row in rows"
-              :key="row.id"
-              :class="{ 'is-marked-delete': markedForDelete.includes(row.id) }"
+              v-for="row in visibleRows"
+              :key="rowKey(row)"
+              :class="{ 'is-marked-delete': markedForDelete.includes(row.screenCode) }"
             >
-              <td>
+              <td class="cell--center">
                 <input
                   type="checkbox"
-                  :disabled="row.linked"
-                  :checked="selectedIds.includes(row.id)"
-                  @change="toggleSelect(row.id)"
+                  :disabled="row.systemManaged"
+                  :checked="selectedCodes.includes(rowKey(row))"
+                  @change="toggleSelect(rowKey(row))"
                 />
               </td>
-              <td>
-                <span class="tbl__name">{{ row.id }}</span>
-                <span v-if="row.linked" class="linked-badge" title="BO/FO 연동 화면 — 사용여부 변경/삭제 불가">연동</span>
+              <td class="cell--center">
+                <span v-if="row.isNew" class="tbl__muted">저장 시 자동 채번</span>
+                <template v-else>
+                  <span class="tbl__name">{{ row.screenCode }}</span>
+                  <span v-if="row.systemManaged" class="badge badge--ok" title="연동 화면 — 사용여부 변경/삭제 불가">연동</span>
+                </template>
               </td>
-              <td>
-                <input v-model="row.name" class="cell-input" type="text" />
-              </td>
-              <td>
-                <select v-if="row.isNew" v-model="row.bizCategory" class="cell-select">
-                  <option v-for="b in bizList" :key="b" :value="b">{{ b }}</option>
+              <td class="cell--center">
+                <select v-model="row.systemCode" class="cell-select" @change="onSystemChanged(row)">
+                  <option :value="null">미지정</option>
+                  <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
                 </select>
-                <span v-else class="tbl__muted">{{ row.bizCategory }}</span>
               </td>
-              <td>
-                <input v-if="row.isNew" v-model="row.path" class="cell-input" type="text" placeholder="화면경로 입력" />
-                <span v-else class="tbl__muted">{{ row.path }}</span>
-              </td>
-              <td>
+              <td class="cell--center">
                 <select
-                  v-model="row.useYn"
-                  class="cell-select"
-                  :class="{ 'is-off': row.useYn === 'N' }"
-                  :disabled="row.linked"
+                  v-model="row.workCategoryCode"
+                  class="cell-select cell-select--category"
+                  :disabled="row.isNew && !row.systemCode"
                 >
-                  <option value="Y">Y</option>
-                  <option value="N">N</option>
+                  <option v-if="row.isNew && !row.systemCode" :value="null">시스템 선택 후 지정</option>
+                  <template v-else>
+                    <option :value="null">미분류</option>
+                    <option v-for="c in workCategoriesForRow(row)" :key="c.code" :value="c.code">{{ c.name }}</option>
+                  </template>
                 </select>
               </td>
-              <td>{{ row.createdBy }}</td>
-              <td class="tbl__muted">{{ row.createdAt }}</td>
               <td>
-                <span :class="{ 'tbl__muted': row.updatedBy === '-' }">{{ row.updatedBy }}</span>
+                <input v-model="row.screenPath" class="cell-input" type="text" placeholder="화면경로 입력" />
               </td>
-              <td class="tbl__muted">{{ row.updatedAt || '-' }}</td>
+              <td>
+                <input v-model="row.screenName" class="cell-input" type="text" placeholder="화면명 입력" />
+              </td>
+              <td class="cell--center">
+                <select
+                  v-model="row.active"
+                  class="cell-select cell-select--flag"
+                  :class="{ 'is-off': !row.active }"
+                  :disabled="row.systemManaged"
+                >
+                  <option :value="true">Y</option>
+                  <option :value="false">N</option>
+                </select>
+              </td>
+              <td class="cell--center">{{ row.createdByName ?? '-' }}</td>
+              <td class="tbl__muted cell--center">{{ row.createdAt ?? '-' }}</td>
+              <td class="cell--center">{{ row.updatedByName ?? '-' }}</td>
+              <td class="tbl__muted cell--center">{{ row.updatedAt ?? '-' }}</td>
             </tr>
-            <tr v-if="!rows.length">
-              <td colspan="10" class="empty">화면코드가 없습니다.</td>
+            <tr v-if="!visibleRows.length">
+              <td colspan="11" class="empty">화면코드가 없습니다.</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
+
+    <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
+  </main>
 </template>
 
 <style scoped>
-.is-marked-delete {
-  opacity: 0.45;
-  text-decoration: line-through;
-}
-
-.linked-badge {
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--teal-50);
-  color: var(--teal-600);
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  font-weight: 700;
-}
+.menu-mgmt-page { font-size: 13px; }
+.tbl__name { font-weight: 600; }
+.tbl__muted { color: var(--lnb-muted); }
+.cell--center { text-align: center; }
+.empty { text-align: center !important; color: var(--lnb-muted); padding: 24px !important; }
+.cell-select.is-off { color: var(--lnb-muted); }
+.cell-select--category { width: 170px; min-width: 170px; max-width: 170px; text-overflow: ellipsis; }
+.cell-select--flag { width: 52px; min-width: 52px; max-width: 52px; padding: 0 2px 0 6px; }
+.is-marked-delete { opacity: 0.45; text-decoration: line-through; }
 </style>

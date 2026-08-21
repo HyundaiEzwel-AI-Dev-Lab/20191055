@@ -8,7 +8,6 @@ import { useSubTabsStore } from '@/app/stores/subTabs'
 import {
   approvalStatusOptions,
   requestTypeOptions,
-  dateTypeOptions,
   pageSizeOptions,
   approvalList,
   matchApprovalFilters,
@@ -18,21 +17,21 @@ import {
   dateRangeText,
   isHoldRequest,
 } from '@/entities/approval/mock/approval'
-import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
-import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 
 const router = useRouter()
 const projectStore = useProjectStore()
 const tabsStore = useTabsStore()
 const subTabsStore = useSubTabsStore()
+
 const rows = approvalList
 const filters = ref({
-  status: '전체',
-  type: '전체',
+  status: '',
+  type: '',
   project: '',
   requester: '',
   dateType: '요청일',
@@ -40,34 +39,45 @@ const filters = ref({
   dateTo: '',
 })
 const applied = ref({ ...filters.value })
+const filterExpanded = ref(false)
 const pageSize = ref(20)
 const currentPage = ref(1)
 const selectedRow = ref(rows[0] || null)
-const filterExpanded = ref(false)
+const deciding = ref(false)
 
-const statusSelectOptions = approvalStatusOptions.map((o) => ({
-  value: o,
-  label: o === '전체' ? '선택' : o,
-}))
-const typeSelectOptions = requestTypeOptions.map((o) => ({
-  value: o,
-  label: o === '전체' ? '선택' : o,
+const statusFilterOptions = computed(() => [
+  { value: '', label: '선택' },
+  ...approvalStatusOptions.filter((o) => o !== '전체').map((o) => ({ value: o, label: o })),
+])
+
+const requestTypeFilterOptions = computed(() => [
+  { value: '', label: '선택' },
+  ...requestTypeOptions.filter((o) => o !== '전체').map((o) => ({ value: o, label: o })),
+])
+
+const filterTags = computed(() => {
+  const tags = []
+  if (filters.value.type) tags.push({ key: 'type', label: '요청유형', value: filters.value.type })
+  if (filters.value.project) tags.push({ key: 'project', label: '프로젝트명', value: filters.value.project })
+  return tags
+})
+
+const mockFilters = computed(() => ({
+  status: applied.value.status || '전체',
+  type: applied.value.type || '전체',
+  project: applied.value.project,
+  requester: applied.value.requester,
+  dateType: applied.value.dateType,
+  dateFrom: applied.value.dateFrom,
+  dateTo: applied.value.dateTo,
 }))
 
-const filtered = computed(() => rows.filter((r) => matchApprovalFilters(r, applied.value)))
+const filtered = computed(() => rows.filter((r) => matchApprovalFilters(r, mockFilters.value)))
 const paged = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filtered.value.slice(start, start + pageSize.value)
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
-
-const filterTags = computed(() => {
-  const a = applied.value
-  const tags = []
-  if (a.type && a.type !== '전체') tags.push({ key: 'type', label: '요청유형', value: a.type })
-  if (a.project) tags.push({ key: 'project', label: '프로젝트명', value: a.project })
-  return tags
-})
 
 const selectedGroup = computed(() => {
   if (!selectedRow.value) return null
@@ -76,8 +86,8 @@ const selectedGroup = computed(() => {
 
 const scheduleDetailRows = computed(() => {
   if (!selectedRow.value || selectedGroup.value === 'HOLD') return []
-  const rowsInDetail = selectedRow.value.detail?.scheduleRows
-  if (rowsInDetail?.length) return rowsInDetail
+  const detailRows = selectedRow.value.detail?.scheduleRows
+  if (detailRows?.length) return detailRows
   return [
     {
       taskType: '-',
@@ -92,6 +102,11 @@ const scheduleDetailRows = computed(() => {
 
 const canDecide = computed(() => selectedRow.value?.status === '승인요청')
 
+function reasonText(row) {
+  if (isHoldRequest(row)) return row.detail?.suspendReason || row.reason || '-'
+  return row.reason || '-'
+}
+
 function search() {
   applied.value = { ...filters.value }
   currentPage.value = 1
@@ -100,8 +115,8 @@ function search() {
 
 function resetFilters() {
   filters.value = {
-    status: '전체',
-    type: '전체',
+    status: '',
+    type: '',
     project: '',
     requester: '',
     dateType: '요청일',
@@ -112,7 +127,7 @@ function resetFilters() {
 }
 
 function removeFilterTag(key) {
-  if (key === 'type') filters.value.type = '전체'
+  if (key === 'type') filters.value.type = ''
   else if (key === 'project') filters.value.project = ''
   search()
 }
@@ -124,29 +139,17 @@ function selectRow(row) {
 function decide(status) {
   const target = selectedRow.value
   if (!target || !canDecide.value) return
-
   const label = status === '승인완료' ? '승인' : '반려'
   if (!window.confirm(`선택한 요청을 ${label} 처리하시겠습니까?`)) return
-
-  target.status = status
-  target.approveDate = new Date().toISOString().slice(0, 10)
-  window.alert(`${label} 처리했습니다.`)
-}
-
-function holdPeriodText(row) {
-  return dateRangeText(row.holdStartDate, row.holdEndDate)
-}
-
-function holdResumeText(row) {
-  return row.expectedResumeDate || row.detail?.expectedResumeDate || '-'
-}
-
-function holdReasonText(row) {
-  return row.detail?.suspendReason || row.reason || '-'
-}
-
-function holdRequestedAt(row) {
-  return row.detail?.requestedAt || row.requestDate || '-'
+  deciding.value = true
+  try {
+    target.status = status
+    target.approveDate = new Date().toISOString().slice(0, 10)
+    window.alert(`${label} 처리했습니다.`)
+    search()
+  } finally {
+    deciding.value = false
+  }
 }
 
 function goProject() {
@@ -156,35 +159,14 @@ function goProject() {
   const id = row.projectId || 'p1'
   const name = String(row.projectName || '프로젝트').replace(/\s*외\s*\d+건$/, '')
   projectStore.setCurrentProject({ id, name, stage: '처리중' })
-  tabsStore.openProjectTab({
-    projectId: id,
-    title: name,
-    projectName: name,
-    route,
-  })
+  tabsStore.openProjectTab({ projectId: id, title: name, projectName: name, route })
   subTabsStore.openSubTab(id, { id: 'wbs', title: 'WBS', route })
   router.push(route)
-}
-
-function onExcelDownload() {
-  mockExcelDownload('신청 승인 관리', filtered.value, [
-    { key: 'id', label: 'NO' },
-    { key: 'status', label: '승인상태' },
-    { key: 'type', label: '요청유형' },
-    { key: 'projectName', label: '프로젝트명' },
-    { key: 'openDate', label: '오픈예정일' },
-    { key: 'before', label: '변경전' },
-    { key: 'after', label: '변경후' },
-    { key: 'requester', label: '요청자' },
-    { key: 'requestDate', label: '요청일자' },
-    { key: 'approveDate', label: '승인일자' },
-    { key: 'reason', label: '요청사유' },
-  ])
 }
 </script>
 
 <template>
-  <div class="admin-page">
+  <main class="admin-page hp-anim-enter">
     <SearchFilterBar
       v-model:expanded="filterExpanded"
       :show-search="false"
@@ -194,9 +176,29 @@ function onExcelDownload() {
       @remove-tag="removeFilterTag"
     >
       <template #primary>
-        <FilterSelectPill v-model="filters.status" label="승인상태" :options="statusSelectOptions" empty-label="선택" />
-        <FilterTextPill v-model="filters.requester" label="요청자" placeholder="요청자" @enter="search" />
-        <FilterSelectPill v-model="filters.dateType" label="날짜구분" :options="dateTypeOptions" />
+        <FilterSelectPill
+          v-model="filters.status"
+          class="sfb-w-sm"
+          label="승인상태"
+          empty-label="선택"
+          :options="statusFilterOptions"
+        />
+        <FilterTextPill
+          v-model="filters.requester"
+          class="sfb-w-md"
+          label="요청자"
+          placeholder="요청자"
+          @enter="search"
+        />
+        <FilterSelectPill
+          v-model="filters.dateType"
+          class="sfb-w-md"
+          label="날짜구분"
+          :options="[
+            { value: '요청일', label: '요청일' },
+            { value: '승인일', label: '승인일' },
+          ]"
+        />
         <FilterDateRange
           label="기간"
           v-model:from="filters.dateFrom"
@@ -207,9 +209,9 @@ function onExcelDownload() {
         <FilterSelectPill
           v-model="filters.type"
           label="요청유형"
-          :options="typeSelectOptions"
           empty-label="선택"
           fill
+          :options="requestTypeFilterOptions"
         />
         <FilterTextPill
           v-model="filters.project"
@@ -226,12 +228,9 @@ function onExcelDownload() {
       <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
-      <div class="toolbar__actions">
-        <ExcelDownloadButton @click="onExcelDownload" />
-      </div>
     </div>
 
-    <div class="listcard">
+    <div class="listcard card--panel">
       <div class="listcard__scroll">
         <table class="data-table" style="min-width: 1080px">
           <thead>
@@ -278,13 +277,9 @@ function onExcelDownload() {
       </div>
     </div>
 
-    <div v-if="totalPages > 1" class="pager">
-      <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">이전</button>
-      <span class="pager__info">{{ currentPage }} / {{ totalPages }}</span>
-      <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">다음</button>
-    </div>
+    <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
 
-    <section v-if="selectedRow" class="card detail-card">
+    <section v-if="selectedRow" class="card card--panel detail-card">
       <div class="detail-card__head">
         <h3 class="detail-card__title">승인요청 상세 · {{ selectedRow.type }}</h3>
         <button type="button" class="btn btn--ghost btn--sm" @click="goProject">프로젝트 바로가기 ↗</button>
@@ -338,19 +333,19 @@ function onExcelDownload() {
         <div class="detail-grid">
           <div class="detail-field detail-field--wide">
             <label>요청 사유</label>
-            <div class="detail-value">{{ holdReasonText(selectedRow) }}</div>
+            <div class="detail-value">{{ reasonText(selectedRow) }}</div>
           </div>
           <div class="detail-field">
             <label>중단 기간</label>
-            <div class="detail-value">{{ holdPeriodText(selectedRow) }}</div>
+            <div class="detail-value">{{ dateRangeText(selectedRow.holdStartDate, selectedRow.holdEndDate) }}</div>
           </div>
           <div class="detail-field">
             <label>재개 예정일</label>
-            <div class="detail-value">{{ holdResumeText(selectedRow) }}</div>
+            <div class="detail-value">{{ selectedRow.expectedResumeDate || selectedRow.detail?.expectedResumeDate || '-' }}</div>
           </div>
           <div class="detail-field">
             <label>요청일시</label>
-            <div class="detail-value">{{ holdRequestedAt(selectedRow) }}</div>
+            <div class="detail-value">{{ selectedRow.detail?.requestedAt || selectedRow.requestDate || '-' }}</div>
           </div>
         </div>
       </div>
@@ -360,7 +355,7 @@ function onExcelDownload() {
         <button
           type="button"
           class="btn btn--ghost btn--sm"
-          :disabled="!canDecide"
+          :disabled="!canDecide || deciding"
           @click="decide('승인반려')"
         >
           승인반려
@@ -368,81 +363,39 @@ function onExcelDownload() {
         <button
           type="button"
           class="btn btn--primary btn--sm"
-          :disabled="!canDecide"
+          :disabled="!canDecide || deciding"
           @click="decide('승인완료')"
         >
           승인완료
         </button>
       </div>
     </section>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.data-table tbody tr {
-  cursor: pointer;
-}
+.data-table tbody tr { cursor: pointer; }
+.tbl__muted { color: var(--lnb-muted); }
+.empty { text-align: center !important; color: var(--lnb-muted); padding: 24px !important; white-space: normal; }
+.cell--center { text-align: center; }
 
-.cell--center {
-  text-align: center;
-}
+.link-btn { border: none; background: none; color: var(--teal); font-weight: 600; text-decoration: underline; cursor: pointer; font-family: inherit; font-size: inherit; padding: 0; }
 
-.detail-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
+.detail-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.detail-card__title { margin: 0; font-size: 0.95rem; color: var(--lnb-logo); }
 
-.detail-card__head .detail-card__title {
-  margin: 0;
-}
+.detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.detail-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.detail-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; }
+.detail-field--wide { grid-column: 1 / -1; }
+.detail-field label { color: var(--lnb-muted); font-weight: 600; }
+.detail-value { border: 1px solid var(--lnb-line); border-radius: 6px; padding: 6px 10px; min-height: 32px; display: flex; align-items: center; font-size: 0.8rem; background: var(--lnb-hover); color: var(--lnb-txt); }
 
-.detail-grid--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
+.detail-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--lnb-line); }
+.detail-section__title { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--lnb-logo); }
+.detail-table-wrap { overflow-x: auto; }
+.detail-table { min-width: 720px; }
 
-.detail-section {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--lnb-line);
-}
-
-.detail-section__title {
-  margin: 0 0 10px;
-  font-size: calc(13px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  color: var(--lnb-logo);
-}
-
-.detail-table-wrap {
-  overflow-x: auto;
-}
-
-.detail-table {
-  min-width: 720px;
-}
-
-.detail-card__foot {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--lnb-line);
-}
-
-.detail-card__note {
-  margin-right: auto;
-  font-size: 0.75rem;
-  color: var(--lnb-muted);
-}
-
-.badge--cancel {
-  background: var(--gray-bg);
-  color: var(--gray);
-  text-decoration: line-through;
-}
+.detail-card__foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--lnb-line); }
+.detail-card__note { margin-right: auto; font-size: 0.75rem; color: var(--lnb-muted); }
 </style>

@@ -7,9 +7,9 @@ const props = defineProps({
   searchPlaceholder: { type: String, default: '검색어 입력' },
   showSearch: { type: Boolean, default: true },
   showExpand: { type: Boolean, default: true },
-  /** [{ key, label, value }] */
   appliedTags: { type: Array, default: () => [] },
   panelClass: { type: String, default: '' },
+  searchDisabled: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -23,18 +23,7 @@ const emit = defineEmits([
 const slots = useSlots()
 const hasExpandSlot = computed(() => !!slots.expand)
 const showMore = computed(() => props.showExpand && hasExpandSlot.value)
-const hasTags = computed(() => props.appliedTags.length > 0)
 const showPanel = computed(() => props.expanded && hasExpandSlot.value)
-/** expand 슬롯 없는 화면(어드민 등)에서만 툴바 아래 태그 노출 */
-const showStandaloneTags = computed(() => hasTags.value && !hasExpandSlot.value)
-
-function toggleMore() {
-  emit('update:expanded', !props.expanded)
-}
-
-function onSearchEnter() {
-  emit('search')
-}
 </script>
 
 <template>
@@ -51,7 +40,7 @@ function onSearchEnter() {
           :value="search"
           :placeholder="searchPlaceholder"
           @input="emit('update:search', $event.target.value)"
-          @keyup.enter="onSearchEnter"
+          @keyup.enter="emit('search')"
         />
       </div>
 
@@ -60,8 +49,17 @@ function onSearchEnter() {
       </div>
 
       <div class="sfb__actions">
+        <slot name="actions-before" />
         <button type="button" class="sfb__btn sfb__btn--ghost" @click="emit('reset')">초기화</button>
-        <button type="button" class="sfb__btn sfb__btn--primary" @click="emit('search')">조회</button>
+        <button
+          type="button"
+          class="sfb__btn sfb__btn--primary"
+          :disabled="searchDisabled"
+          @click="emit('search')"
+        >
+          조회
+        </button>
+        <slot name="actions-after" />
       </div>
     </div>
 
@@ -70,36 +68,7 @@ function onSearchEnter() {
         <div class="sfb__panel-grid" :class="panelClass">
           <slot name="expand" />
         </div>
-        <div v-if="hasTags" class="sfb__tags">
-          <span class="sfb__tags-label">적용된 필터</span>
-          <span v-for="tag in appliedTags" :key="tag.key" class="sfb__tag">
-            {{ tag.label }}: {{ tag.value }}
-            <button
-              type="button"
-              class="sfb__tag-remove"
-              :aria-label="`${tag.label} 필터 삭제`"
-              @click="emit('remove-tag', tag.key)"
-            >
-              ✕
-            </button>
-          </span>
-        </div>
       </div>
-    </div>
-
-    <div v-else-if="showStandaloneTags" class="sfb__tags">
-      <span class="sfb__tags-label">적용된 필터</span>
-      <span v-for="tag in appliedTags" :key="tag.key" class="sfb__tag">
-        {{ tag.label }}: {{ tag.value }}
-        <button
-          type="button"
-          class="sfb__tag-remove"
-          :aria-label="`${tag.label} 필터 삭제`"
-          @click="emit('remove-tag', tag.key)"
-        >
-          ✕
-        </button>
-      </span>
     </div>
 
     <button
@@ -108,7 +77,7 @@ function onSearchEnter() {
       class="sfb__more"
       :aria-expanded="expanded"
       :aria-label="expanded ? '검색조건 접기' : '검색조건 더보기'"
-      @click="toggleMore"
+      @click="emit('update:expanded', !expanded)"
     >
       <span class="sfb__more-icon" :class="{ 'sfb__more-icon--open': expanded }"></span>
     </button>

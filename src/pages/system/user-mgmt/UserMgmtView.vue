@@ -1,180 +1,131 @@
 <script setup>
 // PAG-M-SYS-01 사용자 관리
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  userMgmtMeta,
   roleOptions,
   positionOptions,
-  statusOptions,
   employmentStatusOptions,
-  searchTypeOptions,
   pageSizeOptions,
   userList,
-  matchUserFilters,
   userStatusClass,
 } from '@/entities/user-admin/userMgmt'
 import { listOrgUnits } from '@/entities/org-admin/mock/orgAdmin'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 
-function teamNamesFromOrg() {
-  const units = listOrgUnits()
+const pageSizeOptionsLocal = pageSizeOptions
+
+function buildOrgUnitOptions(units) {
   const byParent = new Map()
   for (const unit of units) {
     const list = byParent.get(unit.parentId) ?? []
     list.push(unit)
     byParent.set(unit.parentId, list)
   }
-  const names = []
-  function walk(parentId) {
+  const result = []
+  function walk(parentId, depth) {
     for (const unit of byParent.get(parentId) ?? []) {
-      if (unit.unitKind === 'TEAM') names.push(unit.name)
-      walk(unit.id)
+      result.push({ id: unit.id, label: '　'.repeat(depth) + unit.name, name: unit.name })
+      walk(unit.id, depth + 1)
     }
   }
-  walk(null)
-  return names
+  walk(null, 0)
+  return result
 }
 
-const orgTeamNames = teamNamesFromOrg()
-const defaultDept = orgTeamNames.includes('플랫폼팀') ? '플랫폼팀' : orgTeamNames[0] || ''
+const orgUnitOptions = ref([])
+const orgUnits = ref([])
 
-const rows = ref(userList.map((r) => ({ ...r })))
-const filters = ref({ keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' })
-const applied = ref({ ...filters.value })
+const rows = ref(userList.map((r) => ({
+  ...r,
+  userKey: r.id,
+  loginId: r.id,
+  department: r.dept || '',
+  active: !['잠금', '퇴직', '정직'].includes(r.status),
+  loginLocked: r.status === '잠금' || r.failCount >= 5,
+  loginFailCount: r.failCount,
+  statusCode: r.status,
+  empType: r.type === '외주' ? 'CONTRACTOR' : 'EMPLOYEE',
+  roleCode: r.role,
+  createdAt: r.registeredAt,
+  updatedAt: r.updatedAt,
+})))
+
+const filters = reactive({
+  keyword: '',
+  roleCode: '',
+  active: '',
+  statusCode: '',
+  unassigned: '',
+})
+const applied = ref({ ...filters })
 const pageSize = ref(20)
 const currentPage = ref(1)
-const selectedIds = ref([])
+const selectedKeys = ref([])
 
-const deptSelectOptions = [
-  { value: '전체', label: '선택' },
-  ...orgTeamNames.map((name) => ({ value: name, label: name })),
-]
+const roleFilterOptions = computed(() => [
+  { value: '', label: '전체' },
+  ...roleOptions.filter((r) => r !== '전체' && r !== '미설정').map((r) => ({ value: r, label: r })),
+])
 
-const filterTags = computed(() => {
-  const a = applied.value
-  const tags = []
-  if (a.keyword) {
-    tags.push({
-      key: 'keyword',
-      label: a.searchType === '아이디' ? '사번(ID)' : '이름',
-      value: a.keyword,
-    })
-  }
-  if (a.dept && a.dept !== '전체') tags.push({ key: 'dept', label: '소속팀', value: a.dept })
-  if (a.role && a.role !== '전체') tags.push({ key: 'role', label: '권한', value: a.role })
-  if (a.status && a.status !== '전체') tags.push({ key: 'status', label: '상태', value: a.status })
-  return tags
-})
+const statusFilterOptions = computed(() => [
+  { value: '', label: '전체' },
+  ...employmentStatusOptions.map((s) => ({ value: s, label: s })),
+  { value: '잠금', label: '잠금' },
+])
 
-const showDetail = ref(false)
-const showRegister = ref(false)
-const detailTarget = ref(null)
-const detailRole = ref('사용자')
-const detailName = ref('')
-const registerForm = reactive({
-  id: '',
-  name: '',
-  dept: defaultDept,
-  role: '사용자',
-  position: '사원',
-  email: '',
-  status: '재직',
-  memo: '',
-})
-const idChecked = ref(false)
-const registerTempPassword = ref('')
+const filtered = computed(() =>
+  rows.value.filter((user) => {
+    const f = applied.value
+    if (f.keyword) {
+      const q = f.keyword.toLowerCase()
+      if (!user.name.toLowerCase().includes(q) && !user.loginId.toLowerCase().includes(q)) return false
+    }
+    if (f.roleCode && user.roleCode !== f.roleCode) return false
+    if (f.active === 'true' && !user.active) return false
+    if (f.active === 'false' && user.active) return false
+    if (f.statusCode && user.status !== f.statusCode) return false
+    if (f.unassigned === 'true' && user.department) return false
+    return true
+  }),
+)
 
-const filtered = computed(() => rows.value.filter((r) => matchUserFilters(r, applied.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
 const paged = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filtered.value.slice(start, start + pageSize.value)
 })
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
+
+function displayStatusLabel(user) {
+  if (user.loginLocked || user.status === '잠금') return '잠금'
+  return user.status
+}
+
+function displayStatusClass(user) {
+  return userStatusClass(displayStatusLabel(user))
+}
 
 function search() {
-  applied.value = { ...filters.value }
+  applied.value = { ...filters }
   currentPage.value = 1
-  selectedIds.value = []
+  selectedKeys.value = []
 }
 
 function resetFilters() {
-  filters.value = { keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' }
+  Object.assign(filters, { keyword: '', roleCode: '', active: '', statusCode: '', unassigned: '' })
   search()
 }
 
-function removeFilterTag(key) {
-  if (key === 'keyword') filters.value.keyword = ''
-  else if (key === 'dept') filters.value.dept = '전체'
-  else if (key === 'role') filters.value.role = '전체'
-  else if (key === 'status') filters.value.status = '전체'
-  search()
-}
-
-function toggleSelect(id) {
-  const idx = selectedIds.value.indexOf(id)
-  if (idx >= 0) selectedIds.value.splice(idx, 1)
-  else selectedIds.value.push(id)
+function toggleSelect(userKey) {
+  const idx = selectedKeys.value.indexOf(userKey)
+  if (idx >= 0) selectedKeys.value.splice(idx, 1)
+  else selectedKeys.value.push(userKey)
 }
 
 function toggleSelectAll(e) {
-  selectedIds.value = e.target.checked ? paged.value.map((r) => r.id) : []
-}
-
-function openDetail(row) {
-  detailTarget.value = row
-  detailRole.value = row.role
-  detailName.value = row.name
-  showDetail.value = true
-}
-
-function saveDetail() {
-  if (!detailTarget.value) return
-  if (!detailRole.value || detailRole.value === '전체') {
-    window.alert('권한을 선택해 주세요.')
-    return
-  }
-  if (!detailName.value.trim()) {
-    window.alert('이름을 입력해 주세요.')
-    return
-  }
-  if (!window.confirm('사용자 정보를 저장하시겠습니까?')) return
-  detailTarget.value.role = detailRole.value
-  detailTarget.value.name = detailName.value.trim()
-  showDetail.value = false
-  window.alert('저장되었습니다.')
-}
-
-function resetDetailPassword() {
-  if (!detailTarget.value) return
-  const temp = tempPassword()
-  if (!window.confirm(`${detailTarget.value.name}님의 비밀번호를 임시 비밀번호(${temp})로 초기화하시겠습니까?`)) return
-  window.alert(`비밀번호가 임시 비밀번호(${temp})로 초기화되었습니다.`)
-}
-
-function unlockDetailFails() {
-  if (!detailTarget.value) return
-  if (!window.confirm(`${detailTarget.value.name}님의 오류 횟수를 해제하시겠습니까?`)) return
-  detailTarget.value.failCount = 0
-  if (detailTarget.value.status === '잠금') detailTarget.value.status = '재직'
-  window.alert('오류 횟수를 해제했습니다.')
-}
-
-function unlockFails() {
-  if (!selectedIds.value.length) {
-    window.alert('대상 사용자를 선택해 주세요.')
-    return
-  }
-  if (!window.confirm(`${selectedIds.value.length}명의 오류 횟수를 해제하시겠습니까?`)) return
-  rows.value.forEach((r) => {
-    if (selectedIds.value.includes(r.id)) {
-      r.failCount = 0
-      if (r.status === '잠금') r.status = '재직'
-    }
-  })
-  window.alert(`${selectedIds.value.length}명의 오류 횟수를 해제했습니다.`)
-  selectedIds.value = []
+  selectedKeys.value = e.target.checked ? paged.value.map((r) => r.userKey) : []
 }
 
 function tempPassword() {
@@ -185,130 +136,263 @@ function tempPassword() {
   return `ez!${y}${m}${d}`
 }
 
-function resetPassword() {
-  if (!selectedIds.value.length) {
+const issuedPasswords = ref(null)
+
+async function copyIssuedPassword(temporaryPassword) {
+  try {
+    await navigator.clipboard.writeText(temporaryPassword)
+    window.alert('비밀번호를 복사했습니다.')
+  } catch {
+    window.alert('복사에 실패했습니다. 직접 선택해 복사해 주세요.')
+  }
+}
+
+function bulkUnlockLogin() {
+  if (!selectedKeys.value.length) {
     window.alert('대상 사용자를 선택해 주세요.')
     return
   }
-  const temp = tempPassword()
-  if (!window.confirm(`선택한 ${selectedIds.value.length}명의 비밀번호를 임시 비밀번호(${temp})로 초기화하시겠습니까?`)) return
-  window.alert(`${selectedIds.value.length}명의 비밀번호가 임시 비밀번호(${temp})로 초기화되었습니다.`)
-}
-
-function openRegister() {
-  Object.assign(registerForm, {
-    id: '',
-    name: '',
-    dept: defaultDept,
-    role: '사용자',
-    position: '사원',
-    email: '',
-    status: '재직',
-    memo: '',
+  if (!window.confirm(`선택한 ${selectedKeys.value.length}명의 오류 횟수를 해제하시겠습니까?`)) return
+  rows.value.forEach((r) => {
+    if (selectedKeys.value.includes(r.userKey)) {
+      r.loginFailCount = 0
+      r.failCount = 0
+      r.loginLocked = false
+      if (r.status === '잠금') r.status = '재직'
+    }
   })
-  idChecked.value = false
-  registerTempPassword.value = tempPassword()
-  showRegister.value = true
+  window.alert('오류 횟수를 해제했습니다.')
+  selectedKeys.value = []
+  search()
 }
 
-function onRegisterIdInput() {
-  idChecked.value = false
-  registerForm.id = registerForm.id.replace(/[^A-Za-z0-9]/g, '')
+function bulkResetPassword() {
+  if (!selectedKeys.value.length) {
+    window.alert('대상 사용자를 선택해 주세요.')
+    return
+  }
+  if (!window.confirm(`선택한 ${selectedKeys.value.length}명의 비밀번호를 초기화하시겠습니까?`)) return
+  const temp = tempPassword()
+  issuedPasswords.value = selectedKeys.value.map((key) => {
+    const user = rows.value.find((r) => r.userKey === key)
+    return { loginId: user?.loginId ?? key, name: user?.name ?? '', temporaryPassword: temp }
+  })
+  selectedKeys.value = []
+}
+
+const creating = ref(false)
+const newUser = ref({
+  loginId: '',
+  name: '',
+  email: '',
+  orgUnitId: null,
+  position: positionOptions[0],
+  empType: 'EMPLOYEE',
+  roleCode: '사용자',
+})
+const idAvailable = ref(null)
+
+function onNewUserIdInput() {
+  idAvailable.value = null
 }
 
 function checkDuplicateId() {
-  const id = registerForm.id.trim()
+  const id = newUser.value.loginId.trim()
   if (!id) {
-    window.alert('아이디를 입력해 주세요.')
+    window.alert('사번(ID)을 입력해 주세요.')
     return
   }
-  if (!/^[a-zA-Z0-9]+$/.test(id)) {
-    window.alert('아이디는 영문과 숫자만 사용할 수 있습니다.')
+  if (rows.value.some((r) => r.loginId.toLowerCase() === id.toLowerCase())) {
+    idAvailable.value = false
+    window.alert('이미 사용 중인 사번(ID)입니다.')
     return
   }
-  if (rows.value.some((r) => r.id === id)) {
-    idChecked.value = false
-    window.alert('이미 사용 중인 아이디입니다.')
-    return
-  }
-  idChecked.value = true
-  window.alert('사용 가능한 아이디입니다.')
+  idAvailable.value = true
+  window.alert('사용 가능한 사번(ID)입니다.')
 }
 
-function saveRegister() {
-  const id = registerForm.id.trim()
-  if (!id || !registerForm.name.trim()) {
-    window.alert('아이디와 이름은 필수입니다.')
+function openCreate() {
+  newUser.value = {
+    loginId: '',
+    name: '',
+    email: '',
+    orgUnitId: orgUnitOptions.value[0]?.id ?? null,
+    position: positionOptions[0],
+    empType: 'EMPLOYEE',
+    roleCode: '사용자',
+  }
+  idAvailable.value = null
+  creating.value = true
+}
+
+function saveNewUser() {
+  const form = newUser.value
+  if (!form.loginId.trim() || !form.name.trim() || !form.email.trim() || !form.orgUnitId || !form.roleCode) {
+    window.alert('사번(ID)·이름·이메일·소속팀·역할은 필수입니다.')
     return
   }
-  if (!/^[a-zA-Z0-9]+$/.test(id)) {
-    window.alert('아이디는 영문과 숫자만 사용할 수 있습니다.')
+  if (idAvailable.value !== true) {
+    window.alert('사번(ID) 중복확인을 해주세요.')
     return
   }
-  if (!idChecked.value) {
-    window.alert('아이디 중복확인을 해주세요.')
-    return
-  }
-  if (registerForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email.trim())) {
-    window.alert('올바른 이메일 형식을 입력해 주세요.')
-    return
-  }
-  if (!window.confirm('사용자를 등록하시겠습니까?')) return
+  const dept = orgUnitOptions.value.find((o) => o.id === form.orgUnitId)?.name ?? ''
   const now = new Date().toISOString().slice(0, 10)
+  const temp = tempPassword()
   rows.value.unshift({
-    id,
-    name: registerForm.name.trim(),
-    dept: registerForm.dept,
-    role: registerForm.role,
-    position: registerForm.position,
-    email: registerForm.email.trim(),
+    id: form.loginId.trim(),
+    userKey: form.loginId.trim(),
+    loginId: form.loginId.trim(),
+    name: form.name.trim(),
+    dept,
+    department: dept,
+    role: form.roleCode,
+    roleCode: form.roleCode,
+    position: form.position,
+    email: form.email.trim(),
     phone: '',
-    type: '임직원',
-    status: registerForm.status,
-    memo: registerForm.memo.trim(),
+    type: form.empType === 'CONTRACTOR' ? '외주' : '임직원',
+    empType: form.empType,
+    status: '재직',
+    statusCode: '재직',
+    active: true,
+    loginLocked: false,
+    loginFailCount: 0,
     failCount: 0,
+    memo: '',
     registeredAt: now,
     updatedAt: now,
+    createdAt: now,
   })
-  showRegister.value = false
+  creating.value = false
+  issuedPasswords.value = [{ loginId: form.loginId.trim(), name: form.name.trim(), temporaryPassword: temp }]
   search()
-  window.alert(`등록되었습니다.\n초기 비밀번호: ${registerTempPassword.value}`)
 }
+
+const editing = ref(null)
+const editForm = ref({ orgUnitId: 0, position: '', empType: '', roleCode: '', statusCode: '' })
+
+function openDetail(user) {
+  editing.value = user
+  const currentOrgUnit = orgUnitOptions.value.find((u) => u.name === user.department)
+  editForm.value = {
+    orgUnitId: currentOrgUnit?.id ?? orgUnitOptions.value[0]?.id ?? 0,
+    position: user.position,
+    empType: user.empType,
+    roleCode: user.roleCode,
+    statusCode: user.statusCode,
+  }
+}
+
+function closeDetail() {
+  editing.value = null
+}
+
+function saveDetail() {
+  const user = editing.value
+  if (!user) return
+  const form = editForm.value
+  const dept = orgUnitOptions.value.find((o) => o.id === form.orgUnitId)?.name ?? user.department
+  user.department = dept
+  user.dept = dept
+  user.position = form.position
+  user.empType = form.empType
+  user.type = form.empType === 'CONTRACTOR' ? '외주' : '임직원'
+  user.roleCode = form.roleCode
+  user.role = form.roleCode
+  user.statusCode = form.statusCode
+  user.status = form.statusCode
+  user.active = !['잠금', '퇴직', '정직'].includes(form.statusCode)
+  user.updatedAt = new Date().toISOString().slice(0, 10)
+  window.alert('저장되었습니다.')
+  closeDetail()
+  search()
+}
+
+function resetDetailPassword() {
+  const user = editing.value
+  if (!user) return
+  if (!window.confirm(`${user.name}님의 비밀번호를 임시 비밀번호로 초기화하시겠습니까?`)) return
+  issuedPasswords.value = [{ loginId: user.loginId, name: user.name, temporaryPassword: tempPassword() }]
+}
+
+function unlockDetailFails() {
+  const user = editing.value
+  if (!user) return
+  if (!window.confirm(`${user.name}님의 오류 횟수를 해제하시겠습니까?`)) return
+  user.loginFailCount = 0
+  user.failCount = 0
+  user.loginLocked = false
+  if (user.status === '잠금') user.status = '재직'
+  window.alert('오류 횟수를 해제했습니다.')
+  closeDetail()
+  search()
+}
+
+function toggleDetailActive() {
+  const user = editing.value
+  if (!user) return
+  const nextActive = !user.active
+  const msg = nextActive
+    ? `${user.name} 사용자의 로그인을 허용하시겠습니까?`
+    : `${user.name} 사용자의 로그인을 차단하시겠습니까? 재직상태는 그대로 유지됩니다.`
+  if (!window.confirm(msg)) return
+  user.active = nextActive
+  window.alert('로그인 허용을 변경했습니다.')
+  closeDetail()
+}
+
+onMounted(() => {
+  orgUnits.value = listOrgUnits()
+  orgUnitOptions.value = buildOrgUnitOptions(orgUnits.value)
+})
 </script>
 
 <template>
-  <div class="admin-page">
-    <p class="notice">{{ userMgmtMeta.hint }}</p>
-
+  <main class="user-mgmt-page admin-page hp-anim-enter">
     <SearchFilterBar
       v-model:search="filters.keyword"
-      :search-placeholder="filters.searchType === '아이디' ? '사번(ID) 입력' : '이름 입력'"
-      :applied-tags="filterTags"
+      search-placeholder="이름/사번(ID) 검색"
       @reset="resetFilters"
       @search="search"
-      @remove-tag="removeFilterTag"
     >
       <template #primary>
-        <FilterSelectPill v-model="filters.searchType" label="구분" :options="searchTypeOptions" empty-label="이름" />
-        <FilterSelectPill v-model="filters.dept" label="소속팀" :options="deptSelectOptions" empty-label="선택" />
-        <FilterSelectPill v-model="filters.role" label="권한" :options="roleOptions" />
-        <FilterSelectPill v-model="filters.status" label="상태" :options="statusOptions" />
+        <FilterSelectPill v-model="filters.roleCode" class="sfb-w-md" label="권한" :options="roleFilterOptions" />
+        <FilterSelectPill
+          v-model="filters.active"
+          class="sfb-w-xs"
+          label="로그인"
+          :options="[
+            { value: '', label: '전체' },
+            { value: 'true', label: '허용' },
+            { value: 'false', label: '차단' },
+          ]"
+        />
+        <FilterSelectPill v-model="filters.statusCode" class="sfb-w-sm" label="상태" :options="statusFilterOptions" />
+        <FilterSelectPill
+          v-model="filters.unassigned"
+          class="sfb-w-sm"
+          label="소속"
+          :options="[
+            { value: '', label: '전체' },
+            { value: 'true', label: '미소속만' },
+          ]"
+        />
       </template>
     </SearchFilterBar>
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filtered.length }}</b>명</span>
       <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
-        <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
+        <option v-for="n in pageSizeOptionsLocal" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
       <div class="toolbar__actions">
-        <button type="button" class="btn btn--ghost btn--sm" @click="unlockFails">5회 오류 해제</button>
-        <button type="button" class="btn btn--ghost btn--sm" @click="resetPassword">패스워드 초기화</button>
-        <button type="button" class="btn btn--primary btn--sm" @click="openRegister">＋ 사용자 등록</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="bulkUnlockLogin">잠김 해제</button>
+        <button type="button" class="btn btn--ghost btn--sm" @click="bulkResetPassword">비밀번호 초기화</button>
+        <button type="button" class="btn btn--primary btn--sm" @click="openCreate">＋ 사용자 등록</button>
       </div>
     </div>
 
-    <div class="listcard">
+    <div class="listcard card--panel">
       <div class="listcard__scroll">
         <table class="data-table">
           <thead>
@@ -327,29 +411,26 @@ function saveRegister() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, idx) in paged" :key="row.id" @click="openDetail(row)">
-              <td @click.stop>
-                <input
-                  type="checkbox"
-                  :checked="selectedIds.includes(row.id)"
-                  @change="toggleSelect(row.id)"
-                />
+            <tr v-for="(row, idx) in paged" :key="row.userKey" @click="openDetail(row)">
+              <td class="cell--center" @click.stop>
+                <input type="checkbox" :checked="selectedKeys.includes(row.userKey)" @change="toggleSelect(row.userKey)" />
               </td>
-              <td>{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
-              <td>{{ row.id }}</td>
+              <td class="cell--center">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
+              <td class="cell--center">{{ row.loginId }}</td>
               <td><span class="tbl__name">{{ row.name }}</span></td>
-              <td>{{ row.dept }}</td>
-              <td>{{ row.position }}</td>
               <td>
-                <span :class="{ 'tbl__muted': row.role === '미설정' }">{{ row.role }}</span>
+                <span v-if="row.department">{{ row.department }}</span>
+                <span v-else class="badge badge--unassigned">미소속</span>
               </td>
-              <td>
-                <span class="badge" :class="`badge--${userStatusClass(row.status)}`">{{ row.status }}</span>
+              <td class="cell--center">{{ row.position }}</td>
+              <td class="cell--center">{{ row.roleCode }}</td>
+              <td class="cell--center">
+                <span class="badge" :class="`badge--${displayStatusClass(row)}`">{{ displayStatusLabel(row) }}</span>
               </td>
-              <td>{{ row.registeredAt || '-' }}</td>
-              <td>{{ row.updatedAt || '-' }}</td>
-              <td>
-                <button type="button" class="link-btn" @click.stop="openDetail(row)">정보</button>
+              <td class="tbl__muted cell--center">{{ row.createdAt || '-' }}</td>
+              <td class="tbl__muted cell--center">{{ row.updatedAt || '-' }}</td>
+              <td class="cell--center">
+                <button type="button" class="btn btn--ghost btn--sm" @click.stop="openDetail(row)">수정</button>
               </td>
             </tr>
             <tr v-if="!paged.length">
@@ -360,145 +441,228 @@ function saveRegister() {
       </div>
     </div>
 
-    <div v-if="totalPages > 1" class="pager">
-      <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">이전</button>
-      <span class="pager__info">{{ currentPage }} / {{ totalPages }}</span>
-      <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">다음</button>
-    </div>
+    <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
 
-    <BaseModal :visible="showDetail" title="사용자 정보" @close="showDetail = false">
-      <div v-if="detailTarget" class="modal-grid">
-        <div class="modal-field"><label>사번(ID)</label><span>{{ detailTarget.id }}</span></div>
-        <div class="modal-field">
-          <label>이름</label>
-          <input v-model="detailName" class="filter__input" type="text" />
-        </div>
-        <div class="modal-field"><label>소속팀</label><span>{{ detailTarget.dept }}</span></div>
-        <div class="modal-field"><label>직급</label><span>{{ detailTarget.position }}</span></div>
-        <div class="modal-field"><label>구분</label><span>{{ detailTarget.type }}</span></div>
-        <div class="modal-field">
-          <label>권한</label>
-          <select v-model="detailRole" class="filter__select">
-            <option v-for="o in roleOptions.filter((r) => r !== '전체')" :key="o" :value="o">{{ o }}</option>
+    <BaseModal :visible="creating" title="사용자 등록" wide @close="creating = false">
+      <div class="create-grid">
+        <label class="create-grid__wide">
+          사번(ID)
+          <div class="id-check-row">
+            <input v-model="newUser.loginId" class="filter__input" type="text" placeholder="영문·숫자" @input="onNewUserIdInput" />
+            <button type="button" class="btn btn--ghost btn--sm" @click="checkDuplicateId">중복확인</button>
+          </div>
+          <p v-if="idAvailable === true" class="id-check-hint id-check-hint--ok">사용 가능한 사번(ID)입니다.</p>
+          <p v-else-if="idAvailable === false" class="id-check-hint id-check-hint--err">이미 사용 중인 사번(ID)입니다.</p>
+        </label>
+        <label>이름<input v-model="newUser.name" class="filter__input" type="text" /></label>
+        <label>이메일<input v-model="newUser.email" class="filter__input" type="email" placeholder="example@ezwel.com" /></label>
+        <label>
+          소속팀
+          <select v-model="newUser.orgUnitId" class="filter__select">
+            <option v-for="o in orgUnitOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
           </select>
+        </label>
+        <label>
+          직위
+          <select v-model="newUser.position" class="filter__select">
+            <option v-for="p in positionOptions" :key="p" :value="p">{{ p }}</option>
+          </select>
+        </label>
+        <label>
+          구분
+          <select v-model="newUser.empType" class="filter__select">
+            <option value="EMPLOYEE">임직원</option>
+            <option value="CONTRACTOR">외주</option>
+          </select>
+        </label>
+        <label>
+          권한
+          <select v-model="newUser.roleCode" class="filter__select">
+            <option v-for="role in roleOptions.filter((r) => r !== '전체' && r !== '미설정')" :key="role" :value="role">{{ role }}</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">비밀번호는 규칙(BR-86)에 따라 자동 생성됩니다. 등록 후 화면에 한 번 표시됩니다.</p>
+      <template #footer>
+        <button type="button" class="btn btn--ghost" @click="creating = false">취소</button>
+        <button type="button" class="btn btn--primary" @click="saveNewUser">등록</button>
+      </template>
+    </BaseModal>
+
+    <BaseModal :visible="!!editing" title="사용자 정보" wide @close="closeDetail">
+      <div v-if="editing" class="detail-body">
+        <div class="identity-line">
+          <span class="identity-line__name">{{ editing.name }}</span>
+          <span class="identity-line__sep">·</span>
+          <span class="identity-line__id">{{ editing.loginId }}</span>
+          <span class="identity-line__sep">·</span>
+          <span class="identity-line__email">{{ editing.email }}</span>
         </div>
-        <div class="modal-field"><label>상태</label><span>{{ detailTarget.status }}</span></div>
-        <div class="modal-field">
-          <label>오류횟수</label>
-          <span>
-            {{ detailTarget.failCount }}회
-            <button
-              v-if="detailTarget.failCount >= 5"
-              type="button"
-              class="link-btn"
-              @click="unlockDetailFails"
-            >5회 오류 해제</button>
+
+        <div class="modal-grid">
+          <div class="modal-field">
+            <label>소속팀</label>
+            <select v-model="editForm.orgUnitId" class="filter__select">
+              <option v-for="o in orgUnitOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>직급</label>
+            <select v-model="editForm.position" class="filter__select">
+              <option v-for="p in positionOptions" :key="p" :value="p">{{ p }}</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>구분</label>
+            <select v-model="editForm.empType" class="filter__select">
+              <option value="EMPLOYEE">임직원</option>
+              <option value="CONTRACTOR">외주</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>권한</label>
+            <select v-model="editForm.roleCode" class="filter__select">
+              <option v-for="role in roleOptions.filter((r) => r !== '전체' && r !== '미설정')" :key="role" :value="role">{{ role }}</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>재직상태</label>
+            <select v-model="editForm.statusCode" class="filter__select">
+              <option v-for="s in employmentStatusOptions" :key="s" :value="s">{{ s }}</option>
+              <option value="잠금">잠금</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="sec-title">계정 관리</p>
+        <div class="account-status-line">
+          <span class="account-status-line__item">
+            로그인 가능 상태
+            <span class="badge" :class="editing.active ? 'badge--ok' : 'badge--muted'">
+              {{ editing.active ? '허용' : '차단' }}
+            </span>
           </span>
-        </div>
-        <div class="modal-field"><label>이메일</label><span>{{ detailTarget.email }}</span></div>
-        <div class="modal-field"><label>휴대전화</label><span>{{ detailTarget.phone }}</span></div>
-        <div class="modal-field">
-          <label>비밀번호</label>
-          <span><button type="button" class="link-btn" @click="resetDetailPassword">비밀번호 초기화</button></span>
+          <span class="account-status-line__item">
+            로그인 오류 횟수
+            <b :class="{ 'account-status-line__count--danger': editing.loginLocked }">{{ editing.loginFailCount }}</b>회
+          </span>
+          <div class="account-actions">
+            <button type="button" class="btn btn--ghost btn--sm" @click="toggleDetailActive">
+              {{ editing.active ? '로그인 차단' : '로그인 차단 해제' }}
+            </button>
+            <button v-if="editing.loginLocked" type="button" class="btn btn--ghost btn--sm" @click="unlockDetailFails">잠김 해제</button>
+            <button type="button" class="btn btn--ghost btn--sm" @click="resetDetailPassword">비밀번호 초기화</button>
+          </div>
         </div>
       </div>
       <template #footer>
-        <button type="button" class="btn btn--ghost" @click="showDetail = false">닫기</button>
+        <button type="button" class="btn btn--ghost" @click="closeDetail">닫기</button>
         <button type="button" class="btn btn--primary" @click="saveDetail">저장</button>
       </template>
     </BaseModal>
 
-    <BaseModal :visible="showRegister" title="사용자 등록" @close="showRegister = false">
-      <div class="modal-grid">
-        <div class="modal-field">
-          <label>아이디</label>
-          <div class="modal-field__inline">
-            <input
-              v-model="registerForm.id"
-              class="filter__input"
-              type="text"
-              placeholder="영문·숫자"
-              @input="onRegisterIdInput"
-            />
-            <button type="button" class="btn btn--ghost btn--sm" @click="checkDuplicateId">중복확인</button>
-          </div>
-        </div>
-        <div class="modal-field">
-          <label>이름</label>
-          <input v-model="registerForm.name" class="filter__input" type="text" />
-        </div>
-        <div class="modal-field">
-          <label>사용자상태</label>
-          <select v-model="registerForm.status" class="filter__select">
-            <option v-for="o in employmentStatusOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="modal-field modal-field--wide">
-          <label>비밀번호</label>
-          <input :value="registerTempPassword" class="filter__input" type="text" readonly />
-          <p class="modal-hint">등록 시 초기 비밀번호로 자동 등록</p>
-        </div>
-        <div class="modal-field">
-          <label>부서</label>
-          <select v-model="registerForm.dept" class="filter__select">
-            <option v-for="o in orgTeamNames" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="modal-field">
-          <label>직위</label>
-          <select v-model="registerForm.position" class="filter__select">
-            <option v-for="o in positionOptions" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="modal-field">
-          <label>권한</label>
-          <select v-model="registerForm.role" class="filter__select">
-            <option v-for="o in roleOptions.filter((r) => r !== '전체' && r !== '미설정')" :key="o" :value="o">{{ o }}</option>
-          </select>
-        </div>
-        <div class="modal-field modal-field--wide">
-          <label>이메일</label>
-          <input v-model="registerForm.email" class="filter__input" type="email" placeholder="example@ezwel.com" />
-        </div>
-        <div class="modal-field modal-field--wide">
-          <label>비고</label>
-          <textarea v-model="registerForm.memo" class="filter__input modal-textarea" rows="2" placeholder="비고 입력" />
-        </div>
-      </div>
+    <BaseModal :visible="!!issuedPasswords" title="임시 비밀번호 발급" @close="issuedPasswords = null">
+      <p class="issued-notice">이 화면을 벗어나면 다시 확인할 수 없습니다. 당사자에게 전달한 뒤 닫으세요.</p>
+      <table class="issued-table">
+        <thead>
+          <tr>
+            <th>사번(ID)</th>
+            <th>이름</th>
+            <th>신규 패스워드</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in issuedPasswords" :key="item.loginId">
+            <td>{{ item.loginId }}</td>
+            <td>{{ item.name }}</td>
+            <td><code>{{ item.temporaryPassword }}</code></td>
+            <td>
+              <button type="button" class="btn btn--ghost btn--sm" @click="copyIssuedPassword(item.temporaryPassword)">복사</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <template #footer>
-        <button type="button" class="btn btn--ghost" @click="showRegister = false">취소</button>
-        <button type="button" class="btn btn--primary" @click="saveRegister">등록</button>
+        <button type="button" class="btn btn--primary" @click="issuedPasswords = null">확인</button>
       </template>
     </BaseModal>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.modal-field__inline {
+.badge--unassigned {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  color: var(--red);
+  border: 1px solid currentColor;
+}
+.cell--center { text-align: center; }
+.tbl__muted { color: var(--lnb-muted); }
+.empty { text-align: center !important; color: var(--lnb-muted); padding: 24px !important; }
+
+.create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.create-grid label {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: var(--font-size-sm);
+}
+.create-grid__wide { grid-column: 1 / -1; }
+.id-check-row { display: flex; gap: 0.4rem; }
+.id-check-row input { flex: 1; min-width: 0; }
+.id-check-hint { margin: 0.15rem 0 0; font-size: var(--font-size-sm); }
+.id-check-hint--ok { color: var(--teal-600); }
+.id-check-hint--err { color: var(--red); }
+
+.identity-line {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  margin-bottom: 1.6rem;
+}
+.identity-line__name { font-size: 16px; font-weight: 700; color: var(--lnb-txt); }
+.identity-line__id, .identity-line__email { font-size: 13px; color: var(--lnb-muted); }
+.identity-line__sep { color: var(--lnb-line); }
+.detail-body .sec-title { margin-top: 1.6rem; font-weight: 700; color: var(--lnb-logo); }
+
+.account-status-line {
+  display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1.6rem;
+  margin-top: 0.6rem;
 }
-
-.modal-field__inline .filter__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.modal-field--wide {
-  grid-column: 1 / -1;
-}
-
-.modal-hint {
-  margin: 4px 0 0;
-  font-size: calc(11px + var(--font-size-offset, 0px));
+.account-status-line__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--lnb-muted);
 }
+.account-status-line__item b { font-size: 13px; font-weight: 700; color: var(--lnb-txt); }
+.account-status-line__count--danger { color: var(--red); }
+.account-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+.hint { margin: 0.5rem 0 0; font-size: var(--font-size-sm); color: var(--lnb-muted); }
 
-.modal-textarea {
-  height: auto;
-  padding: 8px 10px;
-  resize: vertical;
-  font-family: inherit;
+.issued-notice { margin: 0 0 0.75rem; font-size: var(--font-size-sm); color: var(--lnb-muted); }
+.issued-table { width: 100%; border-collapse: collapse; }
+.issued-table th, .issued-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--lnb-line);
+  font-size: var(--font-size-sm);
 }
+.issued-table th { color: var(--lnb-muted); font-weight: 600; }
+.issued-table td:nth-child(3) code { font-weight: 700; }
 </style>

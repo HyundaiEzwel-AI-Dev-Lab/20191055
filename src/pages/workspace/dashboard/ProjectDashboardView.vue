@@ -1,58 +1,112 @@
 <script setup>
-// PAG-S-DAS-01 프로젝트 대시보드
-import { onMounted, ref, watch } from 'vue'
+// PAG-S-DAS-01 프로젝트 대시보드 — h-pms UI + mock
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/app/stores/project'
 import { useAuthStore } from '@/app/stores/auth'
 import {
-  projectDashboardMeta,
-  getProjectDashboard,
+  buildProjectDashboardMock,
+  toApiDashboard,
   formatPeriod,
   statusTone,
+  projectDashboardMeta,
 } from '@/entities/dashboard/mock/projectDashboard'
 import { routeForTaskType } from '@/entities/inbox/mock/inbox'
+import ErrorBanner from '@/shared/ui/ErrorBanner.vue'
+import LoadingOverlay from '@/shared/ui/LoadingOverlay.vue'
+import HpDonutChart from '@/shared/ui/HpDonutChart.vue'
 
 const router = useRouter()
 const projectStore = useProjectStore()
 const authStore = useAuthStore()
 
+const loading = ref(false)
+const error = ref(null)
 const data = ref(null)
+const barsFilled = ref(false)
 
-function loadData() {
-  const project = projectStore.currentProject
-  data.value = getProjectDashboard(project?.id, project?.name, authStore.user?.id)
+const hasProject = computed(() => !!projectStore.currentProject?.id)
+
+const LEGEND = projectDashboardMeta.legend
+
+const TYPE_ICONS = {
+  기획: { label: '기', color: 'var(--teal, #119a8a)' },
+  디자인: { label: '디', color: 'var(--blue, #3b82f6)' },
+  퍼블리싱: { label: '퍼', color: 'var(--orange, #e08a2b)' },
+  개발: { label: '개', color: 'var(--green, #16a34a)' },
+  DEV테스트: { label: 'DEV', color: 'var(--gray, #6b7280)' },
+  운영테스트: { label: '운영', color: 'var(--gray, #6b7280)' },
+  단위테스트: { label: '단', color: 'var(--gray, #6b7280)' },
+  STG테스트: { label: 'STG', color: 'var(--gray, #6b7280)' },
 }
 
-onMounted(loadData)
-watch(() => projectStore.currentProject?.id, loadData)
+function toMessage(err) {
+  return err instanceof Error ? err.message : String(err)
+}
 
-const typeIcons = {
-  기획: { label: '기', color: 'var(--teal)' },
-  디자인: { label: '디', color: 'var(--blue)' },
-  퍼블리싱: { label: '퍼', color: 'var(--orange)' },
-  개발: { label: '개', color: 'var(--green)' },
-  DEV테스트: { label: 'DEV', color: 'var(--gray)' },
-  운영테스트: { label: '운영', color: 'var(--gray)' },
-  단위테스트: { label: '단', color: 'var(--gray)' },
-  STG테스트: { label: 'STG', color: 'var(--gray)' },
+function pct(rate) {
+  return Math.round((rate ?? 0) * 1000) / 10
+}
+
+const progressSegments = computed(() => {
+  const done = pct(data.value?.totalProgress?.execRate ?? 0)
+  return [
+    { value: done, color: 'var(--teal)' },
+    { value: 100 - done, color: 'var(--lnb-line)' },
+  ]
+})
+
+function formatAsOf(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 function typeIcon(type) {
-  return typeIcons[type] || { label: type?.slice(0, 1) || '-', color: 'var(--lnb-muted)' }
+  return TYPE_ICONS[type] || { label: type?.slice(0, 1) || '-', color: 'var(--lnb-muted)' }
 }
 
 function complianceLabel(status) {
-  return projectDashboardMeta.legend.find((l) => l.key === status)?.label || status
+  return LEGEND.find((l) => l.key === status)?.label || status
 }
 
 function complianceClass(compliance) {
   if (compliance === '경과') return 'compliance--경과'
   if (compliance === '단축') return 'compliance--단축'
+  if (compliance === '정상') return 'compliance--정상'
   return 'compliance--정상'
 }
 
+async function loadData() {
+  loading.value = true
+  error.value = null
+  barsFilled.value = false
+  data.value = null
+  try {
+    if (!projectStore.currentProject?.id) return
+    const raw = buildProjectDashboardMock(
+      projectStore.currentProject.id,
+      projectStore.currentProject.name,
+      authStore.user?.id,
+    )
+    data.value = toApiDashboard(raw)
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        barsFilled.value = true
+      }, 60)
+    })
+  } catch (err) {
+    error.value = toMessage(err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadData)
+
 function goWbs() {
-  router.push({ name: 'wbs' })
+  router.push({ path: '/workspace/wbs' })
 }
 
 function goScheduleRow(row) {
