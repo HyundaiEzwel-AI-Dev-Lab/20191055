@@ -11,7 +11,7 @@ import {
   getInboxBundle,
   routeForTaskType,
 } from '@/entities/inbox/mock/inbox'
-import { calcDday, formatDateRange } from '@/entities/wbs/mock/wbs'
+import { calcDday } from '@/entities/wbs/mock/wbs'
 import InboxCalendar from '@/pages/integrated/my-work/InboxCalendar.vue'
 import WbsScheduleModal from '@/pages/workspace/wbs/WbsScheduleModal.vue'
 import WbsBulkScheduleModal from '@/pages/workspace/wbs/WbsBulkScheduleModal.vue'
@@ -78,14 +78,16 @@ function nextProjects() {
 // ---- 내 할 일 40건 페이징 (호버 시만 ◀▶) ----
 const taskPage = ref(0)
 const TASKS_PER_PAGE = 40
+// 카드형만 미완료(execEnd 없음). 캘린더에는 완료 포함 전체를 넘긴다.
+const cardTasks = computed(() => myTasks.value.filter((t) => !t.execEnd))
 const pagedTasks = computed(() => {
   const start = taskPage.value * TASKS_PER_PAGE
-  return myTasks.value.slice(start, start + TASKS_PER_PAGE)
+  return cardTasks.value.slice(start, start + TASKS_PER_PAGE)
 })
 const maxTaskPage = computed(() =>
-  Math.max(0, Math.ceil(myTasks.value.length / TASKS_PER_PAGE) - 1),
+  Math.max(0, Math.ceil(cardTasks.value.length / TASKS_PER_PAGE) - 1),
 )
-const showTaskPager = computed(() => myTasks.value.length > TASKS_PER_PAGE)
+const showTaskPager = computed(() => cardTasks.value.length > TASKS_PER_PAGE)
 function prevTasks() {
   if (taskPage.value > 0) taskPage.value--
 }
@@ -135,6 +137,11 @@ function onScheduleSave(payload) {
   applyTaskScheduleUpdate(scheduleTarget.value?.wbsId, payload.planStart, payload.planEnd)
 }
 
+function onCalendarSaved(payload) {
+  if (!payload) return
+  applyTaskScheduleUpdate(payload.wbsId, payload.planStart, payload.planEnd)
+}
+
 function onOpenMultiChangeFromSchedule(task) {
   if (!task) return
   bulkTargets.value = [task]
@@ -148,7 +155,10 @@ function onBulkScheduleRequest(payload) {
   } else if (payload.type === '실행 홀딩') {
     targetTasks.forEach((t) => {
       const found = myTasks.value.find((x) => x.wbsId === t.wbsId)
-      if (found) found.dueLabel = '홀딩'
+      if (found) {
+        found.dueLabel = '홀딩'
+        found.holdStart = found.holdStart || '2026-03-20'
+      }
     })
   }
   bulkTargets.value = []
@@ -173,8 +183,13 @@ function onScheduleManage(task) {
     assigneeDisplay: auth.user?.name || '김현대',
     planStart: task.planStart || null,
     planEnd: task.planEnd || null,
-    execStart: null,
-    execEnd: null,
+    execStart: task.execStart || null,
+    execEnd: task.execEnd || null,
+    planProgress: task.planProgress ?? task.progress ?? 0,
+    execProgress: task.progress ?? 0,
+    holdStart: task.holdStart || null,
+    holdEnd: task.holdEnd || null,
+    restartDate: task.expectedResume || null,
   }
   showScheduleModal.value = true
 }
@@ -254,19 +269,7 @@ function nextWaiting() {
             <span>대기</span>
           </div>
         </div>
-        <div class="stat-chip stat-chip--red">
-          <span class="stat-chip__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round" />
-              <path d="M12 9.5v4" stroke-linecap="round" />
-              <circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
-            </svg>
-          </span>
-          <div class="stat-chip__body">
-            <b>{{ summary.delayed }}</b>
-            <span>지연</span>
-          </div>
-        </div>
+        <!-- 지연 칩은 SB 초과분이라 숨긴다. 행 강조(delayed)와 summary.delayed는 유지. -->
       </div>
       <div class="summary__sp"></div>
       <div class="viewtoggle">
@@ -276,6 +279,7 @@ function nextWaiting() {
     </div>
 
     <template v-if="viewMode === 'card'">
+      <p class="guide">{{ INBOX_GUIDE }}</p>
       <section class="block">
         <div class="block__head">
           <h3>진행중 <span class="cnt">({{ progressProjects.length }})</span></h3>
@@ -346,25 +350,22 @@ function nextWaiting() {
 
       <section class="block">
         <div class="block__head block__head--tasks" :class="{ 'has-pager': showTaskPager }">
-          <h3>내 할 일 <span class="cnt">({{ myTasks.length }})</span></h3>
+          <h3>내 할 일 <span class="cnt">({{ cardTasks.length }})</span></h3>
           <div v-if="showTaskPager" class="roll roll--hover">
             <button type="button" class="roll__btn" :disabled="taskPage === 0" @click="prevTasks">◀</button>
             <button type="button" class="roll__btn" :disabled="taskPage >= maxTaskPage" @click="nextTasks">▶</button>
           </div>
         </div>
 
-        <div v-if="myTasks.length" class="listcard">
+        <div v-if="cardTasks.length" class="listcard">
           <table class="tbl">
             <thead>
               <tr>
-                <th style="width:22%">프로젝트명</th>
                 <th>업무명</th>
-                <th style="width:150px">마감일 (D-day)</th>
-                <th style="width:130px">계획일정</th>
-                <th style="width:130px">실행일정</th>
-                <th style="width:90px">계획공정률</th>
-                <th style="width:90px">실행공정률</th>
-                <th style="width:44px"></th>
+                <th>마감일 (D-day)</th>
+                <th>프로젝트명</th>
+                <th>공정률</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -372,18 +373,16 @@ function nextWaiting() {
                 v-for="t in pagedTasks"
                 :key="t.id"
                 class="click"
+                :class="{ 'row--alert': t.delayed || t.weekDue }"
                 @click="onTaskRowClick(t)"
               >
-                <td class="ell">{{ t.project }}</td>
                 <td>{{ t.name }}</td>
                 <td class="due-cell">
                   <span :class="{ delay: t.delayed }">{{ t.dueLabel }}</span>
                   <span v-if="t.dday" class="dday" :class="{ delay: t.delayed }"> ({{ t.dday }})</span>
                   <span v-if="t.delayed" class="stbadge rej ml">지연</span>
                 </td>
-                <td>{{ t.planStart ? formatDateRange(t.planStart, t.planEnd) : '미등록' }}</td>
-                <td>{{ t.execStart ? formatDateRange(t.execStart, t.execEnd) : '-' }}</td>
-                <td>{{ t.planProgress === null ? '-%' : t.planProgress + '%' }}</td>
+                <td class="ell">{{ t.project }}</td>
                 <td>{{ t.progress === null ? '-%' : t.progress + '%' }}</td>
                 <td class="more-cell" @click.stop>
                   <button type="button" class="more-btn" @click="toggleMore($event, t)">⋯</button>
@@ -418,11 +417,10 @@ function nextWaiting() {
           </button>
         </div>
         <div v-else class="empty">• 접수된 프로젝트가 없습니다.</div>
-        <p class="guide">{{ INBOX_GUIDE }}</p>
       </section>
     </template>
 
-    <InboxCalendar v-else />
+    <InboxCalendar v-else :tasks="myTasks" @saved="onCalendarSaved" />
 
     <Teleport to="body">
       <div
@@ -832,6 +830,15 @@ function nextWaiting() {
 .tbl tbody tr.click:hover {
   background: var(--teal-50);
 }
+.tbl tbody tr.row--alert td {
+  box-shadow: inset 0 0 0 1px var(--red);
+}
+.tbl tbody tr.row--alert td:first-child {
+  box-shadow: inset 2px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red);
+}
+.tbl tbody tr.row--alert td:last-child {
+  box-shadow: inset -2px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red);
+}
 .ell {
   max-width: 0;
   overflow: hidden;
@@ -889,7 +896,7 @@ function nextWaiting() {
 }
 
 .guide {
-  margin: 10px 2px 0;
+  margin: 0 0 12px;
   font-size: calc(11.5px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
   line-height: 1.55;

@@ -4,13 +4,14 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   projectStatusMeta,
-  statusKpi,
   projectStatusList,
   requestDepts,
   devDepts,
   stageOptions,
   pageSizeOptions,
-  matchKpiFilter,
+  calculateStatusKpi,
+  filterProjectStatusBySearch,
+  filterProjectStatusList,
   systemOptions,
   bizCategoryMap,
   initiatorOptions,
@@ -99,27 +100,13 @@ const showRequirementModal = ref(false)
 const requirementContext = ref(null)
 const showInProgressTip = ref(false)
 
-const filteredProjects = computed(() => {
-  const f = appliedFilters.value
-  return projectStatusList.filter((row) => {
-    if (!matchKpiFilter(row, activeKpi.value)) return false
-    if (f.keyword && !row.name.includes(f.keyword) && !row.projectId.includes(f.keyword)) return false
-    if (f.requestDept && !row.requestDept.includes(f.requestDept)) return false
-    if (f.devDept && row.devDept !== f.devDept) return false
-    if (f.stage !== '전체' && row.stage !== f.stage) return false
-    if (f.openDateFrom && row.scheduledOpenDate < f.openDateFrom) return false
-    if (f.openDateTo && row.scheduledOpenDate > f.openDateTo) return false
-    if (f.manager && !row.manager.includes(f.manager)) return false
-    if (f.systems.length && !f.systems.some((s) => row.system.includes(s))) return false
-    if (f.bizCategories.length && !f.bizCategories.some((b) => row.bizCategory.includes(b))) return false
-    if (f.itVoc && !row.itVoc.includes(f.itVoc)) return false
-    if (f.jira && !row.jira.toLowerCase().includes(f.jira.toLowerCase())) return false
-    if (f.initiator && row.initiator !== f.initiator) return false
-    if (f.devType && row.devType !== f.devType) return false
-    if (f.summary && row.summary !== f.summary) return false
-    return true
-  })
-})
+const searchFilteredProjects = computed(() =>
+  filterProjectStatusBySearch(projectStatusList, appliedFilters.value),
+)
+const statusKpi = computed(() => calculateStatusKpi(searchFilteredProjects.value))
+const filteredProjects = computed(() =>
+  filterProjectStatusList(projectStatusList, activeKpi.value, appliedFilters.value),
+)
 
 const pagedProjects = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -177,7 +164,7 @@ function onKpiClick(key) {
 }
 
 function onProjectClick(row) {
-  projectStore.setCurrentProject({ id: row.projectId, name: row.name, stage: row.stage })
+  projectStore.setCurrentProject({ id: row.projectId, name: row.name, stage: row.stage, isDraft: false })
   router.push('/workspace/info')
 }
 
@@ -226,7 +213,114 @@ function onPageSizeChange() {
 
 <template>
   <div class="project-status">
-    <p class="notice">{{ projectStatusMeta.hint }}</p>
+    <p class="hint">{{ projectStatusMeta.hint }}</p>
+
+    <!-- 검색조건 -->
+    <SearchFilterBar
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.keyword"
+      search-placeholder="프로젝트명 또는 프로젝트ID"
+      :applied-tags="filterTags"
+      @reset="resetFilters"
+      @search="search"
+      @remove-tag="removeFilterTag"
+    >
+      <template #primary>
+        <SearchableSelect
+          v-model="filters.requestDept"
+          variant="pill"
+          label="요청부서"
+          :options="requestDepts"
+          placeholder="입력하여 검색"
+        />
+        <FilterSelectPill
+          v-model="filters.devDept"
+          label="담당개발부서"
+          :options="devDeptPillOptions"
+          empty-label="선택"
+        />
+        <FilterSelectPill v-model="filters.stage" label="처리단계" :options="stageOptions" />
+      </template>
+      <template #expand>
+        <FilterDateRange
+          label="오픈일"
+          :from="filters.openDateFrom"
+          :to="filters.openDateTo"
+          @update:from="filters.openDateFrom = $event"
+          @update:to="filters.openDateTo = $event"
+        />
+        <FilterTextPill
+          v-model="filters.manager"
+          label="담당자"
+          placeholder="담당자명"
+          fill
+          @enter="search"
+        />
+        <FilterTextPill
+          v-model="filters.itVoc"
+          label="IT-VOC"
+          placeholder="IT-VOC 번호"
+          fill
+          @enter="search"
+        />
+        <FilterTextPill
+          v-model="filters.jira"
+          label="JIRA"
+          placeholder="JIRA 번호"
+          fill
+          @enter="search"
+        />
+        <FilterSelectPill
+          v-model="filters.initiator"
+          label="발의주체"
+          :options="initiatorPillOptions"
+          empty-label="선택"
+          fill
+        />
+        <FilterSelectPill
+          v-model="filters.devType"
+          label="개발구분"
+          :options="devTypePillOptions"
+          empty-label="선택"
+          fill
+        />
+        <FilterSelectPill
+          v-model="filters.summary"
+          label="적요"
+          :options="summaryPillOptions"
+          empty-label="선택"
+          fill
+        />
+        <div class="sfb-check-groups" style="grid-column: 1 / -1">
+          <div class="sfb-check-group">
+            <span class="sfb-check-group__label">시스템구분</span>
+            <div class="sfb-check-group__list">
+              <label v-for="s in systemOptions" :key="s" class="sfb-check">
+                <input
+                  type="checkbox"
+                  :checked="filters.systems.includes(s)"
+                  @change="toggleSystem(s)"
+                />
+                {{ s }}
+              </label>
+            </div>
+          </div>
+          <div class="sfb-check-group">
+            <span class="sfb-check-group__label">업무구분</span>
+            <div class="sfb-check-group__list">
+              <label v-for="c in bizCategoryOptions" :key="c" class="sfb-check">
+                <input
+                  type="checkbox"
+                  :checked="filters.bizCategories.includes(c)"
+                  @change="toggleBizCategory(c)"
+                />
+                {{ c }}
+              </label>
+            </div>
+          </div>
+        </div>
+      </template>
+    </SearchFilterBar>
 
     <!-- 연간 현황 KPI -->
     <section class="kpi-row">
@@ -283,107 +377,6 @@ function onPageSizeChange() {
       </button>
     </section>
 
-    <!-- 검색조건 -->
-    <SearchFilterBar
-      v-model:expanded="filterExpanded"
-      v-model:search="filters.keyword"
-      search-placeholder="프로젝트명 또는 프로젝트ID"
-      :applied-tags="filterTags"
-      @reset="resetFilters"
-      @search="search"
-      @remove-tag="removeFilterTag"
-    >
-      <template #primary>
-        <SearchableSelect
-          v-model="filters.requestDept"
-          variant="pill"
-          label="요청부서"
-          :options="requestDepts"
-          placeholder="입력하여 검색"
-        />
-        <FilterSelectPill
-          v-model="filters.devDept"
-          label="담당개발부서"
-          :options="devDeptPillOptions"
-          empty-label="선택"
-        />
-        <FilterSelectPill v-model="filters.stage" label="처리단계" :options="stageOptions" />
-      </template>
-      <template #expand>
-        <FilterDateRange
-          label="오픈일"
-          :from="filters.openDateFrom"
-          :to="filters.openDateTo"
-          @update:from="filters.openDateFrom = $event"
-          @update:to="filters.openDateTo = $event"
-        />
-        <FilterTextPill
-          v-model="filters.manager"
-          label="담당자"
-          placeholder="담당자명"
-          @enter="search"
-        />
-        <FilterTextPill
-          v-model="filters.itVoc"
-          label="IT-VOC"
-          placeholder="IT-VOC 번호"
-          @enter="search"
-        />
-        <FilterTextPill
-          v-model="filters.jira"
-          label="JIRA"
-          placeholder="JIRA 번호"
-          @enter="search"
-        />
-        <FilterSelectPill
-          v-model="filters.initiator"
-          label="발의주체"
-          :options="initiatorPillOptions"
-          empty-label="선택"
-        />
-        <FilterSelectPill
-          v-model="filters.devType"
-          label="개발구분"
-          :options="devTypePillOptions"
-          empty-label="선택"
-        />
-        <FilterSelectPill
-          v-model="filters.summary"
-          label="적요"
-          :options="summaryPillOptions"
-          empty-label="선택"
-        />
-        <div class="sfb-check-groups" style="grid-column: 1 / -1">
-          <div class="sfb-check-group">
-            <span class="sfb-check-group__label">시스템구분</span>
-            <div class="sfb-check-group__list">
-              <label v-for="s in systemOptions" :key="s" class="sfb-check">
-                <input
-                  type="checkbox"
-                  :checked="filters.systems.includes(s)"
-                  @change="toggleSystem(s)"
-                />
-                {{ s }}
-              </label>
-            </div>
-          </div>
-          <div class="sfb-check-group">
-            <span class="sfb-check-group__label">업무구분</span>
-            <div class="sfb-check-group__list">
-              <label v-for="c in bizCategoryOptions" :key="c" class="sfb-check">
-                <input
-                  type="checkbox"
-                  :checked="filters.bizCategories.includes(c)"
-                  @change="toggleBizCategory(c)"
-                />
-                {{ c }}
-              </label>
-            </div>
-          </div>
-        </div>
-      </template>
-    </SearchFilterBar>
-
     <!-- 프로젝트 목록 -->
     <section class="card listcard">
       <div class="listcard__toolbar">
@@ -405,7 +398,7 @@ function onPageSizeChange() {
               <th>프로젝트명</th>
               <th>처리단계</th>
               <th>공정률</th>
-              <th>예정일<br />오픈일</th>
+              <th>예정일 / 오픈일</th>
               <th>요청부서</th>
               <th>담당개발부서</th>
               <th>IT-VOC</th>
@@ -438,6 +431,7 @@ function onPageSizeChange() {
               </td>
               <td class="tbl__dates">
                 <span>{{ row.scheduledOpenDate }}</span>
+                <span class="tbl__dates-sep"> / </span>
                 <template v-if="row.actualOpenDate">
                   <button
                     v-if="row.isOverdue"
@@ -511,6 +505,17 @@ function onPageSizeChange() {
   font-family: var(--font-family);
   color: var(--lnb-txt);
   padding: 0 24px 28px;
+}
+
+.hint {
+  margin: 0 0 14px;
+  font-size: var(--font-size-xs);
+  color: var(--lnb-muted);
+  background: var(--lnb-hover);
+  border: 1px solid var(--lnb-line);
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
 }
 
 .card {
@@ -587,11 +592,11 @@ function onPageSizeChange() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--lnb-hover);
-  color: var(--lnb-muted);
+  background: var(--orange-bg);
+  color: var(--orange);
   font-size: calc(10px + var(--font-size-offset, 0px));
   font-weight: 800;
 }
@@ -720,12 +725,11 @@ function onPageSizeChange() {
 }
 
 .tbl__dates {
-  line-height: 1.45;
+  white-space: nowrap;
 }
 
-.tbl__dates span,
-.tbl__dates button {
-  display: block;
+.tbl__dates-sep {
+  color: var(--lnb-muted);
 }
 
 .tbl__date--over {

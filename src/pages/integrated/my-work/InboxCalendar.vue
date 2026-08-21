@@ -3,15 +3,19 @@
  * 내업무 캘린더 뷰 — PAG-M-MY-02 / PAG-M-MY-03
  * 멀티데이 업무: 주 단위 가로 span 바 (일별 중복 표기 X)
  */
-import { ref, computed } from 'vue'
-import { calendarTasks, unscheduledTasks, projectColors } from '@/entities/inbox/mock/inboxCalendar'
+import { ref, computed, watch } from 'vue'
+import { projectColors } from '@/entities/inbox/mock/inboxCalendar'
 import { getMyProjects } from '@/app/layouts/headerPopups'
 import { INBOX_GUIDE } from '@/entities/inbox/mock/inbox'
 import { useAuthStore } from '@/app/stores/auth'
 import { useProjectStore } from '@/app/stores/project'
-import { EMPTY_DATA_USER_ID } from '@/entities/auth/mockUsers'
 import WbsScheduleModal from '@/pages/workspace/wbs/WbsScheduleModal.vue'
 import WbsBulkScheduleModal from '@/pages/workspace/wbs/WbsBulkScheduleModal.vue'
+
+const props = defineProps({
+  tasks: { type: Array, default: () => [] },
+})
+const emit = defineEmits(['saved'])
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const VISIBLE_LANES = 2
@@ -19,14 +23,71 @@ const VISIBLE_LANES = 2
 const auth = useAuthStore()
 const projectStore = useProjectStore()
 
-const localTasks = ref(JSON.parse(JSON.stringify(calendarTasks)))
-const localUnsched = ref(JSON.parse(JSON.stringify(unscheduledTasks)))
-
-const isEmptyUser = computed(
-  () => auth.user?.id === '2024099' || auth.user?.id === EMPTY_DATA_USER_ID,
+const sourceTasks = ref([])
+watch(
+  () => props.tasks,
+  (v) => {
+    sourceTasks.value = JSON.parse(JSON.stringify(v || []))
+  },
+  { immediate: true },
 )
-const tasks = computed(() => (isEmptyUser.value ? [] : localTasks.value))
-const unsched = computed(() => (isEmptyUser.value ? [] : localUnsched.value))
+
+const projectColorIndexes = computed(() => {
+  const indexes = new Map()
+  sourceTasks.value.forEach((task) => {
+    if (!indexes.has(task.project)) indexes.set(task.project, indexes.size)
+  })
+  return indexes
+})
+
+function displayEnd(task) {
+  if (task.execEnd && task.planEnd && task.execEnd < task.planEnd) return task.execEnd
+  return task.planEnd
+}
+
+function calendarStatus(task) {
+  if (task.holdStart && !task.holdEnd) return 'paused'
+  if (task.execEnd) return 'done'
+  if (task.delayed) return 'delayed'
+  return 'active'
+}
+
+const calendarDerived = computed(() =>
+  sourceTasks.value
+    .filter((task) => task.planStart && task.planEnd)
+    .map((task) => ({
+      id: task.id,
+      name: task.name,
+      endLabel: endLabelOf(displayEnd(task)),
+      project: task.project,
+      projectId: task.projectId,
+      projectOpenDate: task.projectOpenDate || null,
+      wbsId: task.wbsId,
+      start: task.execStart && task.planStart && task.execStart < task.planStart ? task.execStart : task.planStart,
+      end: displayEnd(task),
+      color: projectColorIndexes.value.get(task.project) ?? 0,
+      status: calendarStatus(task),
+      planStart: task.planStart,
+      planEnd: task.planEnd,
+      execStart: task.execStart,
+      execEnd: task.execEnd,
+      holdStart: task.holdStart,
+      holdEnd: task.holdEnd,
+    })),
+)
+
+const unsched = computed(() =>
+  sourceTasks.value
+    .filter((task) => !task.planEnd)
+    .map((task) => ({
+      id: task.id,
+      project: task.project,
+      projectId: task.projectId,
+      wbsId: task.wbsId,
+      name: task.name,
+    })),
+)
+
 const myProjects = computed(() => getMyProjects(auth.user?.id))
 
 const today = new Date(2026, 2, 20)
@@ -74,7 +135,7 @@ function layoutWeekBars(weekCells) {
   const weekStart = weekCells[0].iso
   const weekEnd = weekCells[6].iso
 
-  const segments = tasks.value
+  const segments = calendarDerived.value
     .filter((t) => t.end >= weekStart && t.start <= weekEnd)
     .map((t) => {
       const segStart = t.start > weekStart ? t.start : weekStart
@@ -120,21 +181,7 @@ function isSameDay(a, b) {
 }
 
 function resolveTaskDisplay(task) {
-  const endDate = parseISO(task.end)
-  const isPast = endDate < stripTime(today)
-  let displayStatus = task.status
-  if (task.status === 'active' && isPast) displayStatus = 'delayed'
-  if (task.status === 'done') displayStatus = 'done'
-  return { ...task, displayStatus }
-}
-
-function parseISO(s) {
-  const [y, m, d] = s.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
-function stripTime(d) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  return { ...task, displayStatus: task.status }
 }
 
 function colorOf(idx) {
@@ -165,22 +212,26 @@ function resolveProject(task) {
 }
 
 function openScheduleModal(task) {
-  const project = resolveProject(task)
+  const project = task.projectId
+    ? { id: task.projectId, name: task.project, stage: '처리중' }
+    : resolveProject(task)
   projectStore.setCurrentProject({
     id: project.id,
     name: project.name,
     stage: project.stage,
   })
   scheduleTarget.value = {
-    wbsId: task.id || 'WBS-CAL',
+    wbsId: task.wbsId || task.id || 'WBS-CAL',
     requirementName: task.name,
     taskName: task.name,
     taskType: '개발',
     assigneeDisplay: auth.user?.name || '김현대',
-    planStart: task.start || null,
-    planEnd: task.end || null,
-    execStart: null,
-    execEnd: null,
+    planStart: task.planStart || task.start || null,
+    planEnd: task.planEnd || task.end || null,
+    execStart: task.execStart || null,
+    execEnd: task.execEnd || null,
+    holdStart: task.holdStart || null,
+    holdEnd: task.holdEnd || null,
   }
   showScheduleModal.value = true
 }
@@ -205,30 +256,20 @@ function endLabelOf(end) {
   return `~ ${m}/${d}`
 }
 
-/** 계획일 저장 결과를 캘린더/미등록 목록에 즉시 반영 */
+function formatOpenDate(iso) {
+  return iso.includes('-') ? iso.replaceAll('-', '/') : iso
+}
+
+/** 계획일 저장 결과를 원본 할 일에 즉시 반영 */
 function applyScheduleUpdate(wbsId, start, end) {
-  if (!wbsId || !start || !end) return
-  const existing = localTasks.value.find((t) => t.id === wbsId)
+  if (!wbsId || !end) return
+  const existing = sourceTasks.value.find((t) => t.wbsId === wbsId || t.id === wbsId)
   if (existing) {
-    existing.start = start
-    existing.end = end
-    existing.endLabel = endLabelOf(end)
+    existing.planStart = start || existing.planStart
+    existing.planEnd = end
+    emit('saved', { wbsId, planStart: start, planEnd: end })
     return
   }
-  const idx = localUnsched.value.findIndex((u) => u.id === wbsId)
-  if (idx === -1) return
-  const u = localUnsched.value[idx]
-  localUnsched.value.splice(idx, 1)
-  localTasks.value.push({
-    id: u.id,
-    name: u.name,
-    endLabel: endLabelOf(end),
-    project: u.project,
-    start,
-    end,
-    color: localTasks.value.length % projectColors.length,
-    status: 'active',
-  })
 }
 
 function onScheduleSave(payload) {
@@ -247,8 +288,8 @@ function onBulkScheduleRequest(payload) {
     targetTasks.forEach((t) => applyScheduleUpdate(t.wbsId, t.newPlanStart, t.newPlanEnd))
   } else if (payload.type === '실행 홀딩') {
     targetTasks.forEach((t) => {
-      const found = localTasks.value.find((x) => x.id === t.wbsId)
-      if (found) found.status = 'paused'
+      const found = sourceTasks.value.find((x) => x.wbsId === t.wbsId || x.id === t.wbsId)
+      if (found) found.holdStart = found.holdStart || '2026-03-20'
     })
   }
   bulkTargets.value = []
@@ -338,7 +379,9 @@ function statusLabel(task) {
               <span v-if="statusLabel(bar)" class="tblock__badge">{{ statusLabel(bar) }}</span>
               <span class="tblock__lines">
                 <span class="tblock__name">{{ bar.name }} <span class="tblock__end">{{ bar.endLabel }}</span></span>
-                <span class="tblock__project">{{ bar.project }}</span>
+                <span class="tblock__project">
+                  {{ bar.project }}<template v-if="bar.projectOpenDate"> ({{ formatOpenDate(bar.projectOpenDate) }})</template>
+                </span>
               </span>
             </div>
           </div>

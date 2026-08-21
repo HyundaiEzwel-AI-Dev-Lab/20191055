@@ -30,11 +30,36 @@ function close() {
   emit('update:modelValue', false)
 }
 
+function systemBizOf(row) {
+  const scopes = row.scopes || []
+  if (scopes.length) {
+    return (
+      scopes
+        .map((scope) => [scope.system, scope.bizCategory].filter(Boolean).join('>'))
+        .filter(Boolean)
+        .join(', ') || '-'
+    )
+  }
+  return row.systemPath || '-'
+}
+
 function search() {
   const q = filters.value.keyword.trim().toLowerCase()
   rows.value = getRequirementList().filter((r) => {
-    if (filters.value.system && r.system !== filters.value.system) return false
-    if (q && !`${r.reqId}${r.name}`.toLowerCase().includes(q)) return false
+    const scopes = r.scopes || []
+    if (filters.value.system && !scopes.some((scope) => scope.system === filters.value.system)) {
+      return false
+    }
+    if (q) {
+      const hay = [
+        r.reqId,
+        r.name,
+        ...scopes.map((scope) => `${scope.system} ${scope.screenName} ${scope.screenPath}`),
+      ]
+        .join(' ')
+        .toLowerCase()
+      if (!hay.includes(q)) return false
+    }
     return true
   })
   searched.value = true
@@ -105,7 +130,7 @@ function confirm() {
                 <input type="radio" name="scenario-req-pick" :checked="selectedId === row.id" @change="selectRow(row)" />
               </td>
               <td>{{ row.reqId }}</td>
-              <td>{{ row.systemPath }}</td>
+              <td>{{ systemBizOf(row) }}</td>
               <td>{{ row.screenPath || '-' }}</td>
               <td>{{ row.screenName || row.screenMenu || '-' }}</td>
               <td class="name">{{ row.name }}</td>

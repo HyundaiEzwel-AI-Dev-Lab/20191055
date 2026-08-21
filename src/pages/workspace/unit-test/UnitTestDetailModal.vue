@@ -59,7 +59,7 @@ function setOverallResult(val) {
 
 function goRequirement() {
   if (!props.row?.requirementId) return
-  router.push('/workspace/requirement')
+  router.push({ path: '/workspace/requirement', query: { reqId: props.row.requirementId } })
 }
 
 function formatFileSize(bytes) {

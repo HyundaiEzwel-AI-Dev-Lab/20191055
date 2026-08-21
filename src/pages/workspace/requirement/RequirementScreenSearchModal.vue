@@ -45,10 +45,9 @@ watch(
       system: resolveScreenSearchSystem(props.system),
       keyword: '',
     }
-    searched.value = false
-    rows.value = []
     selectedId.value = ''
     currentPage.value = 1
+    search()
   },
 )
 
@@ -79,17 +78,7 @@ function confirm() {
     path: row.path,
     name: row.name,
     id: row.id,
-  })
-  close()
-}
-
-function selectNoScreen() {
-  emit('select', {
-    system: filters.value.system,
-    category: '-',
-    path: '-',
-    name: '화면없음',
-    id: 'none',
+    screenCode: row.screenCode || '',
   })
   close()
 }
@@ -115,7 +104,7 @@ function selectNoScreen() {
           v-model="filters.keyword"
           class="inp"
           type="text"
-          placeholder="화면명 검색"
+          placeholder="화면명·화면경로·화면코드 검색"
           @keyup.enter="search"
         />
       </div>
@@ -125,7 +114,7 @@ function selectNoScreen() {
     </div>
 
     <div class="result">
-      <div v-if="!searched" class="empty">조회 버튼을 눌러 화면을 검색하세요.</div>
+      <div v-if="!searched" class="empty">화면 목록을 불러오는 중입니다.</div>
       <div v-else-if="!rows.length" class="empty">검색 결과가 없습니다.</div>
       <template v-else>
         <div class="result__count">총 <b>{{ rows.length }}</b>건</div>
@@ -133,11 +122,11 @@ function selectNoScreen() {
           <table class="tbl">
             <thead>
               <tr>
-                <th class="col-radio" />
+                <th class="col-radio">선택</th>
                 <th>시스템</th>
-                <th>관리구분</th>
                 <th>화면경로</th>
                 <th>화면명</th>
+                <th>화면코드</th>
               </tr>
             </thead>
             <tbody>
@@ -156,9 +145,9 @@ function selectNoScreen() {
                   />
                 </td>
                 <td>{{ row.system }}</td>
-                <td>{{ row.category }}</td>
                 <td>{{ row.path }}</td>
                 <td class="name">{{ row.name }}</td>
+                <td>{{ row.screenCode || '-' }}</td>
               </tr>
             </tbody>
           </table>
@@ -186,8 +175,8 @@ function selectNoScreen() {
     </div>
 
     <template #footer>
-      <button type="button" class="btn btn--ghost" @click="selectNoScreen">화면없음</button>
-      <button type="button" class="btn btn--primary" @click="confirm">확인</button>
+      <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <button type="button" class="btn btn--primary" @click="confirm">선택</button>
     </template>
   </BaseModal>
 </template>

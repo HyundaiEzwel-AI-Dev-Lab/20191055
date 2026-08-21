@@ -1,12 +1,22 @@
 <script setup>
-// POP-S-WBS-02 일정관리 (SB 119~121) — 일정변경은 다중 일정 변경 UI(POP-S-WBS-05)로 위임
+// POP-S-WBS-02 일정관리 — 계획/실행 2열, 홀딩 시 재착수, 일정변경 이력
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
-import { priorityOptions, difficultyOptions, wbsMockToday, calcExecProgress } from '@/entities/wbs/mock/wbs'
+import {
+  priorityOptions,
+  difficultyOptions,
+  wbsMockToday,
+  calcExecProgress,
+  calcRestartRange,
+} from '@/entities/wbs/mock/wbs'
+import ScheduleReasonInputModal from '@/pages/workspace/wbs/ScheduleReasonInputModal.vue'
+import WbsPlanChangeRequestDetailModal from '@/pages/workspace/wbs/WbsPlanChangeRequestDetailModal.vue'
+import WbsRestartModal from '@/pages/workspace/wbs/WbsRestartModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   task: { type: Object, default: null },
+  changeRequests: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['update:modelValue', 'save', 'open-multi-change'])
@@ -17,9 +27,7 @@ const execStart = ref('')
 const execEnd = ref('')
 const taskName = ref('')
 const taskDetail = ref('')
-const showTaskInfo = ref(true)
-const useUnitTest = ref(true)
-const confirmed = ref(false)
+const infoCollapsed = ref(false)
 const priority = ref('보통')
 const difficulty = ref('중')
 const remark = ref('')
@@ -27,23 +35,67 @@ const remark = ref('')
 const showStartAlert = ref(false)
 const showCompleteAlert = ref(false)
 const showDelayReason = ref(false)
-const delayReason = ref('')
 const pendingCompleteDate = ref('')
+const showRestartModal = ref(false)
+const historyRows = ref([])
+const detailRequest = ref(null)
 
 const hasPlan = computed(() => !!(planStart.value && planEnd.value))
-const isInitial = computed(() => !props.task?.planStart && !props.task?.planEnd)
+const isTaskNameLocked = computed(
+  () => props.task?.taskType === '기획' || props.task?.taskType === '테스트',
+)
+const planStartLocked = computed(() => !!props.task?.planStart || !!execStart.value)
+const planEndLocked = computed(() => !!props.task?.planEnd)
 const isCompleted = computed(() => !!(execEnd.value || props.task?.status === '완료'))
-const planLocked = computed(() => {
-  if (confirmed.value) return true
-  if (!planStart.value) return false
-  return planStart.value <= wbsMockToday
+const isHolding = computed(() => {
+  if (isCompleted.value) return false
+  return props.task?.status === '홀딩' || !!props.task?.holdStart
 })
 const canRequestChange = computed(() => hasPlan.value && !isCompleted.value)
+const canStart = computed(() => hasPlan.value && !execStart.value && !isHolding.value)
+const canComplete = computed(() => !!execStart.value && !execEnd.value && !isHolding.value)
+const canRestart = computed(() => isHolding.value)
 const canUncomplete = computed(() => !!(execEnd.value && planEnd.value && execEnd.value <= planEnd.value))
+
+const holdPeriodText = computed(() => {
+  const t = props.task
+  if (!t?.holdStart || !t?.holdEnd) return ''
+  return `(중단일정 ${t.holdStart} ~ ${t.holdEnd})`
+})
+
+const correctedPlanText = computed(() => {
+  const t = props.task
+  if (!t || !isHolding.value) return ''
+  if (t.planStart && t.correctedPlanEnd) return `${t.planStart} ~ ${t.correctedPlanEnd}`
+  const range = calcRestartRange(t, t.holdStart, t.holdEnd)
+  if (!range.start || !range.end) return ''
+  return `${range.start} ~ ${range.end}`
+})
+
+const scheduleButtonLabel = computed(() => {
+  if (canRestart.value) return '재착수'
+  if (!execStart.value) return '착수'
+  return '완료'
+})
+
+const scheduleButtonDisabled = computed(() => {
+  if (canRestart.value) return false
+  return execStart.value ? !canComplete.value : !canStart.value
+})
+
+const lastUpdatedText = computed(() => {
+  const at = props.task?.changedAt
+  if (!at) return ''
+  const date = String(at).slice(0, 10)
+  const name = props.task?.changedBy
+  return name ? `${date} (${name})` : date
+})
+
 const progressLabel = computed(() => {
   const n = props.task?.execProgress
   return n == null || n === '' ? '-' : `${n}%`
 })
+
 const screenLabel = computed(() => {
   const t = props.task
   if (!t) return '-'
@@ -52,6 +104,14 @@ const screenLabel = computed(() => {
   }
   return t.screenName && t.screenName !== '-' ? t.screenName : t.screenPath || '-'
 })
+
+watch(
+  () => props.changeRequests,
+  (rows) => {
+    historyRows.value = (rows || []).map((row) => ({ ...row }))
+  },
+  { immediate: true },
+)
 
 watch(
   () => props.modelValue,
@@ -64,16 +124,16 @@ watch(
     execEnd.value = t.execEnd || ''
     taskName.value = t.taskName || ''
     taskDetail.value = t.taskDetail || ''
-    showTaskInfo.value = true
-    useUnitTest.value = t.useUnitTest !== false
-    confirmed.value = t.confirmed === '확정' || t.confirmed === true
+    infoCollapsed.value = !!(t.planStart && t.planEnd)
     priority.value = t.priority || '보통'
     difficulty.value = t.difficulty || '중'
     remark.value = t.remark || ''
     showStartAlert.value = false
     showCompleteAlert.value = false
     showDelayReason.value = false
-    delayReason.value = ''
+    showRestartModal.value = false
+    detailRequest.value = null
+    historyRows.value = (props.changeRequests || []).map((row) => ({ ...row }))
   },
 )
 
@@ -82,9 +142,9 @@ function close() {
 }
 
 function missingPlanField() {
-  if (!planStart.value && !planEnd.value) return '시작일, 종료일'
-  if (!planStart.value) return '시작일'
-  if (!planEnd.value) return '종료일'
+  if (!planStart.value && !planEnd.value) return '계획 시작일, 계획 종료일'
+  if (!planStart.value) return '계획 시작일'
+  if (!planEnd.value) return '계획 종료일'
   return ''
 }
 
@@ -96,8 +156,6 @@ function buildPayload(extra = {}) {
     execEnd: execEnd.value || null,
     taskName: taskName.value.trim(),
     taskDetail: taskDetail.value,
-    useUnitTest: useUnitTest.value,
-    confirmed: confirmed.value ? '확정' : '-',
     priority: priority.value,
     difficulty: difficulty.value,
     remark: remark.value,
@@ -129,12 +187,28 @@ function save() {
     extra.execProgress = 100
   } else if (execStart.value) {
     extra.execProgress = calcExecProgress(
-      { ...props.task, execStart: execStart.value, execEnd: null, planEnd: planEnd.value, status: '진행중', excluded: false },
+      {
+        ...props.task,
+        execStart: execStart.value,
+        execEnd: null,
+        planEnd: planEnd.value,
+        status: isHolding.value ? '홀딩' : '진행중',
+        excluded: false,
+      },
       wbsMockToday,
     )
   }
   emit('save', buildPayload(extra))
   close()
+}
+
+function onScheduleButtonClick() {
+  if (canRestart.value) {
+    showRestartModal.value = true
+    return
+  }
+  if (execStart.value) onCompleteClick()
+  else onStartClick()
 }
 
 function onStartClick() {
@@ -165,7 +239,6 @@ function applyComplete() {
   const end = wbsMockToday
   pendingCompleteDate.value = end
   if (planEnd.value && end > planEnd.value) {
-    delayReason.value = ''
     showDelayReason.value = true
     return
   }
@@ -174,15 +247,16 @@ function applyComplete() {
 
 function finishComplete(end, reason) {
   execEnd.value = end
-  const payload = buildPayload({
-    status: '완료',
-    execEnd: end,
-    execProgress: 100,
-    scheduleStatus: reason ? 'delay' : end < planEnd.value ? 'short' : 'normal',
-    scheduleReason: reason,
-  })
-  emit('save', payload)
-  showDelayReason.value = false
+  emit(
+    'save',
+    buildPayload({
+      status: '완료',
+      execEnd: end,
+      execProgress: 100,
+      scheduleStatus: reason ? 'delay' : end < planEnd.value ? 'short' : 'normal',
+      scheduleReason: reason,
+    }),
+  )
 }
 
 function onUncompleteClick() {
@@ -211,15 +285,60 @@ function onUncompleteClick() {
   )
 }
 
-function saveDelayReason() {
-  if (!delayReason.value.trim()) {
-    window.alert('사유를 입력해 주세요.')
-    return
-  }
-  finishComplete(pendingCompleteDate.value, delayReason.value.trim())
+function onDelayReasonSave(reason) {
+  finishComplete(pendingCompleteDate.value, reason)
 }
 
-/** SB 123: 단건도 다중 일정 변경 UI 유지 */
+function applyRestart(row) {
+  const t = row || props.task
+  if (!t) return
+  const extra = {
+    status: '진행중',
+    holdStart: null,
+    holdEnd: null,
+    restartDate: null,
+  }
+  if (t.correctedPlanEnd) {
+    extra.planEnd = t.correctedPlanEnd
+    planEnd.value = t.correctedPlanEnd
+  }
+  extra.execProgress = calcExecProgress(
+    { ...t, ...extra, execEnd: null, excluded: false },
+    wbsMockToday,
+  )
+  emit('save', buildPayload(extra))
+}
+
+function requestStatusLabel(status) {
+  if (status === 'PENDING') return '승인요청'
+  if (status === 'APPROVED') return '승인'
+  if (status === 'REJECTED') return '반려'
+  return '취소'
+}
+
+function openChangeRequestDetail(row) {
+  detailRequest.value = row
+}
+
+function onHistoryCancelClick(row) {
+  if (row.status !== 'PENDING') return
+  if (
+    !window.confirm(
+      "취소된 요청은 승인 대상에서 제외되며, 진행상태가 '취소'로 변경됩니다. 취소하시겠습니까?",
+    )
+  ) {
+    return
+  }
+  applyChangeRequestCancelled(row)
+}
+
+function applyChangeRequestCancelled(row) {
+  historyRows.value = historyRows.value.map((item) =>
+    item.id === row.id ? { ...item, status: 'REQUEST_CANCELLED' } : item,
+  )
+  detailRequest.value = null
+}
+
 function openMultiChange() {
   if (!canRequestChange.value) return
   emit('open-multi-change', props.task)
@@ -229,71 +348,66 @@ function openMultiChange() {
 
 <template>
   <BaseModal
-    title="일정 관리"
+    title="WBS 관리"
     :visible="modelValue && !!task"
     wide
     @close="close"
   >
     <template v-if="task">
-      <p v-if="task.changedAt" class="last-modified">
-        최종수정 {{ task.changedAt }} ({{ task.changedBy }})
-      </p>
+      <table class="info-grid">
+        <thead>
+          <tr>
+            <th>시스템/업무구분</th>
+            <th>화면경로/화면명</th>
+            <th>업무ID</th>
+            <th>요구사항명</th>
+            <th>업무유형/담당자</th>
+            <th>공정률</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ task.systemPath || '-' }}</td>
+            <td>{{ screenLabel }}</td>
+            <td>{{ task.wbsId || '-' }}</td>
+            <td>{{ task.requirementName || '-' }}</td>
+            <td>{{ task.taskType || '-' }} / {{ task.assigneeDisplay || task.assignee || '-' }}</td>
+            <td>{{ task.planProgress ?? '-' }}% / {{ progressLabel }}</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <!-- WBS 정보 (SB 119) -->
-      <div class="info-grid">
-        <div class="info-grid__item">
-          <span class="info-grid__lab">시스템/업무구분</span>
-          <span class="info-grid__val">{{ task.systemPath || '-' }}</span>
-        </div>
-        <div class="info-grid__item">
-          <span class="info-grid__lab">화면경로/화면명</span>
-          <span class="info-grid__val">{{ screenLabel }}</span>
-        </div>
-        <div class="info-grid__item">
-          <span class="info-grid__lab">업무 ID</span>
-          <span class="info-grid__val">{{ task.wbsId || '-' }}</span>
-        </div>
-        <div class="info-grid__item">
-          <span class="info-grid__lab">요구사항명</span>
-          <span class="info-grid__val">{{ task.requirementName || '-' }}</span>
-        </div>
-        <div class="info-grid__item">
-          <span class="info-grid__lab">업무유형 / 담당자</span>
-          <span class="info-grid__val">
-            {{ task.taskType || '-' }} / {{ task.assigneeDisplay || task.assignee || '-' }}
-          </span>
-        </div>
-        <div class="info-grid__item">
-          <span class="info-grid__lab">공정률</span>
-          <span class="info-grid__val">{{ progressLabel }}</span>
-        </div>
-      </div>
-
-      <!-- 업무 정보 (SB v1.0) -->
       <section class="panel">
-        <div class="panel__head">
-          <h4 class="panel__title">업무 정보</h4>
+        <header class="panel__head">
+          <span class="panel__title">업무 정보</span>
           <button
             type="button"
             class="fold-btn"
-            :class="{ 'fold-btn--closed': !showTaskInfo }"
-            @click="showTaskInfo = !showTaskInfo"
+            :class="{ 'fold-btn--closed': infoCollapsed }"
+            :aria-expanded="!infoCollapsed"
+            @click="infoCollapsed = !infoCollapsed"
           >
             ▾
           </button>
-        </div>
-        <template v-if="showTaskInfo">
+        </header>
+        <div v-show="!infoCollapsed" class="panel__body">
           <div class="field">
             <label class="field__lab">업무명 <i>*</i></label>
-            <input v-model="taskName" class="inp inp--block" type="text" maxlength="100" />
+            <input
+              v-model="taskName"
+              class="inp inp--block"
+              type="text"
+              maxlength="100"
+              :disabled="isTaskNameLocked"
+            />
           </div>
           <div class="field">
             <label class="field__lab">업무 상세</label>
-            <textarea v-model="taskDetail" class="ta" rows="3" maxlength="1000" />
+            <textarea v-model="taskDetail" class="ta" rows="2" maxlength="1000" />
           </div>
           <div class="field field--split">
             <div>
-              <label class="field__lab">난이도</label>
+              <span class="field__lab">난이도</span>
               <div class="seg">
                 <button
                   v-for="d in difficultyOptions"
@@ -308,7 +422,7 @@ function openMultiChange() {
               </div>
             </div>
             <div>
-              <label class="field__lab">우선순위</label>
+              <span class="field__lab">우선순위</span>
               <div class="seg">
                 <button
                   v-for="p in priorityOptions"
@@ -323,13 +437,12 @@ function openMultiChange() {
               </div>
             </div>
           </div>
-        </template>
+        </div>
       </section>
 
-      <!-- 일정 관리 -->
-      <section class="panel">
-        <div class="panel__head">
-          <h4 class="panel__title">일정 관리</h4>
+      <section class="panel panel--change">
+        <header class="panel__head">
+          <span class="panel__title">일정 관리</span>
           <button
             type="button"
             class="btn btn--ghost btn--sm"
@@ -338,111 +451,149 @@ function openMultiChange() {
           >
             일정변경 요청
           </button>
-        </div>
-
-        <p class="guide">
-          · 계획일이 등록되어야 실행일정(착수/완료)를 체크할 수 있습니다.
-          (계획일 이전 착수할 경우 착수 버튼 클릭)<br />
-          · 착수 버튼 클릭 시, 착수일이 즉시 체크됩니다.
-          버튼 클릭 후에는 [일정변경 요청] 버튼을 통해서만 일정을 변경할 수 있습니다.
+        </header>
+        <p class="notice">
+          계획일이 등록되어야 실행일정(착수/완료)를 체크할 수 있습니다. (계획일 이전 착수할 경우 착수 버튼 클릭)<br />
+          착수 버튼 클릭 시, 착수일이 즉시 체크됩니다.<br />
+          버튼 클릭 이후에는 [일정변경 요청] 버튼을 통해서만 일정을 변경할 수 있습니다.
         </p>
-
-        <div class="field">
-          <label class="field__lab">계획일정 <i>*</i></label>
-          <div class="date-row date-row--narrow">
-            <input
-              v-model="planStart"
-              class="inp"
-              type="date"
-              :disabled="!isInitial && planLocked"
-              @click="$event.target.showPicker?.()"
-            />
-            <span>~</span>
-            <input
-              v-model="planEnd"
-              class="inp"
-              type="date"
-              :disabled="!isInitial && planLocked"
-              @click="$event.target.showPicker?.()"
-            />
+        <div class="schedule-cols">
+          <div class="schedule-col">
+            <span class="field__lab">계획일정 <i>*</i></span>
+            <span class="range">
+              <input
+                v-model="planStart"
+                class="inp"
+                type="date"
+                :max="planEnd || undefined"
+                :disabled="planStartLocked"
+                aria-label="계획 시작일"
+                @click="$event.target.showPicker?.()"
+              />
+              <span class="tilde">~</span>
+              <input
+                v-model="planEnd"
+                class="inp"
+                type="date"
+                :min="planStart || undefined"
+                :disabled="planEndLocked"
+                aria-label="계획 종료일"
+                @click="$event.target.showPicker?.()"
+              />
+            </span>
           </div>
-        </div>
-
-        <div v-if="hasPlan" class="field">
-          <label class="field__lab">실행일정</label>
-          <div class="exec-row">
-            <template v-if="!execStart">
-              <button type="button" class="btn btn--primary btn--sm" @click="onStartClick">
-                착수
-              </button>
-            </template>
-            <template v-else-if="!execEnd">
-              <span class="exec-date">{{ execStart }}</span>
-              <span>~</span>
-              <button type="button" class="btn btn--primary btn--sm" @click="onCompleteClick">
-                완료
-              </button>
-            </template>
-            <template v-else>
-              <span class="exec-date">{{ execStart }}</span>
-              <span>~</span>
-              <span class="exec-date">{{ execEnd }}</span>
-              <button
-                v-if="canUncomplete"
-                type="button"
-                class="btn btn--ghost btn--sm"
-                @click="onUncompleteClick"
-              >
-                완료취소
-              </button>
-            </template>
+          <div class="schedule-col">
+            <span class="field__lab">실행일정</span>
+            <span v-if="execStart" class="exec-start-label">
+              {{ execStart }}<template v-if="execEnd"> ~ {{ execEnd }}</template>
+            </span>
+            <span v-else class="exec-empty">미착수</span>
+            <span v-if="holdPeriodText" class="hold-period">{{ holdPeriodText }}</span>
+            <p v-if="correctedPlanText" class="corrected-plan">보정계획일 {{ correctedPlanText }}</p>
+            <button
+              v-if="!execEnd"
+              type="button"
+              class="action-btn"
+              :disabled="scheduleButtonDisabled"
+              @click="onScheduleButtonClick"
+            >
+              {{ scheduleButtonLabel }}
+            </button>
+            <button
+              v-else-if="canUncomplete"
+              type="button"
+              class="uncomplete-btn"
+              @click="onUncompleteClick"
+            >
+              완료취소
+            </button>
           </div>
         </div>
       </section>
 
-      <!-- 추가 정보 (SB 120) — 계획 등록 후 -->
-      <section v-if="hasPlan || !isInitial" class="panel">
-        <h4 class="panel__title">추가 정보</h4>
-
-        <div class="field">
-          <label class="field__lab">비고 (개발내용/작업이슈)</label>
-          <textarea
-            v-model="remark"
-            class="ta"
-            rows="3"
-            maxlength="500"
-            placeholder="자동계산 공정률이 실제와 괴리가 클 때 메모를 작성하세요."
-          />
-          <span class="char-count">{{ remark.length }} / 500자</span>
+      <section v-if="hasPlan" class="panel">
+        <header class="panel__head">
+          <span class="panel__title">추가 정보</span>
+        </header>
+        <div class="panel__body">
+          <label class="field">
+            비고
+            <textarea v-model="remark" class="ta" maxlength="500" rows="3" />
+            <span class="char-count">{{ remark.length }}/500자</span>
+          </label>
         </div>
       </section>
 
+      <section v-if="hasPlan" class="panel">
+        <header class="panel__head">
+          <span class="panel__title">일정변경 이력</span>
+        </header>
+        <p class="history__title">변동 이력</p>
+        <table class="history__table">
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>변경 전 계획일</th>
+              <th>변경 후 계획일</th>
+              <th>변동 사유</th>
+              <th>등록자</th>
+              <th>등록일시</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!historyRows.length">
+              <td colspan="7" class="history-empty">변경 이력이 없습니다.</td>
+            </tr>
+            <tr
+              v-for="row in historyRows"
+              :key="row.id"
+              class="history-row"
+              @click="openChangeRequestDetail(row)"
+            >
+              <td>{{ row.no }}</td>
+              <td>{{ row.beforeStart }} ~ {{ row.beforeEnd }}</td>
+              <td>{{ row.afterStart }} ~ {{ row.afterEnd }}</td>
+              <td>{{ row.reason }}</td>
+              <td>{{ row.registeredBy }}</td>
+              <td>{{ row.registeredAt }}</td>
+              <td>
+                {{ requestStatusLabel(row.status) }}
+                <button
+                  v-if="row.status === 'PENDING'"
+                  type="button"
+                  class="history-cancel"
+                  @click.stop="onHistoryCancelClick(row)"
+                >
+                  요청취소
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </template>
 
     <template #footer>
-      <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <span v-if="lastUpdatedText" class="last-modified">{{ lastUpdatedText }}</span>
       <button type="button" class="btn btn--primary" @click="save">저장</button>
     </template>
   </BaseModal>
 
-  <!-- 확정 alert (SB 120 3b-1) -->
-  <Teleport to="body">
-    <div v-if="showConfirmAlert" class="alert-scrim" @mousedown.self="showConfirmAlert = false">
-      <div class="alert-box">
-        <p>
-          확정 후 상태 재변경이 불가합니다.<br />
-          (단위테스트 사용 시 케이스 자동 생성)<br />
-          변경하시겠습니까?
-        </p>
-        <div class="alert-box__actions">
-          <button type="button" class="btn btn--ghost" @click="showConfirmAlert = false">
-            취소
-          </button>
-          <button type="button" class="btn btn--primary" @click="applyConfirm">확인</button>
-        </div>
-      </div>
-    </div>
+  <ScheduleReasonInputModal
+    v-model="showDelayReason"
+    :scheduled-date="planEnd"
+    :actual-date="pendingCompleteDate"
+    @save="onDelayReasonSave"
+  />
+  <WbsRestartModal v-model="showRestartModal" :task="showRestartModal ? task : null" @confirm="applyRestart" />
+  <WbsPlanChangeRequestDetailModal
+    :request="detailRequest"
+    @close="detailRequest = null"
+    @cancel="applyChangeRequestCancelled"
+  />
 
+  <Teleport to="body">
     <div v-if="showStartAlert" class="alert-scrim" @mousedown.self="showStartAlert = false">
       <div class="alert-box">
         <p>{{ wbsMockToday.slice(5) }}로 착수일이 저장됩니다.<br />착수하시겠습니까?</p>
@@ -452,40 +603,12 @@ function openMultiChange() {
         </div>
       </div>
     </div>
-
     <div v-if="showCompleteAlert" class="alert-scrim" @mousedown.self="showCompleteAlert = false">
       <div class="alert-box">
         <p>{{ wbsMockToday.slice(5) }}로 완료일이 저장됩니다.<br />완료하시겠습니까?</p>
         <div class="alert-box__actions">
-          <button type="button" class="btn btn--ghost" @click="showCompleteAlert = false">
-            취소
-          </button>
+          <button type="button" class="btn btn--ghost" @click="showCompleteAlert = false">취소</button>
           <button type="button" class="btn btn--primary" @click="applyComplete">확인</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- POP-S-WBS-10 일정 변동 사유 입력 (SB 121) -->
-    <div v-if="showDelayReason" class="alert-scrim" @mousedown.self="showDelayReason = false">
-      <div class="alert-box alert-box--form">
-        <h4>일정 변동 사유 입력</h4>
-        <p class="alert-box__msg">
-          실제 완료일이 계획 완료일을 경과하였습니다.<br />
-          사유를 입력해 주세요.
-        </p>
-        <textarea
-          v-model="delayReason"
-          class="ta"
-          rows="3"
-          maxlength="200"
-          placeholder="사유를 입력하세요"
-        />
-        <span class="char-count">{{ delayReason.length }} / 200자</span>
-        <div class="alert-box__actions">
-          <button type="button" class="btn btn--ghost" @click="showDelayReason = false">
-            취소
-          </button>
-          <button type="button" class="btn btn--primary" @click="saveDelayReason">저장</button>
         </div>
       </div>
     </div>
@@ -493,43 +616,33 @@ function openMultiChange() {
 </template>
 
 <style scoped>
-.last-modified {
-  margin: 0 0 10px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-  text-align: right;
-}
-
 .info-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  width: 100%;
+  border-collapse: collapse;
   margin-bottom: 14px;
-  padding: 12px 14px;
   background: var(--lnb-hover);
   border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
-.info-grid__item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.info-grid th,
+.info-grid td {
+  padding: 6px 10px;
+  text-align: left;
+  border: none;
 }
 
-.info-grid__lab {
+.info-grid th {
   font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
   font-weight: 600;
+  color: var(--lnb-muted);
+  white-space: nowrap;
 }
 
-.info-grid__val {
+.info-grid td {
   font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-txt);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .panel {
@@ -551,6 +664,12 @@ function openMultiChange() {
   margin-bottom: 10px;
 }
 
+.panel__title {
+  margin: 0;
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-weight: 700;
+}
+
 .fold-btn {
   width: 22px;
   height: 22px;
@@ -564,23 +683,6 @@ function openMultiChange() {
 
 .fold-btn--closed {
   transform: rotate(-90deg);
-}
-
-.panel__title {
-  margin: 0 0 10px;
-  font-size: calc(13px + var(--font-size-offset, 0px));
-  font-weight: 700;
-}
-
-.panel__head .panel__title {
-  margin: 0;
-}
-
-.panel__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 .field {
@@ -603,19 +705,102 @@ function openMultiChange() {
   font-style: normal;
 }
 
-.date-row,
-.exec-row {
+.field--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.notice {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--lnb-side);
+  border-radius: var(--radius-md);
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  line-height: 1.6;
+  color: var(--teal-700);
+}
+
+.schedule-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 20px;
+  align-items: start;
+}
+
+.schedule-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.schedule-col + .schedule-col {
+  padding-left: 20px;
+  border-left: 1px solid var(--lnb-line);
+}
+
+.range {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  width: 100%;
 }
 
-.date-row--narrow {
-  max-width: 300px;
+.tilde {
+  color: var(--lnb-muted);
 }
 
-.date-row--narrow .inp {
-  flex: 0 0 135px;
+.exec-start-label {
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.exec-empty,
+.hold-period {
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
+}
+
+.corrected-plan {
+  margin: 0;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  color: var(--lnb-txt);
+}
+
+.action-btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--teal);
+  border-radius: var(--radius-md);
+  background: var(--teal);
+  color: var(--color-text-inverse);
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.action-btn:disabled {
+  border-color: var(--lnb-line);
+  background: var(--lnb-hover);
+  color: var(--lnb-muted);
+  cursor: not-allowed;
+}
+
+.uncomplete-btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md);
+  background: var(--lnb-side);
+  color: var(--teal);
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .inp--block {
@@ -625,6 +810,7 @@ function openMultiChange() {
 
 .inp {
   flex: 1;
+  min-width: 0;
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--lnb-line);
@@ -640,10 +826,6 @@ function openMultiChange() {
   color: var(--lnb-muted);
 }
 
-.inp--sm {
-  flex: 0 0 100px;
-}
-
 .ta {
   width: 100%;
   box-sizing: border-box;
@@ -655,37 +837,6 @@ function openMultiChange() {
   resize: vertical;
   background: var(--lnb-side);
   color: var(--lnb-txt);
-}
-
-.guide {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  background: var(--teal-50);
-  border-radius: var(--radius-md);
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  line-height: 1.6;
-  color: var(--teal-700);
-}
-
-.exec-date {
-  font-size: calc(13px + var(--font-size-offset, 0px));
-  font-weight: 600;
-}
-
-.badge {
-  margin-left: 6px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  color: var(--blue);
-  background: var(--blue-bg);
-  padding: 2px 8px;
-  border-radius: 20px;
-}
-
-.field--split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 16px;
 }
 
 .seg {
@@ -725,36 +876,54 @@ function openMultiChange() {
   color: var(--lnb-muted);
 }
 
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.tabs__btn {
-  height: 30px;
-  padding: 0 14px;
-  border: 1px solid var(--lnb-line);
-  border-radius: var(--radius-md);
-  background: var(--lnb-side);
-  font-family: inherit;
+.history__title {
+  margin: 0 0 8px;
   font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  color: var(--lnb-txt);
-}
-
-.tabs__btn--on {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: var(--color-text-inverse);
   font-weight: 700;
 }
 
-.readonly {
-  font-size: calc(13px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  color: var(--lnb-txt);
-  padding: 6px 0;
+.history__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+}
+
+.history__table thead th {
+  background: var(--lnb-hover);
+  text-align: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--lnb-line);
+}
+
+.history__table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--lnb-line);
+  text-align: center;
+}
+
+.history-empty {
+  color: var(--lnb-muted);
+}
+
+.history-row {
+  cursor: pointer;
+}
+
+.history-cancel {
+  margin-left: 6px;
+  border: none;
+  background: none;
+  color: var(--teal);
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.last-modified {
+  margin-right: auto;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
 }
 
 .alert-scrim {
@@ -775,17 +944,7 @@ function openMultiChange() {
   box-shadow: var(--shadow-md);
 }
 
-.alert-box--form {
-  width: 420px;
-}
-
-.alert-box h4 {
-  margin: 0 0 10px;
-  font-size: calc(15px + var(--font-size-offset, 0px));
-}
-
-.alert-box p,
-.alert-box__msg {
+.alert-box p {
   margin: 0 0 14px;
   font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.55;
@@ -795,7 +954,6 @@ function openMultiChange() {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 14px;
 }
 
 .btn--primary {
@@ -809,7 +967,7 @@ function openMultiChange() {
 }
 
 .btn--ghost {
-  background: #ffffff;
+  background: var(--lnb-side);
   border-color: var(--lnb-line);
   color: var(--lnb-txt);
 }

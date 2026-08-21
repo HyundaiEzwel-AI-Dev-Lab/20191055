@@ -2,19 +2,46 @@
 import { reactive } from 'vue'
 
 export const approvalMeta = {
-  hint: '시스템 관리 · WBS 일정변경·요구사항 변경 요청 승인',
+  hint: '시스템 관리 · WBS 계획일 변경·실행 홀딩 승인',
 }
 
 export const approvalStatusOptions = ['전체', '승인요청', '승인완료', '승인반려', '요청취소']
-export const requestTypeOptions = ['전체', '요구사항', '일정', '일시중단']
+export const requestTypeOptions = ['전체', '일정', '일시중단']
 export const dateTypeOptions = ['요청일', '승인일']
 export { pageSizeOptions } from '@/shared/lib/commonOptions'
 
+/** `2026/05/01~05/31`. 해가 다르면 종료일도 연도까지 적는다. */
+export function dateRangeText(start, end) {
+  if (!start && !end) return '-'
+  if (!start) return `~${slashDate(end)}`
+  if (!end) return `${slashDate(start)}~`
+
+  const sameYear = start.slice(0, 4) === end.slice(0, 4)
+  return `${slashDate(start)}~${sameYear ? end.slice(5).replace('-', '/') : slashDate(end)}`
+}
+
+function slashDate(isoDate) {
+  return String(isoDate).replaceAll('-', '/')
+}
+
 function formatApprovalRange(start, end) {
-  if (!start || !end) return '-'
-  const [ys, ms, ds] = start.split('-')
-  const [, me, de] = end.split('-')
-  return `${ys}/${ms}/${ds}~${me}/${de}`
+  return dateRangeText(start, end)
+}
+
+export function isHoldRequest(row) {
+  return row?.type === '일시중단' || row?.requestType === 'HOLD'
+}
+
+export function beforeText(row) {
+  if (isHoldRequest(row)) return '-'
+  return row.before || '-'
+}
+
+export function afterText(row) {
+  if (isHoldRequest(row)) {
+    return dateRangeText(row.holdStartDate, row.holdEndDate)
+  }
+  return row.after || '-'
 }
 
 /** WBS 일괄 일정변경(POP-S-WBS-04) → 승인요청 추가 */
@@ -29,6 +56,50 @@ export function addScheduleChangeRequest({
   requester = '김현대',
 }) {
   const nextId = Math.max(0, ...approvalList.map((r) => r.id)) + 1
+  const isHold =
+    tasks.length > 0 &&
+    tasks.every((t) => t.holdStart && t.holdEnd) &&
+    !tasks.some((t) => t.newPlanStart)
+
+  const requestedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  const requestDate = new Date().toISOString().slice(0, 10)
+  const name =
+    tasks.length > 1 ? `${projectName || '프로젝트'} 외 ${tasks.length - 1}건` : projectName || '-'
+
+  if (isHold) {
+    const first = tasks[0]
+    const holdStartDate = first.holdStart
+    const holdEndDate = first.holdEnd
+    const expectedResumeDate = first.restart?.start || ''
+    const row = {
+      id: nextId,
+      status: '승인요청',
+      type: '일시중단',
+      requestType: 'HOLD',
+      projectName: name,
+      projectId: projectId || '',
+      openDate: openDate || '-',
+      before: '-',
+      after: dateRangeText(holdStartDate, holdEndDate),
+      requester,
+      requestDate,
+      approveDate: '-',
+      reason,
+      holdStartDate,
+      holdEndDate,
+      expectedResumeDate: expectedResumeDate || null,
+      wbsIds: tasks.map((t) => t.wbsId),
+      detail: {
+        suspendReason: reason || '-',
+        suspendPeriod: dateRangeText(holdStartDate, holdEndDate),
+        expectedResumeDate: expectedResumeDate || null,
+        requestedAt,
+      },
+    }
+    approvalList.unshift(row)
+    return row
+  }
+
   const uniqueBefore = [
     ...new Set(
       tasks.map((t) => formatApprovalRange(t.planStart, t.planEnd)).filter((v) => v !== '-'),
@@ -40,10 +111,7 @@ export function addScheduleChangeRequest({
       : uniqueBefore.length
         ? `개별일정 (${tasks.length}건)`
         : '-'
-  const name =
-    tasks.length > 1 ? `${projectName || '프로젝트'} 외 ${tasks.length - 1}건` : projectName || '-'
 
-  const requestedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
   const scheduleRows = tasks.map((t) => ({
     taskType: t.workType || t.taskType || t.name || '-',
     assignee: t.assignee || t.owner || t.assigneeDisplay || '-',
@@ -60,15 +128,19 @@ export function addScheduleChangeRequest({
     id: nextId,
     status: '승인요청',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: name,
     projectId: projectId || '',
     openDate: openDate || '-',
     before,
     after: formatApprovalRange(planStart, planEnd),
     requester,
-    requestDate: new Date().toISOString().slice(0, 10),
+    requestDate,
     approveDate: '-',
     reason,
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     wbsIds: tasks.map((t) => t.wbsId),
     detail: { scheduleRows },
   }
@@ -78,34 +150,34 @@ export function addScheduleChangeRequest({
 
 export const approvalList = reactive([
   {
-    id: 30,
+    id: 32,
     status: '승인요청',
-    type: '요구사항',
+    type: '일시중단',
+    requestType: 'HOLD',
     projectName: '복지혜택 신청 UX 개선',
     projectId: 'p2',
     openDate: '2026-06-15',
-    before: '원안 유지',
-    after: '분석 반영',
+    before: '-',
+    after: '2026/05/25~06/10',
     requester: '김현대',
     requestDate: '2026-05-21',
     approveDate: '-',
-    reason: '고객사 피드백 반영으로 요구사항 원안 변경',
+    reason: '고객사 QA 일정 조율',
+    holdStartDate: '2026-05-25',
+    holdEndDate: '2026-06-10',
+    expectedResumeDate: '2026-06-11',
     detail: {
-      requirement: {
-        changeItem: '요구사항 원안',
-        reqId: 'REQ-012',
-        reason: '고객사 피드백 반영으로 요구사항 원안 변경',
-        beforeContent:
-          '복지혜택 신청 화면에서 숙박바우처 선택 시 기존 신청정보를 유지한다.',
-        afterContent:
-          '복지혜택 신청 화면에서 숙박바우처 변경 시 신청정보를 초기화하고 재입력을 안내한다.',
-      },
+      suspendReason: '고객사 QA 일정 조율',
+      suspendPeriod: '2026/05/25~06/10',
+      expectedResumeDate: '2026-06-11',
+      requestedAt: '2026-05-21 09:40',
     },
   },
   {
     id: 29,
     status: '승인요청',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: '복지혜택 신청 UX 개선',
     projectId: 'p2',
     openDate: '2026-06-15',
@@ -115,6 +187,9 @@ export const approvalList = reactive([
     requestDate: '2026-05-20',
     approveDate: '-',
     reason: '디자인 일정 지연 반영',
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     detail: {
       scheduleRows: [
         {
@@ -132,6 +207,7 @@ export const approvalList = reactive([
     id: 28,
     status: '승인요청',
     type: '일시중단',
+    requestType: 'HOLD',
     projectName: '주문취소 시 쿠폰 할인취소 정보 표기',
     projectId: 'p1',
     openDate: '2026-05-20',
@@ -141,9 +217,13 @@ export const approvalList = reactive([
     requestDate: '2026-05-18',
     approveDate: '-',
     reason: '고객사 일정 조율로 일시 중단 요청',
+    holdStartDate: '2026-06-01',
+    holdEndDate: '2026-06-30',
+    expectedResumeDate: '2026-07-01',
     detail: {
       suspendReason: '고객사 일정 조율로 일시 중단 요청',
       suspendPeriod: '2026/06/01~06/30',
+      expectedResumeDate: '2026-07-01',
       requestedAt: '2026-05-18 11:30',
     },
   },
@@ -151,6 +231,7 @@ export const approvalList = reactive([
     id: 27,
     status: '승인요청',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: '전사 프로젝트 관리 시스템 구축 외 2건',
     projectId: 'p6',
     openDate: '2026-05-20',
@@ -160,6 +241,9 @@ export const approvalList = reactive([
     requestDate: '2026-05-10',
     approveDate: '-',
     reason: 'WBS 일정 일괄 조정',
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     detail: {
       scheduleRows: [
         {
@@ -193,6 +277,7 @@ export const approvalList = reactive([
     id: 26,
     status: '승인완료',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: '전사 프로젝트 관리 시스템 구축',
     projectId: 'p6',
     openDate: '2026-05-20',
@@ -202,6 +287,9 @@ export const approvalList = reactive([
     requestDate: '2026-05-05',
     approveDate: '2026-05-05',
     reason: '개발 일정 연장',
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     detail: {
       scheduleRows: [
         {
@@ -216,32 +304,34 @@ export const approvalList = reactive([
     },
   },
   {
-    id: 25,
+    id: 33,
     status: '승인완료',
-    type: '요구사항',
+    type: '일시중단',
+    requestType: 'HOLD',
     projectName: '전사 프로젝트 관리 시스템 구축',
     projectId: 'p6',
     openDate: '2026-05-20',
-    before: '미확정',
-    after: '확정',
+    before: '-',
+    after: '2026/04/01~04/15',
     requester: '박현대',
-    requestDate: '2026-04-18',
-    approveDate: '2026-04-18',
-    reason: '요구사항 확정 변경',
+    requestDate: '2026-03-25',
+    approveDate: '2026-03-26',
+    reason: '인프라 점검으로 실행 홀딩',
+    holdStartDate: '2026-04-01',
+    holdEndDate: '2026-04-15',
+    expectedResumeDate: '2026-04-16',
     detail: {
-      requirement: {
-        changeItem: '요건확정 상태',
-        reqId: 'REQ-003',
-        reason: '요구사항 확정 변경',
-        beforeContent: '분석 진행 중 — 요건미확정',
-        afterContent: '분석 완료 — 요건확정',
-      },
+      suspendReason: '인프라 점검으로 실행 홀딩',
+      suspendPeriod: '2026/04/01~04/15',
+      expectedResumeDate: '2026-04-16',
+      requestedAt: '2026-03-25 16:10',
     },
   },
   {
     id: 24,
     status: '승인반려',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: '주문취소 시 쿠폰 할인취소 정보 표기',
     projectId: 'p1',
     openDate: '2026-05-20',
@@ -251,6 +341,9 @@ export const approvalList = reactive([
     requestDate: '2026-04-15',
     approveDate: '2026-04-16',
     reason: '일정 근거 부족으로 반려',
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     detail: {
       scheduleRows: [
         {
@@ -268,6 +361,7 @@ export const approvalList = reactive([
     id: 31,
     status: '요청취소',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: '전사 프로젝트 관리 시스템 구축',
     projectId: 'p6',
     openDate: '2026-05-20',
@@ -277,6 +371,9 @@ export const approvalList = reactive([
     requestDate: '2026-05-08',
     approveDate: '-',
     reason: '요청자가 승인 전 요청취소',
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     detail: {
       scheduleRows: [
         {
@@ -294,6 +391,7 @@ export const approvalList = reactive([
     id: 23,
     status: '승인요청',
     type: '일정',
+    requestType: 'PLAN_CHANGE',
     projectName: '복지혜택 신청 UX 개선',
     projectId: 'p2',
     openDate: '2026-06-15',
@@ -303,6 +401,9 @@ export const approvalList = reactive([
     requestDate: '2026-05-19',
     approveDate: '-',
     reason: '추가 일정 단건 요청',
+    holdStartDate: null,
+    holdEndDate: null,
+    expectedResumeDate: null,
     detail: {
       scheduleRows: [
         {

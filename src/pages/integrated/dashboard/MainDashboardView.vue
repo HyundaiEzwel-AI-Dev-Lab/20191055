@@ -4,15 +4,15 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   dashboardMeta,
-  stageKpi,
-  completionRate,
-  initiators,
-  devTypes,
-  summaries,
+  dashboardAxes,
   dashboardProjects,
   requestDepts,
   devDepts,
   stageOptions,
+  NO_OPEN_DATE,
+  UNSPECIFIED_LABEL,
+  buildDashboardStats,
+  filterCurrentYearOpen,
 } from '@/entities/dashboard/mock/dashboard'
 import { pageSizeOptions } from '@/shared/lib/commonOptions'
 import { getScheduleChange } from '@/entities/dashboard/mock/scheduleChange'
@@ -24,8 +24,10 @@ import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
+import { useProjectStore } from '@/app/stores/project'
 
 const router = useRouter()
+const projectStore = useProjectStore()
 
 const filterExpanded = ref(false)
 const filters = ref({
@@ -49,12 +51,16 @@ const scheduleModalData = ref(null)
 const showRequirementModal = ref(false)
 const requirementContext = ref(null)
 
-const initiatorGradient = computed(() => buildConicGradient(initiators))
-const devTypeGradient = computed(() => buildConicGradient(devTypes))
-const initiatorTotal = computed(() => initiators.reduce((s, i) => s + i.count, 0))
-const devTypeTotal = computed(() => devTypes.reduce((s, i) => s + i.count, 0))
-const summaryMax = computed(() => Math.max(...summaries.map((s) => s.count), 1))
-const gaugePercent = computed(() => `${(completionRate / 2).toFixed(1)}%`)
+const initiatorOptions = computed(() => dashboardAxes.initiators.filter((i) => i.label !== UNSPECIFIED_LABEL))
+const devTypeOptions = computed(() => dashboardAxes.devTypes.filter((d) => d.label !== UNSPECIFIED_LABEL))
+const summaryOptions = computed(() => dashboardAxes.summaries.filter((s) => s.label !== UNSPECIFIED_LABEL))
+
+const initiatorGradient = computed(() => buildConicGradient(stats.value.initiators))
+const devTypeGradient = computed(() => buildConicGradient(stats.value.devTypes))
+const initiatorTotal = computed(() => stats.value.initiators.reduce((s, i) => s + i.count, 0))
+const devTypeTotal = computed(() => stats.value.devTypes.reduce((s, i) => s + i.count, 0))
+const summaryMax = computed(() => Math.max(...stats.value.summaries.map((s) => s.count), 1))
+const gaugePercent = computed(() => `${(stats.value.completionRate / 2).toFixed(1)}%`)
 
 // 로드 시 막대가 0에서 채워지는 진입 애니메이션
 const barsFilled = ref(false)
@@ -69,6 +75,7 @@ function pct(count, total) {
 }
 
 const STAGE_SORT_PRIORITY = { 테스트: 0, 처리중: 1, 협의중: 2, 접수: 3, 완료: 4, 반려: 5 }
+const NO_OPEN_DATE_SORT_KEY = '9999-12-31'
 
 const filteredProjects = computed(() => {
   const f = appliedFilters.value
@@ -80,15 +87,30 @@ const filteredProjects = computed(() => {
     if (f.initiator && p.initiator !== f.initiator) return false
     if (f.devType && p.devType !== f.devType) return false
     if (f.summary && p.summary !== f.summary) return false
+    if (f.openFrom || f.openTo) {
+      if (p.scheduledOpenDate === NO_OPEN_DATE) return false
+      if (f.openFrom && p.scheduledOpenDate < f.openFrom) return false
+      if (f.openTo && p.scheduledOpenDate > f.openTo) return false
+    }
     return true
   })
   return [...list].sort((a, b) => {
-    if (a.scheduledOpenDate !== b.scheduledOpenDate) {
-      return a.scheduledOpenDate < b.scheduledOpenDate ? -1 : 1
-    }
-    return (STAGE_SORT_PRIORITY[a.stage] ?? 99) - (STAGE_SORT_PRIORITY[b.stage] ?? 99)
+    const aDate = a.scheduledOpenDate === NO_OPEN_DATE ? NO_OPEN_DATE_SORT_KEY : a.scheduledOpenDate
+    const bDate = b.scheduledOpenDate === NO_OPEN_DATE ? NO_OPEN_DATE_SORT_KEY : b.scheduledOpenDate
+    if (aDate !== bDate) return aDate < bDate ? -1 : 1
+    const byStage = (STAGE_SORT_PRIORITY[a.stage] ?? 99) - (STAGE_SORT_PRIORITY[b.stage] ?? 99)
+    if (byStage !== 0) return byStage
+    return String(a.id).localeCompare(String(b.id))
   })
 })
+
+const currentYear = computed(() => {
+  const parsed = Number(dashboardMeta.queryTime.slice(0, 4))
+  return Number.isNaN(parsed) ? new Date().getFullYear() : parsed
+})
+
+const analysisRows = computed(() => filterCurrentYearOpen(filteredProjects.value, currentYear.value))
+const stats = computed(() => buildDashboardStats(analysisRows.value, dashboardAxes))
 
 const pagedProjects = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -132,19 +154,21 @@ const FILTER_TAG_META = [
   { key: 'initiator', label: '발의주체' },
   { key: 'devType', label: '개발구분' },
   { key: 'summary', label: '적요' },
-  { key: 'openFrom', label: '오픈시작' },
-  { key: 'openTo', label: '오픈종료' },
 ]
 
 const filterTags = computed(() => {
   const f = appliedFilters.value
-  return FILTER_TAG_META
+  const tags = FILTER_TAG_META
     .filter((m) => {
       const v = f[m.key]
       if (m.skip) return !m.skip(v)
       return v !== '' && v != null
     })
     .map((m) => ({ key: m.key, label: m.label, value: String(f[m.key]) }))
+  if (f.openFrom || f.openTo) {
+    tags.push({ key: 'openRange', label: '오픈기간', value: `${f.openFrom || '…'} ~ ${f.openTo || '…'}` })
+  }
+  return tags
 })
 
 const FILTER_CLEAR_DEFAULTS = {
@@ -160,9 +184,13 @@ const FILTER_CLEAR_DEFAULTS = {
 }
 
 function removeFilterTag(key) {
-  const cleared = FILTER_CLEAR_DEFAULTS[key] ?? ''
-  filters.value[key] = cleared
-  appliedFilters.value[key] = cleared
+  if (key === 'openRange') {
+    filters.value.openFrom = ''
+    filters.value.openTo = ''
+  } else {
+    const cleared = FILTER_CLEAR_DEFAULTS[key] ?? ''
+    filters.value[key] = cleared
+  }
   search()
 }
 
@@ -201,10 +229,11 @@ function onExcelDownload() {
 }
 
 function onProjectClick(row) {
+  projectStore.setCurrentProject({ id: row.id, name: row.name, stage: row.stage, isDraft: false })
   router.push('/workspace/info')
 }
 
-function onRequirementClick(row) {
+function onDeptClick(row) {
   requirementContext.value = {
     id: row.id,
     name: row.name,
@@ -224,9 +253,7 @@ function onOverdueClick(row) {
 
 <template>
   <div class="dashboard">
-    <p class="notice">
-      {{ dashboardMeta.yearScope }} (조회시점 {{ dashboardMeta.queryTime }})
-    </p>
+    <p class="hint">{{ dashboardMeta.yearScope }} (조회시점 {{ dashboardMeta.queryTime }})</p>
 
     <!-- 검색조건 -->
     <SearchFilterBar
@@ -263,19 +290,22 @@ function onOverdueClick(row) {
         <FilterSelectPill
           label="발의주체"
           v-model="filters.initiator"
-          :options="[{ value: '', label: '전체' }, ...initiators.map((i) => i.label)]"
+          fill
+          :options="[{ value: '', label: '전체' }, ...initiatorOptions.map((i) => i.label)]"
           empty-label="전체"
         />
         <FilterSelectPill
           label="개발구분"
           v-model="filters.devType"
-          :options="[{ value: '', label: '전체' }, ...devTypes.map((d) => d.label)]"
+          fill
+          :options="[{ value: '', label: '전체' }, ...devTypeOptions.map((d) => d.label)]"
           empty-label="전체"
         />
         <FilterSelectPill
           label="적요"
           v-model="filters.summary"
-          :options="[{ value: '', label: '전체' }, ...summaries.map((s) => s.label)]"
+          fill
+          :options="[{ value: '', label: '전체' }, ...summaryOptions.map((s) => s.label)]"
           empty-label="전체"
         />
         <FilterDateRange
@@ -288,6 +318,10 @@ function onOverdueClick(row) {
       </template>
     </SearchFilterBar>
 
+    <p class="scope-caption">
+      현황분석 · {{ currentYear }}년 오픈 프로젝트 {{ analysisRows.length }}건 기준
+    </p>
+
     <!-- KPI + 완료율 -->
     <div class="dash-grid dash-grid--2">
       <section class="card pad">
@@ -296,27 +330,27 @@ function onOverdueClick(row) {
           <div class="kpi kpi--neutral">
             <span class="kpi__dot"></span>
             <span class="kpi__lab">전체</span>
-            <span class="kpi__num">{{ stageKpi.total }}</span>
+            <span class="kpi__num">{{ stats.stageKpi.total }}</span>
           </div>
           <div class="kpi kpi--gray">
             <span class="kpi__dot"></span>
             <span class="kpi__lab">접수</span>
-            <span class="kpi__num">{{ stageKpi.received }}</span>
+            <span class="kpi__num">{{ stats.stageKpi.received }}</span>
           </div>
           <div class="kpi kpi--blue">
             <span class="kpi__dot"></span>
             <span class="kpi__lab">진행중</span>
-            <span class="kpi__num">{{ stageKpi.inProgress }}</span>
+            <span class="kpi__num">{{ stats.stageKpi.inProgress }}</span>
           </div>
           <div class="kpi kpi--green">
             <span class="kpi__dot"></span>
             <span class="kpi__lab">완료</span>
-            <span class="kpi__num">{{ stageKpi.completed }}</span>
+            <span class="kpi__num">{{ stats.stageKpi.completed }}</span>
           </div>
           <div class="kpi kpi--red">
             <span class="kpi__dot"></span>
             <span class="kpi__lab">반려</span>
-            <span class="kpi__num">{{ stageKpi.rejected }}</span>
+            <span class="kpi__num">{{ stats.stageKpi.rejected }}</span>
           </div>
         </div>
       </section>
@@ -326,7 +360,7 @@ function onOverdueClick(row) {
         <div class="gauge" :style="{ '--p': gaugePercent }">
           <div class="gauge__arc"></div>
           <div class="gauge__hole">
-            <b>{{ completionRate }}%</b>
+            <b>{{ stats.completionRate }}%</b>
           </div>
         </div>
       </section>
@@ -344,7 +378,7 @@ function onOverdueClick(row) {
             </div>
           </div>
           <ul class="legend">
-            <li v-for="item in initiators" :key="item.label" class="legend__item">
+            <li v-for="item in stats.initiators" :key="item.label" class="legend__item">
               <span class="legend__sw" :style="{ background: item.color }"></span>
               {{ item.label }}
               <span class="legend__pct">{{ pct(item.count, initiatorTotal) }}%</span>
@@ -364,7 +398,7 @@ function onOverdueClick(row) {
             </div>
           </div>
           <ul class="legend">
-            <li v-for="item in devTypes" :key="item.label" class="legend__item">
+            <li v-for="item in stats.devTypes" :key="item.label" class="legend__item">
               <span class="legend__sw" :style="{ background: item.color }"></span>
               {{ item.label }}
               <span class="legend__pct">{{ pct(item.count, devTypeTotal) }}%</span>
@@ -377,7 +411,7 @@ function onOverdueClick(row) {
       <section class="card pad">
         <h3 class="sec-title">적요</h3>
         <div class="hbar">
-          <div v-for="item in summaries" :key="item.label" class="hbar__row">
+          <div v-for="item in stats.summaries" :key="item.label" class="hbar__row">
             <span class="hbar__lab">{{ item.label }}</span>
             <div class="hbar__track">
               <span
@@ -413,7 +447,6 @@ function onOverdueClick(row) {
               <th>오픈일</th>
               <th>요청부서</th>
               <th>담당개발부서</th>
-              <th>요구사항</th>
             </tr>
           </thead>
           <tbody>
@@ -460,18 +493,12 @@ function onOverdueClick(row) {
                 </template>
                 <span v-else class="tbl__date--empty">-</span>
               </td>
-              <td>{{ row.requestDept }}</td>
-              <td>{{ row.devDept }}</td>
               <td>
-                <button
-                  type="button"
-                  class="req-icon-btn"
-                  title="요구사항 목록 보기"
-                  @click.stop="onRequirementClick(row)"
-                >
-                  📋
+                <button type="button" class="tbl__link" @click.stop="onDeptClick(row)">
+                  {{ row.requestDept }}
                 </button>
               </td>
+              <td>{{ row.devDept }}</td>
             </tr>
           </tbody>
         </table>
@@ -522,6 +549,23 @@ function onOverdueClick(row) {
   font-family: var(--font-family);
   color: var(--lnb-txt);
   padding: 0 24px 28px;
+}
+
+.hint {
+  margin: 0 0 14px;
+  font-size: var(--font-size-xs);
+  color: var(--lnb-muted);
+  background: var(--lnb-hover);
+  border: 1px solid var(--lnb-line);
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+}
+
+.scope-caption {
+  margin: 0 0 8px;
+  font-size: var(--font-size-xs);
+  color: var(--lnb-muted);
 }
 
 .card {
@@ -907,20 +951,6 @@ function onOverdueClick(row) {
   text-underline-offset: 2px;
   cursor: pointer;
   text-align: left;
-}
-
-.req-icon-btn {
-  border: none;
-  background: none;
-  padding: 2px 4px;
-  font-size: calc(14px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  border-radius: 6px;
-  line-height: 1;
-}
-
-.req-icon-btn:hover {
-  background: var(--teal-50);
 }
 
 .tbl__date--over {

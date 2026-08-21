@@ -12,12 +12,10 @@ import {
 } from '@/entities/dashboard/mock/techResource'
 import { pageSizeOptions } from '@/shared/lib/commonOptions'
 import DelayTaskModal from '@/pages/integrated/dashboard/DelayTaskModal.vue'
-import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
-import { mockExcelDownload, flattenPersonProjects } from '@/shared/file-excel/excelDownload'
 import { useProjectStore } from '@/app/stores/project'
 
 const router = useRouter()
@@ -163,53 +161,11 @@ function removeFilterTag(key) {
   search()
 }
 
-function onExcelDownload() {
-  const rows = flattenPersonProjects(filteredRecords.value, (person, proj) => ({
-    no: person.no,
-    dept: person.dept,
-    name: person.name,
-    empId: person.empId,
-    position: person.position,
-    projectCount: person.projectCount,
-    totalPlanMd: person.totalPlanMd,
-    projectName: proj?.name || '-',
-    stage: proj?.stage || '-',
-    progress: proj?.progress ?? '-',
-    scheduledOpenDate: proj?.scheduledOpenDate || '-',
-    planMd: proj?.planMd ?? '-',
-    taskCount: proj?.taskCount ?? '-',
-    execProgress: proj?.execProgress ?? '-',
-    scheduleStatus: proj?.scheduleStatus || '-',
-  }))
-  mockExcelDownload('테크 리소스 관리', rows, [
-    { key: 'no', label: 'No.' },
-    { key: 'dept', label: '부서' },
-    { key: 'name', label: '담당자' },
-    { key: 'empId', label: '사번' },
-    { key: 'position', label: '직급' },
-    { key: 'projectCount', label: '진행 프로젝트' },
-    { key: 'totalPlanMd', label: '계획 공수 합' },
-    { key: 'projectName', label: '프로젝트명' },
-    { key: 'stage', label: '처리단계' },
-    { key: 'progress', label: '공정률(%)' },
-    { key: 'scheduledOpenDate', label: '오픈예정일' },
-    { key: 'planMd', label: '계획 공수' },
-    { key: 'taskCount', label: '담당 업무 수' },
-    { key: 'execProgress', label: '실행 공정률(%)' },
-    { key: 'scheduleStatus', label: '계획 준수' },
-  ])
-}
-
 function onDelayClick(personId, project) {
   const data = getDelayTasks(personId, project.id)
   if (!data) return
   delayModalData.value = data
   showDelayModal.value = true
-}
-
-function onProjectClick(proj) {
-  projectStore.setCurrentProject({ id: proj.id, name: proj.name, stage: proj.stage })
-  router.push('/workspace/info')
 }
 
 function onTaskCountClick(person, proj) {
@@ -325,7 +281,6 @@ function formatExecProgress(progress) {
         <select v-model="pageSize" class="listcard__pagesize" @change="onPageSizeChange">
           <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
         </select>
-        <ExcelDownloadButton class="listcard__excel" @click="onExcelDownload" />
       </div>
       <div class="listcard__scroll">
         <table class="tbl tbl--grouped">
@@ -387,11 +342,7 @@ function formatExecProgress(progress) {
                   <td :rowspan="person.projects.length">{{ person.projectCount }}건</td>
                   <td :rowspan="person.projects.length">{{ formatPlanMd(person.totalPlanMd) }}</td>
                 </template>
-                <td class="tbl__proj">
-                  <button type="button" class="tbl__link" @click="onProjectClick(proj)">
-                    {{ proj.name }}
-                  </button>
-                </td>
+                <td class="tbl__proj">{{ proj.name }}</td>
                 <td>
                   <span class="stbadge" :class="proj.stageType">{{ proj.stage }}</span>
                 </td>

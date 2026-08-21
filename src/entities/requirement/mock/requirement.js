@@ -27,6 +27,91 @@ export const bizCategoryMap = {
 export const requirementTypes = ['최초 요건', '추가 요구사항']
 export const registerTaskTypes = ['기획', '디자인', '퍼블리싱', '개발', '테스트']
 
+/** h-pms CHANGE_REASON_LABEL — 코드+라벨. 폼 저장은 { code, etc } */
+export const changeReasonOptions = [
+  { code: 'POLICY_DISCUSSION', label: '정책 협의 및 내용 보완' },
+  { code: 'SB_REVIEW', label: 'SB 리뷰 반영' },
+  { code: 'DEV_REVIEW', label: '개발 검토 반영' },
+  { code: 'POLICY_CHANGE', label: '업무 정책 변경' },
+  { code: 'REQ_AMENDMENT', label: '요구사항 수정' },
+  { code: 'ETC', label: '기타' },
+]
+
+export function changeReasonLabel(code) {
+  return changeReasonOptions.find((opt) => opt.code === code)?.label || code || ''
+}
+
+export function emptyScope(overrides = {}) {
+  return {
+    id: null,
+    seq: 1,
+    system: 'FO',
+    bizCategory: '',
+    screenPath: '',
+    screenName: '',
+    screenCode: '',
+    noScreen: false,
+    taskTypes: [],
+    ...overrides,
+  }
+}
+
+function inferScope(row) {
+  const noScreen =
+    !!row?.noScreen ||
+    !row?.screenName ||
+    row.screenName === '화면없음' ||
+    row.screenName === '-'
+  return emptyScope({
+    id: row?.id ? `${row.id}-s1` : null,
+    system: row?.system || 'FO',
+    bizCategory: row?.bizCategory || '',
+    screenPath: noScreen ? '' : (row?.screenPath || ''),
+    screenName: noScreen ? '' : (row?.screenName || row?.screenMenu || ''),
+    screenCode: row?.screenCode || '',
+    noScreen,
+    taskTypes: [...(row?.taskTypes || [])],
+  })
+}
+
+/** 목록·폼·시나리오 검색이 같은 scopes[]를 쓰도록 정규화 */
+export function normalizeScopes(row) {
+  if (row?.scopes?.length) {
+    return row.scopes.map((scope, index) =>
+      emptyScope({
+        ...scope,
+        id: scope.id ?? null,
+        seq: scope.seq || index + 1,
+        noScreen: !!scope.noScreen,
+        taskTypes: [...(scope.taskTypes || [])],
+      }),
+    )
+  }
+  return [inferScope(row)]
+}
+
+/** scopes[]가 소스. reqId/name/system/taskTypes 별칭은 시나리오·테스트 실행용 */
+export function hydrateRequirement(row) {
+  const scopes = normalizeScopes(row)
+  const primary = scopes[0]
+  const taskTypes = [...new Set(scopes.flatMap((scope) => scope.taskTypes || []))]
+  return {
+    ...row,
+    scopes,
+    scopeCount: scopes.length,
+    taskTypes,
+    system: primary.system,
+    bizCategory: primary.bizCategory,
+    systemPath:
+      primary.system && primary.bizCategory
+        ? `${primary.system}>${primary.bizCategory}`
+        : row.systemPath || '',
+    screenPath: primary.noScreen ? '-' : primary.screenPath || '-',
+    screenName: primary.noScreen ? '화면없음' : primary.screenName || '-',
+    screenMenu: primary.noScreen ? '' : primary.screenName || '',
+  }
+}
+
 /** PAG-S-REQ-05 일괄등록 엑셀 양식 컬럼 */
 export const requirementBulkTemplateColumns = [
   { key: 'reqType', label: '구분' },
@@ -223,6 +308,30 @@ const baseRequirements = [
     bizCategory: '법인숙박',
     screenMenu: '복지혜택 신청',
     memo: '',
+    scopes: [
+      {
+        id: 'req1-s1',
+        seq: 1,
+        system: 'FO',
+        bizCategory: '법인숙박',
+        screenPath: '여행레저>복지혜택',
+        screenName: '복지혜택 신청',
+        screenCode: 'FO-001',
+        noScreen: false,
+        taskTypes: ['디자인', '퍼블리싱'],
+      },
+      {
+        id: 'req1-s2',
+        seq: 2,
+        system: 'HIMS',
+        bizCategory: '프로모션',
+        screenPath: '프로모션관리',
+        screenName: '프로모션 등록',
+        screenCode: 'HIMS-010',
+        noScreen: false,
+        taskTypes: ['개발'],
+      },
+    ],
     issues: [
       {
         id: 'i1',
@@ -296,6 +405,19 @@ const baseRequirements = [
     bizCategory: '법인숙박',
     screenMenu: '복지혜택 신청',
     memo: '',
+    scopes: [
+      {
+        id: 'req2-s1',
+        seq: 1,
+        system: 'FO',
+        bizCategory: '법인숙박',
+        screenPath: '여행레저>복지혜택',
+        screenName: '복지혜택 신청',
+        screenCode: 'FO-002',
+        noScreen: false,
+        taskTypes: ['개발'],
+      },
+    ],
     issues: [
       {
         id: 'i2-1',
@@ -382,6 +504,19 @@ const baseRequirements = [
     bizCategory: '주문클레임',
     screenMenu: '주문결제',
     memo: 'Spec Out 검토',
+    scopes: [
+      {
+        id: 'req3-s1',
+        seq: 1,
+        system: 'FO',
+        bizCategory: '주문클레임',
+        screenPath: '주문/결제',
+        screenName: '주문결제',
+        screenCode: 'FO-203',
+        noScreen: false,
+        taskTypes: ['개발'],
+      },
+    ],
     issues: [],
   },
   {
@@ -410,6 +545,19 @@ const baseRequirements = [
     bizCategory: '주문클레임',
     screenMenu: '취소수수료 강제생성',
     memo: '',
+    scopes: [
+      {
+        id: 'req4-s1',
+        seq: 1,
+        system: 'FO',
+        bizCategory: '주문클레임',
+        screenPath: '클레임관리 > 취소수수료 강제생성',
+        screenName: '취소수수료 강제생성',
+        screenCode: 'FO-304',
+        noScreen: false,
+        taskTypes: ['개발'],
+      },
+    ],
     issues: [
       {
         id: 'i4',
@@ -435,9 +583,9 @@ const baseRequirements = [
   {
     id: 'req5',
     reqId: 'REQ-005',
-    systemPath: 'FO>이지체크인',
-    screenPath: '마이체크인 > 예약관리',
-    screenName: '주문내역조회',
+    systemPath: 'FO>회원/로그인/SSO',
+    screenPath: '-',
+    screenName: '화면없음',
     reqType: '추가',
     name: '주문취소 API 개발',
     taskTypes: ['개발'],
@@ -456,8 +604,23 @@ const baseRequirements = [
     analysis: '',
     system: 'FO',
     bizCategory: '회원/로그인/SSO',
-    screenMenu: '주문내역조회',
+    screenPath: '-',
+    screenName: '화면없음',
+    screenMenu: '',
     memo: '',
+    scopes: [
+      {
+        id: 'req5-s1',
+        seq: 1,
+        system: 'FO',
+        bizCategory: '회원/로그인/SSO',
+        screenPath: '',
+        screenName: '',
+        screenCode: '',
+        noScreen: true,
+        taskTypes: ['개발'],
+      },
+    ],
     issues: [],
   },
   {
@@ -486,6 +649,19 @@ const baseRequirements = [
     bizCategory: '프로모션',
     screenMenu: '프로모션 등록',
     memo: '',
+    scopes: [
+      {
+        id: 'req6-s1',
+        seq: 1,
+        system: 'HIMS',
+        bizCategory: '프로모션',
+        screenPath: '프로모션관리',
+        screenName: '프로모션 등록',
+        screenCode: 'HIMS-010',
+        noScreen: false,
+        taskTypes: ['기획', '개발'],
+      },
+    ],
     issues: [
       {
         id: 'i6',
@@ -505,7 +681,7 @@ function cloneList(list) {
 
 export function getRequirementList(userId) {
   if (userId === EMPTY_DATA_USER_ID) return []
-  return cloneList(baseRequirements)
+  return cloneList(baseRequirements).map(hydrateRequirement)
 }
 
 export function statusClass(status) {
@@ -527,14 +703,28 @@ export function confirmClass(value) {
 }
 
 export function matchFilters(row, filters) {
+  const scopes = row.scopes?.length ? row.scopes : normalizeScopes(row)
   if (filters.keyword) {
     const q = filters.keyword.toLowerCase()
-    const hay = [row.reqId, row.name, row.original, row.analysis].join(' ').toLowerCase()
+    const hay = [
+      row.reqId,
+      row.name,
+      row.original,
+      row.analysis,
+      ...scopes.map((scope) => `${scope.system} ${scope.screenName} ${scope.screenPath}`),
+    ]
+      .join(' ')
+      .toLowerCase()
     if (!hay.includes(q)) return false
   }
-  if (filters.taskType !== '전체' && !row.taskTypes.includes(filters.taskType)) return false
-  if (filters.system && row.system !== filters.system) return false
-  if (filters.bizCategory && row.bizCategory !== filters.bizCategory) return false
+  if (filters.taskType !== '전체') {
+    const types = [...new Set(scopes.flatMap((scope) => scope.taskTypes || row.taskTypes || []))]
+    if (!types.includes(filters.taskType)) return false
+  }
+  if (filters.system && !scopes.some((scope) => scope.system === filters.system)) return false
+  if (filters.bizCategory && !scopes.some((scope) => scope.bizCategory === filters.bizCategory)) {
+    return false
+  }
   if (filters.status !== '전체' && row.status !== filters.status) return false
   if (filters.priority !== '전체' && row.priority !== filters.priority) return false
   if (filters.confirm !== '전체') {

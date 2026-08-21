@@ -39,6 +39,7 @@ export const integratedMenus = [
       { label: '테스트라이브러리', route: '/integrated/test-library', name: 'test-library' },
       { label: '사용자 관리', route: '/system/users', name: 'user-mgmt' },
       { label: '휴무일 관리', route: '/system/holiday', name: 'holiday-mgmt' },
+      { label: '조직 관리', route: '/system/org-mgmt', name: 'org-mgmt' },
     ],
   },
 ]

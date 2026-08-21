@@ -76,6 +76,7 @@ function buildScreens() {
         category,
         path,
         name,
+        screenCode: `${system}-${String(seq).padStart(3, '0')}`,
         useYn: idx % 7 === 0 ? 'N' : 'Y',
       })
       seq += 1
@@ -93,6 +94,7 @@ function buildScreens() {
       category,
       path: `${system} > ${category} > ${name}`,
       name,
+      screenCode: `${system}-${String(n).padStart(3, '0')}`,
       useYn: 'Y',
     })
   }
@@ -120,6 +122,10 @@ export function searchScreenMenus({ system, keyword }) {
     if (system && row.system !== system) return false
     if (row.useYn !== 'Y') return false
     if (!q) return true
-    return row.name.toLowerCase().includes(q)
+    return (
+      row.name.toLowerCase().includes(q) ||
+      row.path.toLowerCase().includes(q) ||
+      String(row.screenCode || '').toLowerCase().includes(q)
+    )
   })
 }

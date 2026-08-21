@@ -6,10 +6,14 @@ import BaseModal from '@/shared/ui/BaseModal.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import RequirementScreenSearchModal from '@/pages/workspace/requirement/RequirementScreenSearchModal.vue'
 import RequirementChangeReasonModal from '@/pages/workspace/requirement/RequirementChangeReasonModal.vue'
+import RequirementIssuePanel from '@/pages/workspace/requirement/RequirementIssuePanel.vue'
 import {
   requirementTypes,
   systemOptions,
   bizCategoryMap,
+  emptyScope,
+  normalizeScopes,
+  changeReasonLabel,
 } from '@/entities/requirement/mock/requirement'
 
 const props = defineProps({
@@ -18,7 +22,7 @@ const props = defineProps({
   data: { type: Object, default: null },
 })
 
-const emit = defineEmits(['update:modelValue', 'save'])
+const emit = defineEmits(['update:modelValue', 'save', 'issue-added', 'count-change'])
 
 const form = reactive({
   reqId: '자동 채번',
@@ -38,7 +42,7 @@ const form = reactive({
   confirmTech: false,
   memo: '',
   attachments: [],
-  extraCategories: [],
+  scopes: [emptyScope({ bizCategory: '법인숙박' })],
 })
 
 const isEdit = computed(() => props.mode === 'edit')
@@ -50,22 +54,12 @@ const title = computed(() => {
   return isEdit.value ? '요구사항 상세' : '요구사항 등록'
 })
 
-const bizOptions = computed(() => bizCategoryMap[form.system] || [])
-
-/** 요청자·테크 모두 확정 (저장 기준) */
-const bothConfirmed = computed(() => {
-  if (!isEdit.value || !props.data) return false
-  return props.data.confirmRequester === '확정' && props.data.confirmTech === '확정'
-})
-
-/** 반려 상태만 본문 수정 불가 — v1.0에서 "확정 후 수정 불가" 정책이 폐지되고,
- * 확정 이후에도 요구사항 분석 등 상세 내용을 최신화할 수 있도록 변경됨 (SB 98~101) */
+/** 반려 상태만 본문 수정 불가 — 확정 후에도 요구사항은 계속 수정 가능 */
 const isReadOnly = computed(() => {
   if (!isEdit.value) return false
   return props.data?.status === '반려'
 })
 
-/** 기본 정보·업무범주·추가정보 편집 가능 */
 const canEditFields = computed(() => {
   if (isRegister.value || isCopy.value) return true
   return isEdit.value && !isReadOnly.value
@@ -77,40 +71,9 @@ const originalLocked = computed(() => isEdit.value || isCopy.value)
 /** 구분: 등록·복사만 변경, 상세는 잠금 */
 const reqTypeLocked = computed(() => isEdit.value)
 
-/**
- * 요건확정 토글
- * - 접수: 불가 (SB 94·98)
- * - 수용 & 미확정: 가능
- * - 이미 확정된 쪽: 변경 불가
- * - 반려/양측확정(본문잠금): 불가
- */
-const canEditConfirmRequester = computed(() => {
-  if (!canEditFields.value) return false
-  if (form.status !== '수용') return false
-  if (props.data?.confirmRequester === '확정') return false
-  return true
-})
+const canEditScreen = computed(() => canEditFields.value)
 
-const canEditConfirmTech = computed(() => {
-  if (!canEditFields.value) return false
-  if (form.status !== '수용') return false
-  if (props.data?.confirmTech === '확정') return false
-  return true
-})
-
-/** 확정 + 화면없음 → 화면만 1회 수정 가능 (SB 101) */
-const isNoScreen = computed(() => {
-  const name = form.screenName || form.screenMenu || ''
-  return !name || name === '화면없음' || name === '-'
-})
-
-const canEditScreenOnly = computed(
-  () => isEdit.value && isReadOnly.value && bothConfirmed.value && isNoScreen.value,
-)
-
-const canEditScreen = computed(() => canEditFields.value || canEditScreenOnly.value)
-
-const showSaveButton = computed(() => canEditFields.value || canEditScreenOnly.value)
+const showSaveButton = computed(() => canEditFields.value)
 
 const memoCount = computed(() => form.memo.length)
 const showScreenSearch = ref(false)
@@ -121,12 +84,37 @@ const confirmTooltip =
   '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 최종 개발 요구사항 확인 완료 (확정 후에도 요구사항은 계속 수정 가능하며, 확정 자체는 되돌릴 수 없음)\n- 미확정 : 최종 개발 요구사항 확정 전'
 
 function screenDisplayFor(block) {
+  if (block.noScreen) return '화면없음'
   if (block.screenName && block.screenPath) return `${block.screenName} (${block.screenPath})`
   if (block.screenName) return block.screenName
   return block.screenMenu || ''
 }
 
-const screenDisplay = computed(() => screenDisplayFor(form))
+function scopesFromRow(row, { clearScreen = false } = {}) {
+  return normalizeScopes(row).map((scope, index) =>
+    emptyScope({
+      ...scope,
+      seq: scope.seq || index + 1,
+      screenMenu: clearScreen ? '' : scope.screenName || '',
+      screenPath: clearScreen ? '' : scope.screenPath || '',
+      screenName: clearScreen ? '' : scope.screenName || '',
+      screenCode: clearScreen ? '' : scope.screenCode || '',
+      noScreen: clearScreen ? false : !!scope.noScreen,
+      taskTypes: [...(scope.taskTypes || [])],
+    }),
+  )
+}
+
+function syncAliasesFromScopes() {
+  const primary = form.scopes[0]
+  if (!primary) return
+  form.system = primary.system
+  form.bizCategory = primary.bizCategory
+  form.screenPath = primary.noScreen ? '-' : primary.screenPath || ''
+  form.screenName = primary.noScreen ? '화면없음' : primary.screenName || ''
+  form.screenMenu = primary.noScreen ? '' : primary.screenName || ''
+  form.taskTypes = [...new Set(form.scopes.flatMap((scope) => scope.taskTypes || []))]
+}
 
 const metaLine = computed(() => {
   if (!isEdit.value || !props.data) return ''
@@ -161,7 +149,7 @@ watch(
         confirmTech: false,
         memo: '',
         attachments: [],
-        extraCategories: [],
+        scopes: scopesFromRow(props.data, { clearScreen: true }),
       })
     } else if (props.data && isEdit.value) {
       Object.assign(form, {
@@ -182,7 +170,7 @@ watch(
         confirmTech: props.data.confirmTech === '확정',
         memo: props.data.memo || '',
         attachments: [...(props.data.attachments || [])],
-        extraCategories: [],
+        scopes: scopesFromRow(props.data),
       })
     } else {
       Object.assign(form, {
@@ -203,7 +191,7 @@ watch(
         confirmTech: false,
         memo: '',
         attachments: [],
-        extraCategories: [],
+        scopes: [emptyScope({ system: 'FO', bizCategory: '법인숙박' })],
       })
     }
   },
@@ -213,56 +201,68 @@ function close() {
   emit('update:modelValue', false)
 }
 
-const activeExtraIndex = ref(null)
+const screenSearchScopeIndex = ref(0)
 
-const activeScreenSystem = computed(() =>
-  activeExtraIndex.value === null
-    ? form.system
-    : form.extraCategories[activeExtraIndex.value]?.system || 'FO',
+const activeScreenSystem = computed(
+  () => form.scopes[screenSearchScopeIndex.value]?.system || 'FO',
 )
 
-function openScreenSearch(index = null) {
-  if (index === null && !canEditScreen.value) return
-  activeExtraIndex.value = index
+function openScreenSearch(index = 0) {
+  if (!canEditScreen.value) return
+  const scope = form.scopes[index]
+  if (scope?.noScreen) return
+  screenSearchScopeIndex.value = index
   showScreenSearch.value = true
 }
 
 function onScreenSelect(screen) {
-  const target = activeExtraIndex.value === null ? form : form.extraCategories[activeExtraIndex.value]
+  const target = form.scopes[screenSearchScopeIndex.value]
   if (!target) return
+  if (screen.system) target.system = screen.system
   target.screenName = screen.name
   target.screenPath = screen.path
   target.screenMenu = screen.name
+  target.screenCode = screen.screenCode || ''
+  target.noScreen = false
+  syncAliasesFromScopes()
 }
 
 function bizOptionsFor(system) {
   return bizCategoryMap[system] || []
 }
 
-function addCategoryBlock() {
+function addScope() {
   if (!canEditFields.value) return
-  const system = systemOptions.find((s) => s !== form.system) || systemOptions[0]
-  form.extraCategories.push({
-    system,
-    bizCategory: bizOptionsFor(system)[0] || '',
-    screenMenu: '',
-    screenPath: '',
-    screenName: '',
-  })
+  form.scopes.push(emptyScope({ system: systemOptions[0] || 'FO' }))
 }
 
-function removeCategoryBlock(index) {
-  form.extraCategories.splice(index, 1)
+function removeScope(index) {
+  if (form.scopes.length <= 1) {
+    window.alert('업무범위는 최소 1개가 필요합니다.')
+    return
+  }
+  form.scopes.splice(index, 1)
+  syncAliasesFromScopes()
 }
 
-function onExtraSystemChange(index) {
-  const block = form.extraCategories[index]
-  if (!block) return
-  const opts = bizOptionsFor(block.system)
-  block.bizCategory = opts[0] || ''
-  block.screenMenu = ''
-  block.screenPath = ''
-  block.screenName = ''
+function clearScopeScreen(scope) {
+  scope.screenCode = ''
+  scope.screenName = ''
+  scope.screenPath = ''
+  scope.screenMenu = ''
+}
+
+function setNoScreen(scope, checked) {
+  scope.noScreen = checked
+  if (checked) clearScopeScreen(scope)
+  syncAliasesFromScopes()
+}
+
+function onScopeSystemChange(scope) {
+  const opts = bizOptionsFor(scope.system)
+  if (!opts.includes(scope.bizCategory)) scope.bizCategory = opts[0] || ''
+  if (!scope.noScreen) clearScopeScreen(scope)
+  syncAliasesFromScopes()
 }
 
 function onAttachmentChange(event) {
@@ -276,91 +276,64 @@ function removeAttachment(idx) {
   form.attachments.splice(idx, 1)
 }
 
-function onSystemChange() {
-  if (!canEditFields.value) return
-  const opts = bizCategoryMap[form.system] || []
-  form.bizCategory = opts[0] || ''
-  form.screenMenu = ''
-  form.screenPath = ''
-  form.screenName = ''
-}
-
 function onStatusChange(next) {
   if (!canEditFields.value) return
   form.status = next
-  if (next === '접수') {
-    form.confirmRequester = false
-    form.confirmTech = false
-  }
 }
 
-function onConfirmToggle(field, event) {
-  const checked = event.target.checked
-  const canEdit = field === 'confirmRequester' ? canEditConfirmRequester.value : canEditConfirmTech.value
-  if (!canEdit) {
-    event.target.checked = form[field]
-    if (!canEditFields.value) return
-    if (form.status !== '수용') {
-      window.alert('접수 상태에서는 요건확정을 처리할 수 없습니다. 상태를 수용으로 변경한 후 진행해 주세요.')
-    } else {
-      window.alert('이미 확정된 항목은 변경할 수 없습니다.')
-    }
-    return
+function toSavePayload(extra = {}) {
+  syncAliasesFromScopes()
+  return {
+    ...form,
+    scopes: form.scopes.map((scope, index) => ({
+      ...scope,
+      seq: index + 1,
+    })),
+    ...extra,
   }
-  if (checked) {
-    const ok = window.confirm('확정 후 변경할 수 없습니다. 변경하시겠습니까?')
-    if (!ok) {
-      event.target.checked = false
-      form[field] = false
-      return
-    }
-  }
-  form[field] = checked
 }
 
 function save() {
-  if (canEditScreenOnly.value) {
-    if (!form.screenName || form.screenName === '화면없음') {
-      window.alert('화면(메뉴)을 선택해 주세요.')
-      return
-    }
-    if (!window.confirm('저장하시겠습니까?')) return
-    emit('save', { ...form, screenOnly: true })
-    return
-  }
-
-  if (!form.name.trim() || !form.original.trim() || !form.system || !form.bizCategory) {
+  if (!form.name.trim() || !form.original.trim()) {
     window.alert('미입력 항목을 입력하세요.')
     return
   }
-  if (form.extraCategories.some((b) => !b.system || !b.bizCategory)) {
-    window.alert('추가된 업무범주의 시스템/업무구분을 선택해 주세요.')
+  if (!form.scopes.length) {
+    window.alert('업무범위를 1개 이상 등록해 주세요.')
     return
   }
-  if (form.status === '수용' && !form.screenName && !form.screenMenu) {
-    window.alert('수용 상태에서는 화면(메뉴)을 선택해 주세요.')
-    return
+  for (const scope of form.scopes) {
+    if (!scope.system || !scope.bizCategory) {
+      window.alert('업무범위마다 시스템/업무구분을 선택해 주세요.')
+      return
+    }
+    if (!scope.noScreen && !String(scope.screenName || '').trim()) {
+      window.alert('업무범위마다 화면을 선택하거나 화면없음을 명시해 주세요.')
+      return
+    }
   }
   if (!window.confirm('저장하시겠습니까?')) return
-
-  if ((isRegister.value || isCopy.value) && form.extraCategories.length) {
-    const blocks = [
-      { system: form.system, bizCategory: form.bizCategory, screenMenu: form.screenMenu, screenPath: form.screenPath, screenName: form.screenName },
-      ...form.extraCategories,
-    ]
-    emit('save', blocks.map((b) => ({ ...form, ...b })))
-    return
-  }
 
   if (isEdit.value) {
     showChangeReasonModal.value = true
     return
   }
-  emit('save', { ...form })
+  emit('save', toSavePayload())
 }
 
-function onChangeReasonSave(reason) {
-  emit('save', { ...form, changeReason: reason })
+function onChangeReasonSave(payload) {
+  const reason =
+    typeof payload === 'string'
+      ? payload
+      : payload?.etc || changeReasonLabel(payload?.code)
+  emit(
+    'save',
+    toSavePayload({
+      changeReason: reason,
+      changeReasonCode: typeof payload === 'object' ? payload?.code : '',
+      changeReasonEtc: typeof payload === 'object' ? payload?.etc : null,
+    }),
+  )
 }
 
 const HISTORY_FIELD_LABELS = {
@@ -471,95 +444,82 @@ function diffFields(entry) {
 
     <section class="section">
       <h3 class="section__title">업무범주</h3>
-      <div class="frow frow--3">
-        <div class="fld fld--req">
-          <label>시스템구분</label>
-          <select
-            v-model="form.system"
-            class="inp"
-            :disabled="!canEditFields"
-            @change="onSystemChange"
-          >
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="fld fld--req">
-          <label>업무구분</label>
-          <select v-model="form.bizCategory" class="inp" :disabled="!canEditFields">
-            <option v-for="b in bizOptions" :key="b" :value="b">{{ b }}</option>
-          </select>
-        </div>
-        <div class="fld">
-          <label>화면(메뉴)</label>
-          <div class="screen-search">
-            <button
-              type="button"
-              class="screen-search__field"
-              :disabled="!canEditScreen"
-              @click="openScreenSearch"
-            >
-              <span v-if="screenDisplay" class="screen-search__value">{{ screenDisplay }}</span>
-              <span v-else class="screen-search__ph">화면(메뉴) 검색</span>
-            </button>
-            <button
-              type="button"
-              class="btn btn--ghost btn--sm screen-search__btn"
-              :disabled="!canEditScreen"
-              @click="openScreenSearch()"
-            >
-              검색
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div
-        v-for="(block, idx) in form.extraCategories"
-        :key="idx"
-        class="frow frow--3 category-block"
+        v-for="(scope, idx) in form.scopes"
+        :key="scope.id ?? `new-${idx}`"
+        class="scope-block"
+        :class="{ 'category-block': idx > 0 }"
       >
-        <div class="fld fld--req">
-          <label>시스템구분</label>
-          <select v-model="block.system" class="inp" @change="onExtraSystemChange(idx)">
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="fld fld--req">
-          <label>업무구분</label>
-          <select v-model="block.bizCategory" class="inp">
-            <option v-for="b in bizOptionsFor(block.system)" :key="b" :value="b">{{ b }}</option>
-          </select>
-        </div>
-        <div class="fld">
-          <label>화면(메뉴)</label>
-          <div class="screen-search">
-            <button
-              type="button"
-              class="screen-search__field"
-              @click="openScreenSearch(idx)"
+        <div class="frow frow--3">
+          <div class="fld fld--req">
+            <label>시스템구분</label>
+            <select
+              v-model="scope.system"
+              class="inp"
+              :disabled="!canEditFields"
+              @change="onScopeSystemChange(scope)"
             >
-              <span v-if="screenDisplayFor(block)" class="screen-search__value">{{ screenDisplayFor(block) }}</span>
-              <span v-else class="screen-search__ph">화면(메뉴) 검색</span>
-            </button>
-            <button type="button" class="btn btn--ghost btn--sm screen-search__btn" @click="openScreenSearch(idx)">
-              검색
-            </button>
-            <button type="button" class="btn btn--ghost btn--sm" @click="removeCategoryBlock(idx)">
-              ✕
-            </button>
+              <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
+            </select>
+          </div>
+          <div class="fld fld--req">
+            <label>업무구분</label>
+            <select v-model="scope.bizCategory" class="inp" :disabled="!canEditFields">
+              <option value="">선택</option>
+              <option v-for="b in bizOptionsFor(scope.system)" :key="b" :value="b">{{ b }}</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>화면(메뉴)</label>
+            <div class="screen-search">
+              <button
+                type="button"
+                class="screen-search__field"
+                :disabled="!canEditScreen || scope.noScreen"
+                @click="openScreenSearch(idx)"
+              >
+                <span v-if="screenDisplayFor(scope)" class="screen-search__value">{{ screenDisplayFor(scope) }}</span>
+                <span v-else class="screen-search__ph">화면(메뉴) 검색</span>
+              </button>
+              <button
+                type="button"
+                class="btn btn--ghost btn--sm screen-search__btn"
+                :disabled="!canEditScreen || scope.noScreen"
+                @click="openScreenSearch(idx)"
+              >
+                검색
+              </button>
+              <button
+                v-if="idx > 0"
+                type="button"
+                class="btn btn--ghost btn--sm"
+                :disabled="!canEditFields"
+                @click="removeScope(idx)"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         </div>
+        <label class="checkbox-fld no-screen-choice">
+          <input
+            type="checkbox"
+            :checked="scope.noScreen"
+            :disabled="!canEditFields"
+            @change="setNoScreen(scope, $event.target.checked)"
+          />
+          화면없음(API/Batch/신규 메뉴 등 화면과 연결되지 않은 요구사항)
+        </label>
       </div>
 
       <button
-        v-if="(isRegister || isCopy) && canEditFields"
         type="button"
         class="btn btn--ghost btn--sm category-add-btn"
-        @click="addCategoryBlock"
+        :disabled="!canEditFields"
+        @click="addScope"
       >
         ＋ 업무범주 추가
       </button>
-
     </section>
 
     <section class="section">
@@ -617,23 +577,13 @@ function diffFields(entry) {
           </button>
           <span v-if="confirmTipOpen" class="confirm-tip__bubble">{{ confirmTooltip }}</span>
         </span>
-        <label class="confirm-item" :class="{ 'confirm-item--locked': !canEditConfirmRequester }">
-          <input
-            type="checkbox"
-            :checked="form.confirmRequester"
-            :disabled="!canEditFields"
-            @change="onConfirmToggle('confirmRequester', $event)"
-          />
+        <label class="confirm-item confirm-item--locked">
+          <input type="checkbox" :checked="form.confirmRequester" disabled />
           요청자
           <span v-if="props.data?.confirmRequesterAt" class="confirm-time">{{ props.data.confirmRequesterAt }}</span>
         </label>
-        <label class="confirm-item" :class="{ 'confirm-item--locked': !canEditConfirmTech }">
-          <input
-            type="checkbox"
-            :checked="form.confirmTech"
-            :disabled="!canEditFields"
-            @change="onConfirmToggle('confirmTech', $event)"
-          />
+        <label class="confirm-item confirm-item--locked">
+          <input type="checkbox" :checked="form.confirmTech" disabled />
           테크
           <span v-if="props.data?.confirmTechAt" class="confirm-time">{{ props.data.confirmTechAt }}</span>
         </label>
@@ -720,6 +670,16 @@ function diffFields(entry) {
       >
         더보기 ({{ historyTotal - 5 }}건)
       </button>
+    </section>
+
+    <section v-if="isEdit && data" class="section">
+      <h3 class="section__title">이슈 관리</h3>
+      <RequirementIssuePanel
+        :key="data.id"
+        :requirement="data"
+        @count-change="emit('count-change', $event)"
+        @issue-added="emit('issue-added', $event)"
+      />
     </section>
 
     <template #footer>
@@ -893,7 +853,7 @@ label.fld--req::after {
   gap: 4px;
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
-  color: #000;
+  color: var(--lnb-txt);
 }
 
 .confirm-label__star {
@@ -1015,6 +975,20 @@ label.fld--req::after {
 
 .category-add-btn {
   margin-bottom: 12px;
+}
+
+.scope-block + .scope-block {
+  margin-top: 4px;
+}
+
+.checkbox-fld {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
+  color: var(--lnb-txt);
 }
 
 .attach {
