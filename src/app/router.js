@@ -101,6 +101,12 @@ const routes = [
     component: () => import('@/pages/system/holiday/HolidayMgmtView.vue'),
     meta: { title: '휴무일 관리' },
   },
+  {
+    path: '/system/org-mgmt',
+    name: 'org-mgmt',
+    component: () => import('@/pages/system/org-mgmt/OrgMgmtView.vue'),
+    meta: { title: '조직 관리' },
+  },
 
   // 프로젝트 관리 (개별) — /workspace/*
   {

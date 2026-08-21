@@ -11,6 +11,7 @@ export const projectDashboardMeta = {
     { key: 'prog-shorten', label: '진행(단축)' },
     { key: 'done-normal', label: '완료(정상)' },
     { key: 'done-shorten', label: '완료(단축)' },
+    { key: 'done-delay', label: '완료(경과)' },
   ],
 }
 
@@ -87,6 +88,7 @@ export function getProjectDashboard(projectId, projectName, userId) {
     details: [
       {
         id: 'd1',
+        taskName: '기획',
         taskType: '기획',
         assignee: '권현대',
         empId: '2154545',
@@ -101,6 +103,7 @@ export function getProjectDashboard(projectId, projectName, userId) {
       },
       {
         id: 'd2',
+        taskName: '디자인',
         taskType: '디자인',
         assignee: '홍현대',
         empId: '2033333',
@@ -115,6 +118,7 @@ export function getProjectDashboard(projectId, projectName, userId) {
       },
       {
         id: 'd3',
+        taskName: '퍼블리싱',
         taskType: '퍼블리싱',
         assignee: '서현대',
         empId: '2044444',
@@ -129,6 +133,7 @@ export function getProjectDashboard(projectId, projectName, userId) {
       },
       {
         id: 'd4',
+        taskName: '개발',
         taskType: '개발',
         assignee: '이현대',
         empId: '2211153',
@@ -143,6 +148,7 @@ export function getProjectDashboard(projectId, projectName, userId) {
       },
       {
         id: 'd5',
+        taskName: '개발',
         taskType: '개발',
         assignee: '박현대',
         empId: '1824640',
@@ -154,6 +160,36 @@ export function getProjectDashboard(projectId, projectName, userId) {
         planDiff: '± 0일',
         compliance: '정상',
         status: 'prog-shorten',
+      },
+      {
+        id: 'd6',
+        taskName: '단위테스트',
+        taskType: '단위테스트',
+        assignee: '김현대',
+        empId: '1988776',
+        planStart: '2026-06-11',
+        planEnd: '2026-06-15',
+        execStart: null,
+        execEnd: null,
+        execRate: 0,
+        planDiff: '± 0일',
+        compliance: '정상',
+        status: 'wait',
+      },
+      {
+        id: 'd7',
+        taskName: 'STG테스트',
+        taskType: 'STG테스트',
+        assignee: '최현대',
+        empId: '2011223',
+        planStart: '2026-06-16',
+        planEnd: '2026-06-20',
+        execStart: null,
+        execEnd: null,
+        execRate: 0,
+        planDiff: '± 0일',
+        compliance: '정상',
+        status: 'wait',
       },
     ],
   }
@@ -173,6 +209,7 @@ export function statusTone(status) {
     'prog-shorten': 'shorten',
     'done-normal': 'normal',
     'done-shorten': 'shorten',
+    'done-delay': 'delay',
   }
   return map[status] || 'muted'
 }

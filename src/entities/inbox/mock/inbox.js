@@ -13,14 +13,7 @@ export const emptySummary = {
   delayed: 0,
 }
 
-// 상단 요약
-export const summary = {
-  progressProjects: 5,
-  myTasks: 45,
-  weekDue: 2,
-  waiting: 5,
-  delayed: 1,
-}
+// 상단 요약 — myTasks/weekDue/delayed는 myTasks 정의 후 미완료 기준으로 재계산한다.
 
 // 진행중 프로젝트 카드
 export const progressProjects = [
@@ -91,6 +84,8 @@ export const progressProjects = [
   },
 ]
 
+const holdFields = { holdStart: null, holdEnd: null, expectedResume: null }
+
 const baseMyTasks = [
   {
     id: 't1',
@@ -98,6 +93,7 @@ const baseMyTasks = [
     dueLabel: '3/20 마감',
     dday: 'D+2',
     delayed: true,
+    weekDue: true,
     progress: 73,
     planProgress: 100,
     project: '프로모션 운영 프로세스 및 기능 개선',
@@ -108,6 +104,7 @@ const baseMyTasks = [
     planEnd: '2026-03-20',
     execStart: '2026-03-10',
     execEnd: null,
+    ...holdFields,
   },
   {
     id: 't2',
@@ -115,6 +112,7 @@ const baseMyTasks = [
     dueLabel: '3/22 마감',
     dday: 'D-5',
     delayed: false,
+    weekDue: true,
     progress: 45,
     planProgress: 50,
     project: 'DL이앤씨 바우처 정책 변경 개발',
@@ -125,6 +123,7 @@ const baseMyTasks = [
     planEnd: '2026-03-22',
     execStart: '2026-03-12',
     execEnd: null,
+    ...holdFields,
   },
   {
     id: 't3',
@@ -132,6 +131,7 @@ const baseMyTasks = [
     dueLabel: '3/30 마감',
     dday: 'D-13',
     delayed: false,
+    weekDue: false,
     progress: 50,
     planProgress: 55,
     project: 'DL이앤씨 바우처 정책 변경 개발',
@@ -142,6 +142,9 @@ const baseMyTasks = [
     planEnd: '2026-03-30',
     execStart: '2026-03-20',
     execEnd: null,
+    holdStart: '2026-03-21',
+    holdEnd: null,
+    expectedResume: '2026-03-28',
   },
   {
     id: 't4',
@@ -149,6 +152,7 @@ const baseMyTasks = [
     dueLabel: '일정 미등록',
     dday: '',
     delayed: false,
+    weekDue: false,
     progress: null,
     planProgress: null,
     project: '주문취소 시 쿠폰 할인취소 정보 노출 개선',
@@ -159,6 +163,7 @@ const baseMyTasks = [
     planEnd: null,
     execStart: null,
     execEnd: null,
+    ...holdFields,
   },
   {
     id: 't5',
@@ -166,6 +171,7 @@ const baseMyTasks = [
     dueLabel: '4/02 마감',
     dday: 'D-10',
     delayed: false,
+    weekDue: false,
     progress: 20,
     planProgress: 25,
     project: '프로모션 운영 프로세스 및 기능 개선',
@@ -176,6 +182,7 @@ const baseMyTasks = [
     planEnd: '2026-04-02',
     execStart: '2026-03-23',
     execEnd: null,
+    ...holdFields,
   },
   {
     id: 't6',
@@ -183,6 +190,7 @@ const baseMyTasks = [
     dueLabel: '4/05 마감',
     dday: 'D-13',
     delayed: false,
+    weekDue: false,
     progress: 40,
     planProgress: 45,
     project: '모바일 앱 푸시 알림 고도화',
@@ -193,6 +201,7 @@ const baseMyTasks = [
     planEnd: '2026-04-05',
     execStart: '2026-03-26',
     execEnd: null,
+    ...holdFields,
   },
   {
     id: 't7',
@@ -200,6 +209,7 @@ const baseMyTasks = [
     dueLabel: '4/08 마감',
     dday: 'D-16',
     delayed: false,
+    weekDue: false,
     progress: 10,
     planProgress: 15,
     project: '주문취소 시 쿠폰 할인취소 정보 노출 개선',
@@ -210,6 +220,26 @@ const baseMyTasks = [
     planEnd: '2026-04-08',
     execStart: '2026-03-29',
     execEnd: null,
+    ...holdFields,
+  },
+  {
+    id: 't8',
+    name: '프로모션 등록 개발',
+    dueLabel: '3/15 마감',
+    dday: '',
+    delayed: false,
+    weekDue: false,
+    progress: 100,
+    planProgress: 100,
+    project: '프로모션 운영 프로세스 및 기능 개선',
+    projectId: 'p3',
+    taskType: '개발',
+    wbsId: 'WBS-021',
+    planStart: '2026-03-04',
+    planEnd: '2026-03-15',
+    execStart: '2026-03-04',
+    execEnd: '2026-03-14',
+    ...holdFields,
   },
 ]
 
@@ -220,32 +250,46 @@ function planStartFor(month, day) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** 페이징 확인용 — 총 45건 */
+/** 페이징 확인용 — 완료 행 포함. 카드/칩은 execEnd 없는 미완료만 센다. */
 export const myTasks = [
   ...baseMyTasks,
   ...Array.from({ length: 38 }, (_, i) => {
     const day = (i % 28) + 1
     const execProgress = (i * 7) % 100
     const planStart = planStartFor(4, day)
+    const planEnd = `2026-04-${String(day).padStart(2, '0')}`
+    const completed = i >= 35
     return {
       id: `t-extra-${i + 1}`,
       name: `추가 업무 ${String(i + 1).padStart(2, '0')}`,
       dueLabel: `4/${String(day).padStart(2, '0')} 마감`,
-      dday: `D-${i + 1}`,
+      dday: completed ? '' : `D-${i + 1}`,
       delayed: false,
-      progress: execProgress,
-      planProgress: Math.min(100, execProgress + 5),
+      weekDue: false,
+      progress: completed ? 100 : execProgress,
+      planProgress: completed ? 100 : Math.min(100, execProgress + 5),
       project: progressProjects[i % progressProjects.length].name,
       projectId: progressProjects[i % progressProjects.length].id,
       taskType: ['개발', '퍼블리싱', '기획', '디자인', '단위테스트'][i % 5],
       wbsId: `WBS-E${String(i + 1).padStart(3, '0')}`,
       planStart,
-      planEnd: `2026-04-${String(day).padStart(2, '0')}`,
+      planEnd,
       execStart: planStart,
-      execEnd: null,
+      execEnd: completed ? planEnd : null,
+      ...holdFields,
     }
   }),
 ]
+
+const unfinishedTasks = myTasks.filter((t) => !t.execEnd)
+
+export const summary = {
+  progressProjects: 5,
+  myTasks: unfinishedTasks.length,
+  weekDue: unfinishedTasks.filter((t) => t.weekDue).length,
+  waiting: 5,
+  delayed: unfinishedTasks.filter((t) => t.delayed).length,
+}
 
 export const waitingProjects = [
   {
@@ -308,7 +352,7 @@ export function routeForTaskType(taskType) {
   if (taskType === '기획') return '/workspace/requirement'
   if (taskType === '단위테스트') return '/workspace/unit-test'
   if (taskType === 'DEV테스트' || taskType === 'dev테스트') return '/workspace/test/dev/perform'
-  if (taskType === '운영테스트') return '/workspace/test/uat/perform'
+  if (taskType === '운영테스트' || taskType === 'STG테스트') return '/workspace/test/uat/perform'
   // 디자인, 퍼블리싱, 개발
   return '/workspace/wbs'
 }

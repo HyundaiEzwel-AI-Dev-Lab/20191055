@@ -13,6 +13,10 @@ import {
   approvalList,
   matchApprovalFilters,
   approvalStatusClass,
+  beforeText,
+  afterText,
+  dateRangeText,
+  isHoldRequest,
 } from '@/entities/approval/mock/approval'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
@@ -38,8 +42,8 @@ const filters = ref({
 const applied = ref({ ...filters.value })
 const pageSize = ref(20)
 const currentPage = ref(1)
-const selectedIds = ref([])
 const selectedRow = ref(rows[0] || null)
+const filterExpanded = ref(false)
 
 const statusSelectOptions = approvalStatusOptions.map((o) => ({
   value: o,
@@ -60,54 +64,37 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 
 const filterTags = computed(() => {
   const a = applied.value
   const tags = []
-  if (a.status && a.status !== '전체') tags.push({ key: 'status', label: '승인상태', value: a.status })
   if (a.type && a.type !== '전체') tags.push({ key: 'type', label: '요청유형', value: a.type })
   if (a.project) tags.push({ key: 'project', label: '프로젝트명', value: a.project })
-  if (a.requester) tags.push({ key: 'requester', label: '요청자', value: a.requester })
-  if (a.dateType && a.dateType !== '요청일') tags.push({ key: 'dateType', label: '날짜구분', value: a.dateType })
-  if (a.dateFrom || a.dateTo) {
-    tags.push({
-      key: 'dateRange',
-      label: '기간',
-      value: `${a.dateFrom || '…'} ~ ${a.dateTo || '…'}`,
-    })
-  }
   return tags
 })
 
+const selectedGroup = computed(() => {
+  if (!selectedRow.value) return null
+  return isHoldRequest(selectedRow.value) ? 'HOLD' : 'SCHEDULE'
+})
+
 const scheduleDetailRows = computed(() => {
-  if (!selectedRow.value || selectedRow.value.type !== '일정') return []
+  if (!selectedRow.value || selectedGroup.value === 'HOLD') return []
   const rowsInDetail = selectedRow.value.detail?.scheduleRows
   if (rowsInDetail?.length) return rowsInDetail
   return [
     {
       taskType: '-',
       assignee: selectedRow.value.requester,
-      before: selectedRow.value.before,
-      after: selectedRow.value.after,
+      before: beforeText(selectedRow.value),
+      after: afterText(selectedRow.value),
       reason: selectedRow.value.reason,
       requestedAt: selectedRow.value.requestDate,
     },
   ]
 })
 
-const requirementDetail = computed(() => selectedRow.value?.detail?.requirement || null)
-
-const suspendDetail = computed(() => selectedRow.value?.detail || null)
-
-const canApproveReject = computed(() => {
-  const targets = selectedIds.value.length
-    ? rows.filter((r) => selectedIds.value.includes(r.id))
-    : selectedRow.value
-      ? [selectedRow.value]
-      : []
-  return targets.some((r) => r.status === '승인요청')
-})
+const canDecide = computed(() => selectedRow.value?.status === '승인요청')
 
 function search() {
   applied.value = { ...filters.value }
   currentPage.value = 1
-  selectedIds.value = []
   selectedRow.value = filtered.value[0] || null
 }
 
@@ -125,64 +112,47 @@ function resetFilters() {
 }
 
 function removeFilterTag(key) {
-  if (key === 'status') filters.value.status = '전체'
-  else if (key === 'type') filters.value.type = '전체'
+  if (key === 'type') filters.value.type = '전체'
   else if (key === 'project') filters.value.project = ''
-  else if (key === 'requester') filters.value.requester = ''
-  else if (key === 'dateType') filters.value.dateType = '요청일'
-  else if (key === 'dateRange') {
-    filters.value.dateFrom = ''
-    filters.value.dateTo = ''
-  }
   search()
-}
-
-function toggleSelect(id) {
-  const idx = selectedIds.value.indexOf(id)
-  if (idx >= 0) selectedIds.value.splice(idx, 1)
-  else selectedIds.value.push(id)
-}
-
-function toggleSelectAll(e) {
-  selectedIds.value = e.target.checked ? paged.value.map((r) => r.id) : []
 }
 
 function selectRow(row) {
   selectedRow.value = row
 }
 
-function applyStatus(status) {
-  const targets = selectedIds.value.length
-    ? rows.filter((r) => selectedIds.value.includes(r.id))
-    : selectedRow.value
-      ? [selectedRow.value]
-      : []
+function decide(status) {
+  const target = selectedRow.value
+  if (!target || !canDecide.value) return
 
-  if (!targets.length) {
-    window.alert('승인 대상을 선택해 주세요.')
-    return
-  }
+  const label = status === '승인완료' ? '승인' : '반려'
+  if (!window.confirm(`선택한 요청을 ${label} 처리하시겠습니까?`)) return
 
-  const pending = targets.filter((r) => r.status === '승인요청')
-  if (!pending.length) {
-    window.alert('승인요청 상태의 건만 처리할 수 있습니다.')
-    return
-  }
+  target.status = status
+  target.approveDate = new Date().toISOString().slice(0, 10)
+  window.alert(`${label} 처리했습니다.`)
+}
 
-  if (!window.confirm(`${pending.length}건을 ${status} 처리하시겠습니까?`)) return
+function holdPeriodText(row) {
+  return dateRangeText(row.holdStartDate, row.holdEndDate)
+}
 
-  pending.forEach((r) => {
-    r.status = status
-    r.approveDate = '2026-05-21'
-  })
-  selectedIds.value = []
-  window.alert(`${pending.length}건을 ${status} 처리했습니다.`)
+function holdResumeText(row) {
+  return row.expectedResumeDate || row.detail?.expectedResumeDate || '-'
+}
+
+function holdReasonText(row) {
+  return row.detail?.suspendReason || row.reason || '-'
+}
+
+function holdRequestedAt(row) {
+  return row.detail?.requestedAt || row.requestDate || '-'
 }
 
 function goProject() {
   if (!selectedRow.value) return
   const row = selectedRow.value
-  const route = row.type === '요구사항' ? '/workspace/requirement' : '/workspace/wbs'
+  const route = '/workspace/wbs'
   const id = row.projectId || 'p1'
   const name = String(row.projectName || '프로젝트').replace(/\s*외\s*\d+건$/, '')
   projectStore.setCurrentProject({ id, name, stage: '처리중' })
@@ -192,9 +162,7 @@ function goProject() {
     projectName: name,
     route,
   })
-  const subId = route.includes('requirement') ? 'requirement' : 'wbs'
-  const subTitle = subId === 'requirement' ? '요구사항' : 'WBS'
-  subTabsStore.openSubTab(id, { id: subId, title: subTitle, route })
+  subTabsStore.openSubTab(id, { id: 'wbs', title: 'WBS', route })
   router.push(route)
 }
 
@@ -218,6 +186,7 @@ function onExcelDownload() {
 <template>
   <div class="admin-page">
     <SearchFilterBar
+      v-model:expanded="filterExpanded"
       :show-search="false"
       :applied-tags="filterTags"
       @reset="resetFilters"
@@ -226,14 +195,28 @@ function onExcelDownload() {
     >
       <template #primary>
         <FilterSelectPill v-model="filters.status" label="승인상태" :options="statusSelectOptions" empty-label="선택" />
-        <FilterSelectPill v-model="filters.type" label="요청유형" :options="typeSelectOptions" empty-label="선택" />
-        <FilterTextPill v-model="filters.project" label="프로젝트명" placeholder="프로젝트명" @enter="search" />
         <FilterTextPill v-model="filters.requester" label="요청자" placeholder="요청자" @enter="search" />
-        <FilterSelectPill v-model="filters.dateType" label="날짜구분" :options="dateTypeOptions" empty-label="요청일" />
+        <FilterSelectPill v-model="filters.dateType" label="날짜구분" :options="dateTypeOptions" />
         <FilterDateRange
           label="기간"
           v-model:from="filters.dateFrom"
           v-model:to="filters.dateTo"
+        />
+      </template>
+      <template #expand>
+        <FilterSelectPill
+          v-model="filters.type"
+          label="요청유형"
+          :options="typeSelectOptions"
+          empty-label="선택"
+          fill
+        />
+        <FilterTextPill
+          v-model="filters.project"
+          label="프로젝트명"
+          placeholder="프로젝트명"
+          fill
+          @enter="search"
         />
       </template>
     </SearchFilterBar>
@@ -253,7 +236,6 @@ function onExcelDownload() {
         <table class="data-table" style="min-width: 1080px">
           <thead>
             <tr>
-              <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
               <th style="width: 48px">NO</th>
               <th>승인상태</th>
               <th>요청유형</th>
@@ -273,30 +255,23 @@ function onExcelDownload() {
               :class="{ 'is-selected': selectedRow?.id === row.id }"
               @click="selectRow(row)"
             >
-              <td @click.stop>
-                <input
-                  type="checkbox"
-                  :checked="selectedIds.includes(row.id)"
-                  @change="toggleSelect(row.id)"
-                />
-              </td>
-              <td>{{ row.id }}</td>
-              <td>
+              <td class="cell--center">{{ row.id }}</td>
+              <td class="cell--center">
                 <span class="badge" :class="`badge--${approvalStatusClass(row.status)}`">{{ row.status }}</span>
               </td>
-              <td>{{ row.type }}</td>
+              <td class="cell--center">{{ row.type }}</td>
               <td>
                 <button type="button" class="link-btn" @click.stop="selectRow(row)">{{ row.projectName }}</button>
               </td>
-              <td>{{ row.openDate }}</td>
-              <td class="tbl__muted">{{ row.before }}</td>
-              <td>{{ row.after }}</td>
-              <td>{{ row.requester }}</td>
-              <td>{{ row.requestDate }}</td>
-              <td>{{ row.approveDate }}</td>
+              <td class="cell--center">{{ row.openDate || '-' }}</td>
+              <td class="tbl__muted cell--center">{{ beforeText(row) }}</td>
+              <td class="cell--center">{{ afterText(row) }}</td>
+              <td class="cell--center">{{ row.requester }}</td>
+              <td class="cell--center">{{ row.requestDate }}</td>
+              <td class="cell--center">{{ row.approveDate }}</td>
             </tr>
             <tr v-if="!paged.length">
-              <td colspan="11" class="empty">조회 결과가 없습니다.</td>
+              <td colspan="10" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -322,7 +297,7 @@ function onExcelDownload() {
         </div>
         <div class="detail-field">
           <label>오픈예정일</label>
-          <div class="detail-value">{{ selectedRow.openDate }}</div>
+          <div class="detail-value">{{ selectedRow.openDate || '-' }}</div>
         </div>
         <div class="detail-field">
           <label>변경 요청자</label>
@@ -330,7 +305,7 @@ function onExcelDownload() {
         </div>
       </div>
 
-      <div v-if="selectedRow.type === '일정'" class="detail-section">
+      <div v-if="selectedGroup === 'SCHEDULE'" class="detail-section">
         <h4 class="detail-section__title">일정 변경 내역</h4>
         <div class="detail-table-wrap">
           <table class="data-table detail-table">
@@ -346,76 +321,55 @@ function onExcelDownload() {
             </thead>
             <tbody>
               <tr v-for="(line, idx) in scheduleDetailRows" :key="idx">
-                <td>{{ line.taskType }}</td>
-                <td>{{ line.assignee }}</td>
-                <td class="tbl__muted">{{ line.before }}</td>
-                <td>{{ line.after }}</td>
+                <td class="cell--center">{{ line.taskType }}</td>
+                <td class="cell--center">{{ line.assignee }}</td>
+                <td class="tbl__muted cell--center">{{ line.before }}</td>
+                <td class="cell--center">{{ line.after }}</td>
                 <td>{{ line.reason }}</td>
-                <td>{{ line.requestedAt }}</td>
+                <td class="cell--center">{{ line.requestedAt }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <div v-else-if="selectedRow.type === '요구사항' && requirementDetail" class="detail-section">
-        <h4 class="detail-section__title">요구사항 변경 내역</h4>
-        <div class="detail-grid">
-          <div class="detail-field">
-            <label>변경항목</label>
-            <div class="detail-value">{{ requirementDetail.changeItem }}</div>
-          </div>
-          <div class="detail-field">
-            <label>요구사항ID</label>
-            <div class="detail-value">{{ requirementDetail.reqId }}</div>
-          </div>
-          <div class="detail-field detail-field--wide">
-            <label>사유</label>
-            <div class="detail-value">{{ requirementDetail.reason }}</div>
-          </div>
-          <div class="detail-field detail-field--wide">
-            <label>변경전</label>
-            <div class="detail-value detail-value--block">{{ requirementDetail.beforeContent }}</div>
-          </div>
-          <div class="detail-field detail-field--wide">
-            <label>변경후</label>
-            <div class="detail-value detail-value--block">{{ requirementDetail.afterContent }}</div>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="selectedRow.type === '일시중단'" class="detail-section">
+      <div v-else class="detail-section">
         <h4 class="detail-section__title">일시중단 요청</h4>
         <div class="detail-grid">
           <div class="detail-field detail-field--wide">
             <label>요청 사유</label>
-            <div class="detail-value">{{ suspendDetail?.suspendReason || selectedRow.reason }}</div>
+            <div class="detail-value">{{ holdReasonText(selectedRow) }}</div>
           </div>
           <div class="detail-field">
             <label>중단 기간</label>
-            <div class="detail-value">{{ suspendDetail?.suspendPeriod || selectedRow.after }}</div>
+            <div class="detail-value">{{ holdPeriodText(selectedRow) }}</div>
+          </div>
+          <div class="detail-field">
+            <label>재개 예정일</label>
+            <div class="detail-value">{{ holdResumeText(selectedRow) }}</div>
           </div>
           <div class="detail-field">
             <label>요청일시</label>
-            <div class="detail-value">{{ suspendDetail?.requestedAt || selectedRow.requestDate }}</div>
+            <div class="detail-value">{{ holdRequestedAt(selectedRow) }}</div>
           </div>
         </div>
       </div>
 
       <div class="detail-card__foot">
+        <span v-if="!canDecide" class="detail-card__note">이미 처리된 요청입니다.</span>
         <button
           type="button"
           class="btn btn--ghost btn--sm"
-          :disabled="!canApproveReject"
-          @click="applyStatus('승인반려')"
+          :disabled="!canDecide"
+          @click="decide('승인반려')"
         >
           승인반려
         </button>
         <button
           type="button"
           class="btn btn--primary btn--sm"
-          :disabled="!canApproveReject"
-          @click="applyStatus('승인완료')"
+          :disabled="!canDecide"
+          @click="decide('승인완료')"
         >
           승인완료
         </button>
@@ -425,6 +379,14 @@ function onExcelDownload() {
 </template>
 
 <style scoped>
+.data-table tbody tr {
+  cursor: pointer;
+}
+
+.cell--center {
+  text-align: center;
+}
+
 .detail-card__head {
   display: flex;
   align-items: center;
@@ -435,6 +397,10 @@ function onExcelDownload() {
 
 .detail-card__head .detail-card__title {
   margin: 0;
+}
+
+.detail-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .detail-section {
@@ -458,21 +424,20 @@ function onExcelDownload() {
   min-width: 720px;
 }
 
-.detail-value--block {
-  align-items: flex-start;
-  min-height: 64px;
-  padding: 8px 10px;
-  white-space: pre-wrap;
-  line-height: 1.5;
-}
-
 .detail-card__foot {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--lnb-line);
+}
+
+.detail-card__note {
+  margin-right: auto;
+  font-size: 0.75rem;
+  color: var(--lnb-muted);
 }
 
 .badge--cancel {

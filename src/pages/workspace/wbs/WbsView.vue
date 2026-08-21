@@ -7,10 +7,10 @@ import {
   taskTypeOptions,
   progressStatusOptions,
   scheduleComplianceOptions,
-  systemOptions,
   assigneeOptions,
   getWbsTasks,
-  formatDateRange,
+  getWbsChangeRequests,
+  formatDateShort,
   statusLabel,
   statusClass,
   matchWbsFilters,
@@ -18,7 +18,6 @@ import {
   calcExecProgress,
   calcTotalProgress,
 } from '@/entities/wbs/mock/wbs'
-import { bizCategoryMap } from '@/entities/requirement/mock/requirement'
 import WbsScheduleModal from '@/pages/workspace/wbs/WbsScheduleModal.vue'
 import WbsScheduleReasonModal from '@/pages/workspace/wbs/WbsScheduleReasonModal.vue'
 import WbsBulkScheduleModal from '@/pages/workspace/wbs/WbsBulkScheduleModal.vue'
@@ -27,7 +26,6 @@ import WbsCalendar from '@/pages/workspace/wbs/WbsCalendar.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
-import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { addScheduleChangeRequest } from '@/entities/approval/mock/approval'
@@ -47,11 +45,8 @@ const statusFilterOpen = ref(false)
 const filters = ref({
   keyword: '',
   taskType: '전체',
-  system: '',
-  bizCategory: '',
   progressStatus: ['전체'],
   scheduleCompliance: '전체',
-  progressBaseDate: wbsMeta.progressBaseDate,
   showExcluded: false,
 })
 
@@ -76,12 +71,9 @@ const showSaveAlert = ref(false)
 const calYear = ref(2026)
 const calMonth = ref(4)
 
-const bizCategoryFilterOptions = computed(() => bizCategoryMap[filters.value.system] || [])
-const systemPillOptions = [{ value: '', label: '시스템 선택' }, ...systemOptions]
-const bizCategoryPillOptions = computed(() => [
-  { value: '', label: '업무구분 선택' },
-  ...bizCategoryFilterOptions.value,
-])
+const scheduleChangeRequests = computed(() =>
+  scheduleTarget.value ? getWbsChangeRequests(scheduleTarget.value.id) : [],
+)
 
 const statusFilterLabel = computed(() => {
   const sel = filters.value.progressStatus || []
@@ -95,8 +87,6 @@ const filterTags = computed(() => {
   const tags = []
   if (f.keyword) tags.push({ key: 'keyword', label: '통합검색', value: f.keyword })
   if (f.taskType && f.taskType !== '전체') tags.push({ key: 'taskType', label: '업무유형', value: f.taskType })
-  if (f.system) tags.push({ key: 'system', label: '시스템', value: f.system })
-  if (f.bizCategory) tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
   const statuses = f.progressStatus || []
   if (statuses.length && !statuses.includes('전체')) {
     tags.push({ key: 'progressStatus', label: '진행상태', value: statuses.join(', ') })
@@ -104,15 +94,19 @@ const filterTags = computed(() => {
   if (f.scheduleCompliance && f.scheduleCompliance !== '전체') {
     tags.push({ key: 'scheduleCompliance', label: '계획준수', value: f.scheduleCompliance })
   }
-  if (f.progressBaseDate && f.progressBaseDate !== wbsMeta.progressBaseDate) {
-    tags.push({ key: 'progressBaseDate', label: '공정률 기준날짜', value: f.progressBaseDate })
+  if (filters.value.showExcluded) {
+    tags.push({ key: 'showExcluded', label: '표시', value: '제외 포함' })
   }
   return tags
 })
 
 const filteredTasks = computed(() =>
   tasks.value.filter((row) =>
-    matchWbsFilters(row, appliedFilters.value, myTasksOnly.value),
+    matchWbsFilters(
+      row,
+      { ...appliedFilters.value, showExcluded: filters.value.showExcluded },
+      myTasksOnly.value,
+    ),
   ),
 )
 
@@ -153,26 +147,14 @@ function resetFilters() {
   filters.value = {
     keyword: '',
     taskType: '전체',
-    system: '',
-    bizCategory: '',
     progressStatus: ['전체'],
     scheduleCompliance: '전체',
-    progressBaseDate: wbsMeta.progressBaseDate,
     showExcluded: false,
   }
   appliedFilters.value = {
     ...filters.value,
     progressStatus: [...filters.value.progressStatus],
   }
-}
-
-function onSystemFilterChange() {
-  filters.value.bizCategory = ''
-}
-
-function onSystemSelect(value) {
-  filters.value.system = value
-  onSystemFilterChange()
 }
 
 function search() {
@@ -186,19 +168,15 @@ function search() {
 function removeFilterTag(key) {
   if (key === 'progressStatus') {
     filters.value.progressStatus = ['전체']
-  } else if (key === 'system') {
-    filters.value.system = ''
-    filters.value.bizCategory = ''
   } else if (key === 'taskType') {
     filters.value.taskType = '전체'
   } else if (key === 'scheduleCompliance') {
     filters.value.scheduleCompliance = '전체'
-  } else if (key === 'progressBaseDate') {
-    filters.value.progressBaseDate = wbsMeta.progressBaseDate
   } else if (key === 'keyword') {
     filters.value.keyword = ''
-  } else if (key === 'bizCategory') {
-    filters.value.bizCategory = ''
+  } else if (key === 'showExcluded') {
+    filters.value.showExcluded = false
+    return
   }
   search()
 }
@@ -496,13 +474,6 @@ function onCalendarSelect(task) {
     >
       <template #primary>
         <FilterSelectPill v-model="filters.taskType" label="업무유형" :options="taskTypeOptions" />
-        <FilterSelectPill
-          :model-value="filters.system"
-          label="시스템"
-          :options="systemPillOptions"
-          empty-label="시스템 선택"
-          @update:model-value="onSystemSelect"
-        />
         <div class="status-filter" @keydown.escape="statusFilterOpen = false">
           <button
             type="button"
@@ -535,25 +506,19 @@ function onCalendarSelect(task) {
         />
       </template>
       <template #expand>
-        <FilterSelectPill
-          v-model="filters.bizCategory"
-          label="업무구분"
-          :options="bizCategoryPillOptions"
-          empty-label="업무구분 선택"
-          :disabled="!filters.system"
-        />
-        <FilterTextPill
-          v-model="filters.progressBaseDate"
-          label="공정률 기준날짜"
-          type="date"
-        />
+        <div class="sfb-check-group">
+          <span class="sfb-check-group__label">표시</span>
+          <label class="sfb-check">
+            <input v-model="filters.showExcluded" type="checkbox" />
+            제외 포함
+          </label>
+        </div>
       </template>
     </SearchFilterBar>
 
     <!-- 툴바 (SB 112): 좌측 건수·작업제외 / 우측 엑셀·액션 -->
     <div v-if="viewMode === 'list'" class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredTasks.length }}</b>건</span>
-      <button type="button" class="btn btn--ghost btn--sm" @click="onExclude">작업제외</button>
       <div class="toolbar__spacer" />
       <button
         type="button"
@@ -564,6 +529,7 @@ function onCalendarSelect(task) {
         내 업무만
       </button>
       <button type="button" class="btn btn--ghost btn--sm" :disabled="!canManageSchedule" @click="onScheduleChange">일정변경</button>
+      <button type="button" class="btn btn--ghost btn--sm" @click="onExclude">작업제외</button>
       <button type="button" class="btn btn--ghost btn--sm" @click="onCopy">복사</button>
       <button type="button" class="btn btn--primary btn--sm" @click="onSave">저장</button>
       <ExcelDownloadButton @click="onExcelDownload" />
@@ -578,14 +544,14 @@ function onCalendarSelect(task) {
               <th class="col-check">
                 <input type="checkbox" :checked="isAllSelected()" @change="toggleSelectAll($event.target.checked)" />
               </th>
-              <th>시스템/업무구분</th>
+              <th>시스템 &gt; 업무구분</th>
               <th>업무명</th>
               <th>업무상세</th>
               <th>업무유형</th>
               <th>담당자</th>
               <th>난이도</th>
-              <th>계획일정</th>
-              <th>실행일정</th>
+              <th>계획일</th>
+              <th>실행일</th>
               <th>계획공정률</th>
               <th>실행공정률</th>
               <th>상태</th>
@@ -662,14 +628,25 @@ function onCalendarSelect(task) {
               <td>
                 <button
                   type="button"
-                  class="schedule-link"
-                  :disabled="row.excluded"
+                  class="date-cell"
+                  :disabled="row.excluded || row.status === '취소'"
                   @click="onScheduleClick(row)"
                 >
-                  {{ formatDateRange(row.planStart, row.planEnd) }}
+                  <span>{{ formatDateShort(row.planStart) }}</span>
+                  <span>{{ formatDateShort(row.planEnd) }}</span>
                 </button>
               </td>
-              <td>{{ formatDateRange(row.execStart, row.execEnd, '미실행') }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="date-cell"
+                  :disabled="row.excluded || row.status === '취소'"
+                  @click="onScheduleClick(row)"
+                >
+                  <span>{{ formatDateShort(row.execStart) }}</span>
+                  <span>{{ formatDateShort(row.execEnd) }}</span>
+                </button>
+              </td>
               <td>
                 <div class="prog-bar prog-bar--labeled">
                   <i :style="{ width: `${row.planProgress}%` }" />
@@ -722,6 +699,7 @@ function onCalendarSelect(task) {
     <WbsScheduleModal
       v-model="showScheduleModal"
       :task="scheduleTarget"
+      :change-requests="scheduleChangeRequests"
       @save="onScheduleSave"
       @open-multi-change="onOpenMultiChangeFromSchedule"
     />
@@ -1074,21 +1052,50 @@ function onCalendarSelect(task) {
   font-size: calc(11.5px + var(--font-size-offset, 0px));
 }
 
-.schedule-link {
-  border: none;
+.date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--teal);
   background: none;
-  color: var(--teal-600);
-  text-decoration: underline;
-  cursor: pointer;
-  font-family: inherit;
+  border: 0;
+  padding: 2px 4px;
+  font: inherit;
   font-size: calc(12px + var(--font-size-offset, 0px));
-  padding: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
-.schedule-link:disabled {
-  color: var(--muted);
-  cursor: not-allowed;
-  text-decoration: none;
+.date-cell:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.date-cell:disabled {
+  color: var(--lnb-muted);
+  cursor: default;
+}
+
+.sfb-check-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sfb-check-group__label {
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--sfb-label, var(--lnb-muted));
+  font-weight: 600;
+}
+
+.sfb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-weight: 500;
+  color: var(--lnb-logo);
+  cursor: pointer;
 }
 
 .prog-bar {

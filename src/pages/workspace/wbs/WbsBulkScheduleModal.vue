@@ -1,5 +1,5 @@
 <script setup>
-// POP-S-WBS-05 다중 일정 변경 (SB 123) — 단건/다건 공통 UI, 행별 일정 수정
+// POP-S-WBS-05 일정 변경 — 단건/다건 공통 UI (탭 → 안내 → 사유 → 대상 → 승인)
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import {
@@ -10,16 +10,19 @@ import {
   approverOptions,
   assigneeOptions,
   calcRestartRange,
+  wbsMockToday,
 } from '@/entities/wbs/mock/wbs'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   tasks: { type: Array, default: () => [] },
+  mode: { type: String, default: 'create' },
+  readonly: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'request'])
 
-const tab = ref('plan') // plan | hold
+const tab = ref('plan')
 /** @type {import('vue').Ref<Array<Record<string, any>>>} */
 const rows = ref([])
 const reason = ref('')
@@ -27,7 +30,13 @@ const reasonDetail = ref('')
 const collaborator = ref('')
 const approver = ref('')
 
-const count = computed(() => rows.value.length)
+const isDetail = computed(() => props.mode === 'detail')
+const isReadonly = computed(() => props.readonly || isDetail.value)
+
+const planRows = computed(() => rows.value.filter((row) => !row.execEnd))
+const holdRows = computed(() => rows.value.filter((row) => row.execStart && !row.execEnd))
+const activeRows = computed(() => (tab.value === 'plan' ? planRows.value : holdRows.value))
+const count = computed(() => activeRows.value.length)
 const isMulti = computed(() => count.value > 1)
 const isOther = computed(() => String(reason.value).includes('기타'))
 const plannerOptions = computed(() => assigneeOptions.기획 || [])
@@ -36,23 +45,27 @@ const reasonOptions = computed(() => {
   if (tab.value === 'hold') return holdChangeReasons
   return isMulti.value ? bulkPlanChangeReasons : planChangeReasons
 })
+const bypassStartLock = computed(() => reason.value === '착수일 미체크')
 
 watch(
-  () => props.modelValue,
-  (open) => {
+  () => [props.modelValue, props.tasks, props.mode],
+  ([open]) => {
     if (!open) return
-    tab.value = 'plan'
     reason.value = ''
     reasonDetail.value = ''
     collaborator.value = ''
     approver.value = ''
-    rows.value = (props.tasks || []).map((t) => ({
+    const built = (props.tasks || []).map((t) => ({
       ...t,
       changeStart: t.planStart || '',
       changeEnd: t.planEnd || '',
-      holdStart: '',
-      holdEnd: '',
+      holdStart: t.holdStart || '',
+      holdEnd: t.holdEnd || '',
     }))
+    rows.value = built
+    const hasPlanTarget = built.some((row) => !row.execEnd)
+    const hasHoldTarget = built.some((row) => row.execStart && !row.execEnd)
+    tab.value = !hasPlanTarget && hasHoldTarget ? 'hold' : 'plan'
   },
 )
 
@@ -69,10 +82,6 @@ function currentExecText(row) {
   return formatDateRange(row.execStart, row.execEnd)
 }
 
-/** '착수일 미체크' 사유 선택 시, 착수 후에도 시작일을 과거일로 직접 보정 입력 가능 */
-const bypassStartLock = computed(() => reason.value === '착수일 미체크')
-
-/** 착수 후에만 시작일 잠금 (SB: 착수 전은 시작·종료 모두 변경 가능) */
 function isStartLocked(row) {
   return !bypassStartLock.value && !!row.execStart
 }
@@ -86,12 +95,8 @@ function restartInfo(row) {
   return calcRestartRange(row, row.holdStart, row.holdEnd)
 }
 
-function restartStartText(row) {
-  return restartInfo(row).start || '-'
-}
-
-function restartEndText(row) {
-  return restartInfo(row).end || '-'
+function holdStartMin(row) {
+  return row.execStart && row.execStart > wbsMockToday ? row.execStart : wbsMockToday
 }
 
 function onTabChange(next) {
@@ -101,6 +106,10 @@ function onTabChange(next) {
 }
 
 function submit() {
+  if (isDetail.value) {
+    close()
+    return
+  }
   if (!approver.value) {
     window.alert('승인(팀장)을 입력하세요.')
     return
@@ -113,18 +122,26 @@ function submit() {
     window.alert('변경 사유 상세를 입력하세요.')
     return
   }
+  if (collaboratorEnabled.value && !collaborator.value) {
+    window.alert("담당 기획자를 '협조자'로 지정하세요.")
+    return
+  }
 
   const reasonText = isOther.value ? reasonDetail.value.trim() : reason.value
 
   if (tab.value === 'plan') {
-    for (const row of rows.value) {
+    if (!planRows.value.length) {
+      window.alert('계획일 변경 대상 업무가 없습니다.')
+      return
+    }
+    for (const row of planRows.value) {
       const start = isStartLocked(row) ? lockedStartValue(row) : row.changeStart
       const end = row.changeEnd
-      if (!start || !end) {
+      if ((!isStartLocked(row) && !start) || !end) {
         window.alert(`${row.wbsId}: 변경 일정을 입력하세요.`)
         return
       }
-      if (start > end) {
+      if (start && end && start > end) {
         window.alert(`${row.wbsId}: 종료일은 시작일 이후여야 합니다.`)
         return
       }
@@ -137,7 +154,7 @@ function submit() {
       return
     }
 
-    const payloadTasks = rows.value.map((row) => ({
+    const payloadTasks = planRows.value.map((row) => ({
       ...row,
       newPlanStart: isStartLocked(row) ? lockedStartValue(row) : row.changeStart,
       newPlanEnd: row.changeEnd,
@@ -149,18 +166,29 @@ function submit() {
       approver: approver.value,
       collaborator: isMulti.value ? '' : collaborator.value,
       tasks: payloadTasks,
-      // 승인목록 요약용 (첫 건 기준)
       planStart: payloadTasks[0]?.newPlanStart,
       planEnd: payloadTasks[0]?.newPlanEnd,
     })
   } else {
-    for (const row of rows.value) {
+    if (!holdRows.value.length) {
+      window.alert('실행 홀딩 대상 업무가 없습니다.')
+      return
+    }
+    for (const row of holdRows.value) {
       if (!row.holdStart || !row.holdEnd) {
         window.alert(`${row.wbsId}: 중단 일정을 입력하세요.`)
         return
       }
       if (row.holdStart > row.holdEnd) {
         window.alert(`${row.wbsId}: 중단 종료일은 시작일 이후여야 합니다.`)
+        return
+      }
+      if (row.execStart && row.holdStart < row.execStart) {
+        window.alert(`${row.wbsId}: 중단 시작일은 착수일(${row.execStart}) 이후여야 합니다.`)
+        return
+      }
+      if (row.holdStart < wbsMockToday) {
+        window.alert(`${row.wbsId}: 중단 시작일은 오늘 이전일 수 없습니다.`)
         return
       }
     }
@@ -172,7 +200,7 @@ function submit() {
       return
     }
 
-    const payloadTasks = rows.value.map((row) => ({
+    const payloadTasks = holdRows.value.map((row) => ({
       ...row,
       restart: calcRestartRange(row, row.holdStart, row.holdEnd),
     }))
@@ -196,12 +224,14 @@ function submit() {
 </script>
 
 <template>
-  <BaseModal title="다중 일정 변경" :visible="modelValue" wide @close="close">
-    <div class="tabs">
+  <BaseModal :title="isDetail ? '일정 변경 요청 상세' : '일정 변경'" :visible="modelValue" wide @close="close">
+    <div v-if="!isDetail" class="tabs">
       <button
         type="button"
         class="tabs__btn"
         :class="{ 'tabs__btn--on': tab === 'plan' }"
+        :disabled="!planRows.length"
+        :title="!planRows.length ? '계획일 변경 대상 업무가 없습니다.' : undefined"
         @click="onTabChange('plan')"
       >
         계획일 변경
@@ -210,168 +240,198 @@ function submit() {
         type="button"
         class="tabs__btn"
         :class="{ 'tabs__btn--on': tab === 'hold' }"
+        :disabled="!holdRows.length"
+        :title="!holdRows.length ? '실행 홀딩 대상 업무가 없습니다.' : undefined"
         @click="onTabChange('hold')"
       >
         실행 홀딩
       </button>
     </div>
+    <p v-else class="detail-tab-label">{{ tab === 'hold' ? '실행 홀딩' : '계획일 변경' }}</p>
 
-    <p class="guide">
-      · 변경 시, 담당 팀장의 승인이 필요합니다.
-      (기획자 배정된 경우, 담당 기획자 ‘협조자’ 지정 필수)<br />
-      · 대기 상태(착수 전)에서 일정 변경 시 시작일~종료일 모두 변경 가능하며,
-      착수 후엔 종료일만 변경할 수 있습니다.
-    </p>
+    <ul class="guide">
+      <template v-if="isDetail">
+        <li>승인자를 바꾸려면 요청을 취소하고 다시 요청하세요.</li>
+        <li v-if="isReadonly">승인 완료된 요청은 수정할 수 없습니다.</li>
+      </template>
+      <template v-else>
+        <li v-if="collaboratorEnabled">
+          변경 시, 담당 팀장의 승인이 필요합니다. (기획자 배정된 경우, 담당 기획자 '협조자' 지정 필수)
+        </li>
+        <li v-else>
+          변경 시, 담당 팀장의 승인이 필요합니다. (다건 변경은 사전 조율 전제로 협조자 지정을 생략합니다)
+        </li>
+        <li>
+          착수 전 업무는 변경 시작일·종료일 모두 입력 가능하고, 착수 후 업무는 종료일만 변경할 수 있습니다(시작일 칸엔 착수일 표시).
+        </li>
+      </template>
+    </ul>
 
-    <div class="section">
-      <h4 class="section__title">변경 대상 (총 {{ count }}건)</h4>
-      <div class="table-wrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>시스템</th>
-              <th>업무</th>
-              <th>화면명</th>
-              <th>업무명</th>
-              <th>업무유형</th>
-              <th>담당자</th>
-              <th>공정률</th>
-              <template v-if="tab === 'plan'">
-                <th colspan="2">현재일정(계획)</th>
-                <th colspan="2">변경 일정</th>
-              </template>
-              <template v-else>
-                <th colspan="2">현재일정(계획/실행)</th>
-                <th colspan="2">중단 일정</th>
-                <th colspan="2">재착수 예정일</th>
-                <th colspan="2">보정 계획일</th>
-              </template>
-            </tr>
-            <tr class="tbl__sub">
-              <th colspan="7" />
-              <th>시작일</th>
-              <th>종료일</th>
-              <th>시작일</th>
-              <th>종료일</th>
-              <template v-if="tab === 'hold'">
-                <th>시작일</th>
-                <th>종료일</th>
-                <th>시작일</th>
-                <th>종료일</th>
-              </template>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id">
-              <td>{{ (row.systemPath || '-').split('>')[0] }}</td>
-              <td>{{ (row.systemPath || '').split('>')[1] || '-' }}</td>
-              <td>{{ row.screenName }}</td>
-              <td class="name">{{ row.taskName || row.requirementName }}</td>
-              <td>{{ row.taskType }}</td>
-              <td>{{ row.assigneeDisplay || '-' }}</td>
-              <td>{{ row.execProgress != null ? `${row.execProgress}%` : '-' }}</td>
-              <template v-if="tab === 'plan'">
-                <td class="date-cell">{{ row.planStart || '-' }}</td>
-                <td class="date-cell">{{ row.planEnd || '-' }}</td>
-                <td>
-                  <input
-                    v-if="!isStartLocked(row)"
-                    v-model="row.changeStart"
-                    class="inp inp--date"
-                    type="date"
-                    @click="$event.target.showPicker?.()"
-                  />
-                  <span v-else class="locked">{{ lockedStartValue(row) }}</span>
-                </td>
-                <td>
-                  <input v-model="row.changeEnd" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
-                </td>
-              </template>
-              <template v-else>
-                <td class="date-cell">
-                  {{ row.planStart || '-' }}
-                  <br />
-                  <span class="date-cell__exec">{{ row.execStart ? `(${row.execStart})` : '' }}</span>
-                </td>
-                <td class="date-cell">
-                  {{ row.planEnd || '-' }}
-                  <br />
-                  <span
-                    class="date-cell__exec"
-                    :class="{ 'date-cell__exec--prog': !row.execEnd && row.execStart }"
-                  >
-                    {{ row.execEnd ? `(${row.execEnd})` : row.execStart ? '-(진행중)' : '' }}
-                  </span>
-                </td>
-                <td>
-                  <input v-model="row.holdStart" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
-                </td>
-                <td>
-                  <input v-model="row.holdEnd" class="inp inp--date" type="date" @click="$event.target.showPicker?.()" />
-                </td>
-                <td class="restart">{{ restartStartText(row) }}</td>
-                <td class="restart">{{ restartEndText(row) }}</td>
-                <td class="restart">{{ row.planStart || '-' }}</td>
-                <td class="restart">{{ restartEndText(row) }}</td>
-              </template>
-            </tr>
-            <tr v-if="!rows.length">
-              <td :colspan="tab === 'hold' ? 15 : 11" class="empty">선택된 업무가 없습니다.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p v-if="tab === 'plan'" class="hint-row">
-        ※ 현재일정 표시: 계획 {{ rows[0] ? currentPlanText(rows[0]) : '-' }}
-        <template v-if="rows[0]?.execStart"> / 실행 {{ currentExecText(rows[0]) }}</template>
-        — 행마다 변경 일정을 개별 입력합니다.
-      </p>
+    <h3 class="sec-title">일정 변경 사유</h3>
+    <div class="reason-field">
+      <label>
+        변경 사유 <i class="req">*</i>
+        <select v-model="reason" class="inp" :disabled="isReadonly">
+          <option value="">사유 선택</option>
+          <option v-for="r in reasonOptions" :key="r" :value="r">{{ r }}</option>
+        </select>
+      </label>
+      <label v-if="isOther" class="reason-detail">
+        상세 사유
+        <textarea
+          v-model="reasonDetail"
+          class="ta"
+          maxlength="500"
+          rows="3"
+          :disabled="isReadonly"
+        />
+        <span class="char-count">{{ reasonDetail.length }}/500</span>
+      </label>
     </div>
 
-    <div class="section">
-      <h4 class="section__title">변경 사유 <span class="req">*</span></h4>
-      <select v-model="reason" class="inp">
-        <option value="">사유 선택</option>
-        <option v-for="r in reasonOptions" :key="r" :value="r">{{ r }}</option>
-      </select>
-      <textarea
-        v-if="isOther"
-        v-model="reasonDetail"
-        class="ta"
-        rows="3"
-        maxlength="500"
-        placeholder="상세 사유를 입력하세요"
-      />
-      <span v-if="isOther" class="char-count">{{ reasonDetail.length }} / 500자</span>
+    <h3 class="sec-title">변경 대상 (총 {{ count }}건)</h3>
+    <div class="table-wrap">
+      <table v-if="tab === 'plan'" class="tbl">
+        <thead>
+          <tr>
+            <th>업무명</th>
+            <th>업무 상세</th>
+            <th>업무유형</th>
+            <th>담당자</th>
+            <th>공정률</th>
+            <th colspan="2">현재일정</th>
+            <th colspan="2" class="target-cols">변경일정</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in planRows" :key="row.id">
+            <td class="name">{{ row.taskName || row.requirementName || '-' }}</td>
+            <td class="task-detail-cell">{{ row.taskDetail || '-' }}</td>
+            <td>{{ row.taskType }}</td>
+            <td>{{ row.assigneeDisplay || '-' }}</td>
+            <td>{{ row.planProgress != null ? `${row.planProgress}%` : '-' }}</td>
+            <td>{{ row.planStart || '-' }}</td>
+            <td>{{ row.planEnd || '-' }}</td>
+            <td class="target-cols">
+              <input
+                v-if="!isStartLocked(row)"
+                v-model="row.changeStart"
+                class="inp inp--date"
+                type="date"
+                :disabled="isReadonly"
+                @click="$event.target.showPicker?.()"
+              />
+              <span v-else class="locked">{{ lockedStartValue(row) }}</span>
+            </td>
+            <td class="target-cols">
+              <input
+                v-model="row.changeEnd"
+                class="inp inp--date"
+                type="date"
+                :disabled="isReadonly"
+                @click="$event.target.showPicker?.()"
+              />
+            </td>
+          </tr>
+          <tr v-if="!planRows.length">
+            <td colspan="9" class="empty">계획일 변경 대상 업무가 없습니다.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table v-else class="tbl">
+        <thead>
+          <tr>
+            <th>업무명</th>
+            <th>업무 상세</th>
+            <th>업무유형</th>
+            <th>담당자</th>
+            <th>공정률</th>
+            <th>현재 계획일정</th>
+            <th>현재 실행일정</th>
+            <th colspan="2" class="target-cols">중단일정</th>
+            <th colspan="2">재착수 예상일정</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in holdRows" :key="row.id">
+            <td class="name">{{ row.taskName || row.requirementName || '-' }}</td>
+            <td class="task-detail-cell">{{ row.taskDetail || '-' }}</td>
+            <td>{{ row.taskType }}</td>
+            <td>{{ row.assigneeDisplay || '-' }}</td>
+            <td>{{ row.planProgress != null ? `${row.planProgress}%` : '-' }}</td>
+            <td>{{ currentPlanText(row) }}</td>
+            <td>{{ currentExecText(row) }}</td>
+            <td class="target-cols">
+              <input
+                v-model="row.holdStart"
+                class="inp inp--date"
+                type="date"
+                :min="holdStartMin(row)"
+                :disabled="isReadonly"
+                @click="$event.target.showPicker?.()"
+              />
+            </td>
+            <td class="target-cols">
+              <input
+                v-model="row.holdEnd"
+                class="inp inp--date"
+                type="date"
+                :min="row.holdStart || undefined"
+                :disabled="isReadonly"
+                @click="$event.target.showPicker?.()"
+              />
+            </td>
+            <td class="restart">{{ restartInfo(row).start || '-' }}</td>
+            <td class="restart">{{ restartInfo(row).end || '-' }}</td>
+          </tr>
+          <tr v-if="!holdRows.length">
+            <td colspan="11" class="empty">실행 홀딩 대상 업무가 없습니다.</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <div class="section row2">
-      <div>
-        <h4 class="section__title">공유 (기획/현업)</h4>
-        <select v-model="collaborator" class="inp" :disabled="!collaboratorEnabled">
-          <option value="">
-            {{ isMulti ? '다건 변경 시 비활성화' : collaboratorEnabled ? '선택' : '기획자 1인 이하로 비활성화' }}
-          </option>
+    <h3 class="sec-title">일정 변경 및 승인</h3>
+    <div class="approval-row">
+      <label>
+        공유(기획/현업)
+        <select
+          v-model="collaborator"
+          class="inp"
+          :disabled="!collaboratorEnabled || isDetail"
+          :title="!collaboratorEnabled ? '기획자 2명 이상 배정된 프로젝트에서만 활성화됩니다.' : undefined"
+        >
+          <option value="">선택</option>
           <option v-for="p in plannerOptions" :key="p" :value="p">{{ p }}</option>
         </select>
-      </div>
-      <div>
-        <h4 class="section__title">승인 (팀장) <span class="req">*</span></h4>
-        <select v-model="approver" class="inp">
+      </label>
+      <label>
+        승인(팀장) <i class="req">*</i>
+        <select v-model="approver" class="inp" :disabled="isDetail">
           <option value="">선택</option>
           <option v-for="a in approverOptions" :key="a" :value="a">{{ a }}</option>
         </select>
-      </div>
+      </label>
     </div>
 
     <template #footer>
-      <button type="button" class="btn btn--ghost" @click="close">취소</button>
-      <button type="button" class="btn btn--primary" @click="submit">변경요청</button>
+      <button type="button" class="btn btn--ghost" @click="close">{{ isDetail ? '닫기' : '취소' }}</button>
+      <button v-if="!isDetail" type="button" class="btn btn--primary" @click="submit">
+        {{ count }}건 승인요청
+      </button>
     </template>
   </BaseModal>
 </template>
 
 <style scoped>
+.detail-tab-label {
+  margin: 0 0 10px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-weight: 700;
+  color: var(--lnb-txt);
+}
+
 .tabs {
   display: flex;
   gap: 4px;
@@ -397,9 +457,14 @@ function submit() {
   font-weight: 700;
 }
 
+.tabs__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .guide {
   margin: 0 0 14px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 2.2rem;
   background: var(--teal-50);
   border-radius: var(--radius-md);
   font-size: calc(11px + var(--font-size-offset, 0px));
@@ -407,23 +472,40 @@ function submit() {
   color: var(--teal-700);
 }
 
-.section {
-  margin-bottom: 14px;
-}
-
-.section__title {
-  margin: 0 0 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--lnb-line);
-  font-size: calc(12px + var(--font-size-offset, 0px));
+.sec-title {
+  margin: 14px 0 8px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 700;
+  color: var(--lnb-txt);
 }
 
 .req {
   color: var(--red);
+  font-style: normal;
+}
+
+.reason-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.reason-field label,
+.approval-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  color: var(--lnb-txt);
+}
+
+.reason-detail {
+  flex: 1 1 22rem;
 }
 
 .table-wrap {
+  margin-bottom: 12px;
   max-height: 280px;
   overflow: auto;
   border: 1px solid var(--lnb-line);
@@ -434,6 +516,7 @@ function submit() {
   width: 100%;
   border-collapse: collapse;
   font-size: calc(11px + var(--font-size-offset, 0px));
+  white-space: nowrap;
 }
 
 .tbl th,
@@ -441,7 +524,6 @@ function submit() {
   padding: 6px 8px;
   border-bottom: 1px solid var(--lnb-line);
   text-align: left;
-  white-space: nowrap;
   vertical-align: middle;
 }
 
@@ -455,32 +537,21 @@ function submit() {
   text-align: center;
 }
 
-.tbl__sub th {
-  top: 28px;
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  font-weight: 500;
-}
-
 .tbl .name {
   max-width: 160px;
   white-space: normal;
   word-break: break-word;
 }
 
-.date-cell {
-  font-weight: 700;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-txt);
+.task-detail-cell {
+  min-width: 12rem;
+  max-width: 22rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-.date-cell__exec {
-  font-weight: 500;
-  font-size: calc(10px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-}
-
-.date-cell__exec--prog {
-  color: var(--green);
+.target-cols {
+  background: var(--teal-50);
 }
 
 .inp {
@@ -526,15 +597,8 @@ function submit() {
   color: var(--lnb-muted);
 }
 
-.hint-row {
-  margin: 8px 0 0;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
-}
-
 .ta {
   width: 100%;
-  margin-top: 8px;
   box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid var(--lnb-line);
@@ -553,7 +617,7 @@ function submit() {
   color: var(--lnb-muted);
 }
 
-.row2 {
+.approval-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;

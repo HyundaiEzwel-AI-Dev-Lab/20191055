@@ -10,8 +10,8 @@ export const performanceMeta = {
 export const performanceSummary = {
   projectCount: 120,
   longTermProjects: 20,
-  avgDevWorkload: 2.2,
-  projectsPerPerson: 3.5,
+  avgDevWorkload: 44,
+  membersPerProject: 3.5,
 }
 
 export const deptOptions = ['전체', '플랫폼팀', 'E커머스팀', '상품기획팀', '마케팅팀', 'IT기획팀']

@@ -1,7 +1,7 @@
 <script setup>
 // PAG-S-REQ-01 요구사항 관리
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onActivated, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   requirementMeta,
   taskTypeOptions,
@@ -17,6 +17,7 @@ import {
   priorityClass,
   confirmClass,
   matchFilters,
+  hydrateRequirement,
 } from '@/entities/requirement/mock/requirement'
 import RequirementIssueModal from '@/pages/workspace/requirement/RequirementIssueModal.vue'
 import RequirementFormModal from '@/pages/workspace/requirement/RequirementFormModal.vue'
@@ -34,6 +35,7 @@ import { useAuthStore } from '@/app/stores/auth'
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
 const route = useRoute()
+const router = useRouter()
 const requirements = ref([])
 const filterExpanded = ref(false)
 const filters = ref({
@@ -65,7 +67,6 @@ const formTarget = ref(null)
 const showBulkModal = ref(false)
 
 const showSaveAlert = ref(null)
-const saveAlertCount = ref(0)
 const confirmTipOpen = ref(false)
 const showScreenSearchModal = ref(false)
 const screenSettingSystem = ref('')
@@ -106,7 +107,7 @@ const filterTags = computed(() => {
 
 const confirmSelectOptions = ['미확정', '확정']
 const confirmTooltip =
-  '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 요구사항 확인 완료 (확정 후 변경 불가)\n- 미확정 : 요구사항 확인 전 상태 (초기 등록 상태)'
+  '요청자와 테크담당 모두 확정 시 WBS 업무가 생성됩니다.\n- 확정 : 최종 개발 요구사항 확인 완료 (확정 후에도 요구사항은 계속 수정 가능하며, 확정 자체는 되돌릴 수 없음)\n- 미확정 : 최종 개발 요구사항 확정 전'
 
 const filteredList = computed(() =>
   requirements.value.filter((row) => matchFilters(row, appliedFilters.value)),
@@ -133,12 +134,31 @@ const selectedRows = computed(() =>
 
 const canExpandAll = computed(() => pageSize.value === 20)
 
+let deepLinkOpening = false
+
+async function openDeepLinkedRequirement() {
+  const target = route.query.reqId
+  if (typeof target !== 'string' || !target || deepLinkOpening) return
+  deepLinkOpening = true
+  try {
+    await router.replace({ path: route.path, query: { ...route.query, reqId: undefined } })
+    if (!requirements.value.length) {
+      requirements.value = getRequirementList(authStore.user?.id)
+    }
+    const found = requirements.value.find((r) => r.reqId === target)
+    if (found) openEdit(found)
+  } finally {
+    deepLinkOpening = false
+  }
+}
+
 onMounted(() => {
   requirements.value = getRequirementList(authStore.user?.id)
-  if (route.query.reqId) {
-    const target = requirements.value.find((r) => r.reqId === route.query.reqId)
-    if (target) openEdit(target)
-  }
+  void openDeepLinkedRequirement()
+})
+
+onActivated(() => {
+  void openDeepLinkedRequirement()
 })
 
 function resetFilters() {
@@ -234,19 +254,25 @@ function isAllSelected() {
 
 function isConfirmLocked(row) {
   if (row.status === '반려') return true
-  if (row.confirmLocked) return true
-  // 접수 상태에서는 확정 전환 불가 (SB 94)
-  if (row.status === '접수') return true
+  if (row.confirmRequester === '확정' && row.confirmTech === '확정') return true
   return false
 }
 
+function isConfirmationFieldLocked(row, field) {
+  if (isConfirmLocked(row)) return true
+  return field === 'confirmRequester' ? row.confirmRequester === '확정' : row.confirmTech === '확정'
+}
+
 function onConfirmChange(row, field, value) {
-  if (isConfirmLocked(row)) return
-  row[field] = value
-  if (value === '확정') {
-    const atField = field === 'confirmRequester' ? 'confirmRequesterAt' : 'confirmTechAt'
-    row[atField] = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  if (isConfirmationFieldLocked(row, field)) return
+  const previous = row[field]
+  if (value !== '확정') {
+    row[field] = previous
+    return
   }
+  row[field] = '확정'
+  const atField = field === 'confirmRequester' ? 'confirmRequesterAt' : 'confirmTechAt'
+  row[atField] = new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
 
 function onIssueClick(row) {
@@ -262,6 +288,11 @@ function onIssueAdded({ requirement, body }) {
     reqId: requirement.reqId,
     issueBody: body,
   })
+}
+
+function onIssueCountChange(count) {
+  const row = issueTarget.value || formTarget.value
+  if (row) row.issueCount = count
 }
 
 function openRegister() {
@@ -280,33 +311,34 @@ function onBulkRegister(items) {
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
   items.forEach((form, idx) => {
     const nextNo = requirements.value.length + 1 + idx
-    requirements.value.unshift({
-      id: `req-bulk-${Date.now()}-${idx}`,
-      reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
-      systemPath: `${form.system}>${form.bizCategory}`,
-      screenPath: form.screenMenu || '-',
-      screenName: form.screenMenu || '-',
-      reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
-      name: form.name,
-      taskTypes: [...form.taskTypes],
-      status: form.status || '접수',
-      priority: form.priority || '보통',
-      confirmRequester: '미확정',
-      confirmTech: '미확정',
-      issueCount: 0,
-      registeredBy: '김현대',
-      registeredAt: now,
-      updatedBy: null,
-      updatedAt: null,
-      requester: '김현대',
-      original: form.original,
-      analysis: '',
-      system: form.system,
-      bizCategory: form.bizCategory,
-      screenMenu: form.screenMenu || '',
-      memo: '',
-      issues: [],
-    })
+    requirements.value.unshift(
+      hydrateRequirement({
+        id: `req-bulk-${Date.now()}-${idx}`,
+        reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
+        reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
+        name: form.name,
+        taskTypes: [...form.taskTypes],
+        status: form.status || '접수',
+        priority: form.priority || '보통',
+        confirmRequester: '미확정',
+        confirmTech: '미확정',
+        issueCount: 0,
+        registeredBy: '김현대',
+        registeredAt: now,
+        updatedBy: null,
+        updatedAt: null,
+        requester: '김현대',
+        original: form.original,
+        analysis: '',
+        system: form.system,
+        bizCategory: form.bizCategory,
+        screenMenu: form.screenMenu || '',
+        screenPath: form.screenPath || form.screenMenu || '-',
+        screenName: form.screenName || form.screenMenu || '-',
+        memo: '',
+        issues: [],
+      }),
+    )
   })
   currentPage.value = 1
 }
@@ -330,15 +362,12 @@ function findDuplicateRequirement(form) {
 
 function buildRequirementRow(form, seqOffset) {
   const nextNo = requirements.value.length + 1 + seqOffset
-  return {
+  return hydrateRequirement({
     id: `req-new-${Date.now()}-${seqOffset}`,
     reqId: `REQ-${String(nextNo).padStart(3, '0')}`,
-    systemPath: `${form.system}>${form.bizCategory}`,
-    screenPath: form.screenPath || form.screenMenu || '-',
-    screenName: form.screenName || form.screenMenu || '-',
     reqType: form.reqType.startsWith('추가') ? '추가' : '최초',
     name: form.name,
-    taskTypes: [...form.taskTypes],
+    taskTypes: [...(form.taskTypes || [])],
     status: form.status,
     priority: form.priority,
     confirmRequester: form.confirmRequester ? '확정' : '미확정',
@@ -354,19 +383,22 @@ function buildRequirementRow(form, seqOffset) {
     system: form.system,
     bizCategory: form.bizCategory,
     screenMenu: form.screenMenu || form.screenName || '',
+    screenPath: form.screenPath || form.screenMenu || '-',
+    screenName: form.screenName || form.screenMenu || '-',
     memo: form.memo,
     attachments: [...(form.attachments || [])],
+    scopes: form.scopes,
     issues: [],
-  }
+  })
 }
 
 function onFormSave(payload) {
   if (formMode.value === 'register' || formMode.value === 'copy') {
-    const forms = Array.isArray(payload) ? payload : [payload]
+    const form = Array.isArray(payload) ? payload[0] : payload
     if (formMode.value === 'copy') {
-      const dup = findDuplicateRequirement(forms[0])
+      const dup = findDuplicateRequirement(form)
       if (dup) {
-        const newTaskTypes = forms[0].taskTypes.filter((t) => !dup.taskTypes.includes(t))
+        const newTaskTypes = (form.taskTypes || []).filter((t) => !dup.taskTypes.includes(t))
         if (!newTaskTypes.length) {
           window.alert(`동일한 시스템, 업무유형, 화면명으로 이미 등록된 요구사항입니다(ID : ${dup.reqId})`)
           return
@@ -377,9 +409,7 @@ function onFormSave(payload) {
         return
       }
     }
-    forms.forEach((form, idx) => {
-      requirements.value.unshift(buildRequirementRow(form, idx))
-    })
+    requirements.value.unshift(buildRequirementRow(form, 0))
   } else if (formTarget.value) {
     const form = payload
     if (form.screenOnly) {
@@ -391,14 +421,7 @@ function onFormSave(payload) {
         updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
       })
     } else {
-      const bothOn = !!form.confirmRequester && !!form.confirmTech
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
-      if (form.confirmRequester && formTarget.value.confirmRequester !== '확정') {
-        formTarget.value.confirmRequesterAt = now
-      }
-      if (form.confirmTech && formTarget.value.confirmTech !== '확정') {
-        formTarget.value.confirmTechAt = now
-      }
       if (!formTarget.value.changeHistory) formTarget.value.changeHistory = []
       const changeBefore = {
         name: formTarget.value.name,
@@ -456,26 +479,25 @@ function onFormSave(payload) {
           })
         }
       }
-      Object.assign(formTarget.value, {
+      const hydrated = hydrateRequirement({
+        ...formTarget.value,
         name: form.name,
         analysis: form.analysis,
         status: form.status,
         priority: form.priority,
-        taskTypes: [...form.taskTypes],
-        confirmRequester: form.confirmRequester ? '확정' : '미확정',
-        confirmTech: form.confirmTech ? '확정' : '미확정',
-        confirmLocked: bothOn || formTarget.value.confirmLocked,
+        taskTypes: [...(form.taskTypes || [])],
         memo: form.memo,
         attachments: [...(form.attachments || [])],
         system: form.system,
         bizCategory: form.bizCategory,
-        systemPath: `${form.system}>${form.bizCategory}`,
         screenPath: form.screenPath || form.screenMenu || formTarget.value.screenPath,
         screenName: form.screenName || form.screenMenu || formTarget.value.screenName,
         screenMenu: form.screenMenu || form.screenName || '',
+        scopes: form.scopes,
         updatedBy: '김현대',
         updatedAt: now,
       })
+      Object.assign(formTarget.value, hydrated)
     }
   }
   window.alert('저장되었습니다.')
@@ -487,19 +509,7 @@ function onSaveConfirm() {
     showSaveAlert.value = 'none'
     return
   }
-  const hasUnconfirmed = selectedRows.value.some(
-    (r) => r.confirmRequester !== '확정' || r.confirmTech !== '확정',
-  )
-  if (hasUnconfirmed) {
-    showSaveAlert.value = 'unconfirmed'
-    return
-  }
-  selectedRows.value.forEach((r) => {
-    r.confirmLocked = true
-  })
-  saveAlertCount.value = selectedRows.value.length
-  showSaveAlert.value = 'done'
-  selectedIds.value = new Set()
+  showSaveAlert.value = 'unsupported'
 }
 
 function onCopy() {
@@ -540,6 +550,13 @@ function onScreenSelect(picked) {
     row.screenMenu = picked.name
     row.updatedBy = '김현대'
     row.updatedAt = now
+    const primary = row.scopes?.[0]
+    if (primary) {
+      primary.screenPath = picked.path
+      primary.screenName = picked.name
+      primary.screenCode = picked.screenCode || primary.screenCode || ''
+      primary.noScreen = false
+    }
   })
   window.alert(`선택한 ${selectedRows.value.length}건의 화면경로가 설정되었습니다.`)
   selectedIds.value = new Set()
@@ -674,7 +691,6 @@ function onPageSizeChange() {
               <th rowspan="2">화면명</th>
               <th rowspan="2">요구사항명</th>
               <th rowspan="2">구분</th>
-              <th rowspan="2">업무유형</th>
               <th rowspan="2">상태</th>
               <th rowspan="2">우선순위</th>
               <th colspan="2" class="confirm-head">
@@ -720,7 +736,12 @@ function onPageSizeChange() {
                   />
                 </td>
                 <td><b>{{ row.reqId }}</b></td>
-                <td>{{ row.systemPath }}</td>
+                <td>
+                  {{ row.systemPath }}
+                  <span v-if="(row.scopeCount || row.scopes?.length || 1) > 1" class="scope-count">
+                    +{{ (row.scopeCount || row.scopes.length) - 1 }}
+                  </span>
+                </td>
                 <td>{{ row.screenPath }}</td>
                 <td>{{ row.screenName }}</td>
                 <td>
@@ -729,11 +750,6 @@ function onPageSizeChange() {
                   </button>
                 </td>
                 <td>{{ row.reqType }}</td>
-                <td>
-                  <div class="task-types">
-                    <span v-for="t in row.taskTypes" :key="t">{{ t }}</span>
-                  </div>
-                </td>
                 <td>
                   <span class="st" :class="`st--${statusClass(row.status)}`">{{ row.status }}</span>
                 </td>
@@ -747,7 +763,7 @@ function onPageSizeChange() {
                     class="confirm-select"
                     :class="`confirm-select--${confirmClass(row.confirmRequester)}`"
                     :value="row.confirmRequester === '확정' ? '확정' : '미확정'"
-                    :disabled="isConfirmLocked(row)"
+                    :disabled="isConfirmationFieldLocked(row, 'confirmRequester')"
                     @change="onConfirmChange(row, 'confirmRequester', $event.target.value)"
                   >
                     <option v-for="o in confirmSelectOptions" :key="o" :value="o">{{ o }}</option>
@@ -758,7 +774,7 @@ function onPageSizeChange() {
                     class="confirm-select"
                     :class="`confirm-select--${confirmClass(row.confirmTech)}`"
                     :value="row.confirmTech === '확정' ? '확정' : '미확정'"
-                    :disabled="isConfirmLocked(row)"
+                    :disabled="isConfirmationFieldLocked(row, 'confirmTech')"
                     @change="onConfirmChange(row, 'confirmTech', $event.target.value)"
                   >
                     <option v-for="o in confirmSelectOptions" :key="o" :value="o">{{ o }}</option>
@@ -780,7 +796,7 @@ function onPageSizeChange() {
               </tr>
 
               <tr v-if="expandedIds.has(row.id)" class="detail-row">
-                <td colspan="14">
+                <td colspan="13">
                   <div class="detail-panel">
                     <div class="detail-panel__blocks">
                       <div class="detail-panel__content">
@@ -791,6 +807,45 @@ function onPageSizeChange() {
                         <p class="detail-panel__label">요구사항 분석</p>
                         <p class="detail-panel__text">{{ row.analysis || '-' }}</p>
                       </div>
+                    </div>
+                    <div class="detail-panel__scopes">
+                      <p class="detail-panel__label">업무범주</p>
+                      <table class="detail-scope-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>시스템</th>
+                            <th>업무구분</th>
+                            <th>화면경로</th>
+                            <th>화면명</th>
+                            <th>업무유형</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="scope in (row.scopes || [])" :key="scope.id || scope.seq">
+                            <td>{{ scope.seq }}</td>
+                            <td>{{ scope.system }}</td>
+                            <td>{{ scope.bizCategory }}</td>
+                            <td>{{ scope.noScreen ? '-' : (scope.screenPath || '-') }}</td>
+                            <td>{{ scope.noScreen ? '화면없음' : (scope.screenName || '-') }}</td>
+                            <td>{{ (scope.taskTypes || []).join(', ') || '-' }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="detail-panel__confirm">
+                      <span class="confirm-status__item">
+                        요청자 확정
+                        <span class="st" :class="row.confirmRequester === '확정' ? 'st--done' : 'st--recv'">
+                          {{ row.confirmRequester === '확정' ? '확정' : '미확정' }}
+                        </span>
+                      </span>
+                      <span class="confirm-status__item">
+                        테크 확정
+                        <span class="st" :class="row.confirmTech === '확정' ? 'st--done' : 'st--recv'">
+                          {{ row.confirmTech === '확정' ? '확정' : '미확정' }}
+                        </span>
+                      </span>
                     </div>
                     <div class="detail-panel__meta">
                       <span>
@@ -810,7 +865,7 @@ function onPageSizeChange() {
             </template>
 
             <tr v-if="!pagedList.length">
-              <td colspan="14" class="empty-row">조회 결과가 없습니다.</td>
+              <td colspan="13" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -862,12 +917,19 @@ function onPageSizeChange() {
       </div>
     </div>
 
-    <RequirementIssueModal v-model="showIssueModal" :requirement="issueTarget" @issue-added="onIssueAdded" />
+    <RequirementIssueModal
+      v-model="showIssueModal"
+      :requirement="issueTarget"
+      @issue-added="onIssueAdded"
+      @count-change="onIssueCountChange"
+    />
     <RequirementFormModal
       v-model="showFormModal"
       :mode="formMode"
       :data="formTarget"
       @save="onFormSave"
+      @issue-added="onIssueAdded"
+      @count-change="onIssueCountChange"
     />
     <RequirementBulkRegisterModal v-model="showBulkModal" @register="onBulkRegister" />
     <RequirementScreenSearchModal
@@ -881,8 +943,7 @@ function onPageSizeChange() {
       <div v-if="showSaveAlert" class="alert-scrim" @mousedown.self="showSaveAlert = null">
         <div class="alert-box">
           <p v-if="showSaveAlert === 'none'">요건확정 처리할 요구사항을 선택하세요.</p>
-          <p v-else-if="showSaveAlert === 'unconfirmed'">미확정 상태입니다. 확정 후 저장하세요.</p>
-          <p v-else>선택한 {{ saveAlertCount }}건이 요건확정 처리되었습니다.</p>
+          <p v-else>일괄 요건확정 저장은 아직 지원되지 않는 기능입니다.</p>
           <button type="button" class="btn btn--primary" @click="showSaveAlert = null">확인</button>
         </div>
       </div>
@@ -1079,11 +1140,11 @@ function onPageSizeChange() {
   text-decoration: underline;
 }
 
-.task-types {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.3;
+.scope-count {
+  margin-left: 4px;
+  color: var(--teal-600);
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 700;
 }
 
 .st {
@@ -1271,6 +1332,47 @@ function onPageSizeChange() {
   -webkit-line-clamp: 10;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.detail-panel__scopes {
+  margin: 0 0 12px;
+}
+
+.detail-scope-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  margin-top: 6px;
+}
+
+.detail-scope-table th,
+.detail-scope-table td {
+  padding: 7px 9px;
+  border: 1px solid var(--lnb-line);
+  text-align: left;
+  color: var(--ink-2);
+}
+
+.detail-scope-table th {
+  background: var(--lnb-side);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.detail-panel__confirm {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+}
+
+.confirm-status__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-weight: 600;
 }
 
 .detail-panel__meta {

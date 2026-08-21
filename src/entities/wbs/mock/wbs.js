@@ -413,6 +413,40 @@ const baseTasks = [
     changedBy: null,
     scheduleReason: null,
   },
+  {
+    id: 'w13',
+    wbsId: 'WBS-013',
+    systemPath: 'FO>주문클레임',
+    screenPath: '주문/결제',
+    screenName: '주문결제페이지',
+    requirementName: '취소수수료 정산',
+    taskName: '취소수수료 정산',
+    taskDetail: '취소수수료 정산 로직 개발 — 선행 장애 대응으로 홀딩',
+    requirementId: 'REQ-004',
+    requirementPreview: '취소 시 수수료 정산 처리',
+    requirementAnalysisPreview: '',
+    taskType: '개발',
+    assignee: '박현대',
+    assigneeDisplay: '박현대',
+    difficulty: '중',
+    planStart: '2026-04-10',
+    planEnd: '2026-04-30',
+    execStart: '2026-04-10',
+    execEnd: null,
+    holdStart: '2026-04-22',
+    holdEnd: '2026-05-08',
+    restartDate: '2026-05-11',
+    correctedPlanEnd: '2026-05-15',
+    planProgress: 40,
+    execProgress: 40,
+    status: '홀딩',
+    scheduleStatus: 'normal',
+    confirmed: '-',
+    excluded: false,
+    changedAt: '2026-04-22 11:30:00',
+    changedBy: '박현대',
+    scheduleReason: null,
+  },
 ]
 
 const taskTypeColors = {
@@ -426,6 +460,64 @@ const taskTypeColors = {
 export function getWbsTasks(userId) {
   if (userId === EMPTY_DATA_USER_ID) return []
   return JSON.parse(JSON.stringify(baseTasks))
+}
+
+/** POP-S-WBS-04 일정변경 요청 이력 (조회 API 연동 전 목업) */
+export const mockScheduleChangeRequests = {
+  w4: [
+    {
+      id: 1,
+      no: 1,
+      taskId: 'w4',
+      beforeStart: '2026-04-10',
+      beforeEnd: '2026-04-12',
+      afterStart: '2026-04-10',
+      afterEnd: '2026-04-15',
+      reason: '선행 업무 일정 변경',
+      registeredBy: '김현대',
+      registeredAt: '2026-04-09 14:20:00',
+      status: 'APPROVED',
+    },
+    {
+      id: 2,
+      no: 2,
+      taskId: 'w4',
+      beforeStart: '2026-04-10',
+      beforeEnd: '2026-04-15',
+      afterStart: '2026-04-10',
+      afterEnd: '2026-04-18',
+      reason: '요건 변경으로 퍼블리싱 일정 연장',
+      registeredBy: '김현대',
+      registeredAt: '2026-04-28 09:15:00',
+      status: 'PENDING',
+    },
+  ],
+  w13: [
+    {
+      id: 3,
+      no: 1,
+      taskId: 'w13',
+      beforeStart: '2026-04-10',
+      beforeEnd: '2026-04-25',
+      afterStart: '2026-04-10',
+      afterEnd: '2026-04-30',
+      reason: '장애 대응',
+      registeredBy: '박현대',
+      registeredAt: '2026-04-21 16:40:00',
+      status: 'APPROVED',
+    },
+  ],
+}
+
+export function getWbsChangeRequests(taskId) {
+  if (!taskId) return []
+  return JSON.parse(JSON.stringify(mockScheduleChangeRequests[taskId] || []))
+}
+
+/** 목록 칸용 YY.MM.DD (예: 2026-04-30 → 26.04.30) */
+export function formatDateShort(value) {
+  if (!value) return '-'
+  return String(value).slice(2).replace(/-/g, '.')
 }
 
 export function getTaskTypeColor(taskType) {

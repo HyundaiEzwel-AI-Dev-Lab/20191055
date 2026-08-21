@@ -15,6 +15,9 @@ const { mode, pageTitle } = useTestContext()
 const router = useRouter()
 const authStore = useAuthStore()
 
+/** DEV는 직전=단위테스트, 운영은 직전=DEV. 화면만 — 값은 API 연동 전 '-' */
+const prevStageLabel = computed(() => (mode.value === 'uat' ? 'DEV테스트' : '단위테스트'))
+
 const SYSTEM_DONUT_LIMIT = 4
 const SYSTEM_DETAIL_LIMIT = 5
 
@@ -359,7 +362,11 @@ function onExcelDownload() {
           <tr>
             <th rowspan="2">시스템</th>
             <th colspan="5" class="group-head">테스트진행</th>
-            <th colspan="4" class="group-head group-head--defect">결함처리</th>
+            <th colspan="3" class="group-head">{{ prevStageLabel }}</th>
+            <th colspan="4" class="group-head group-head--defect">
+              결함처리
+              <BaseTooltip text="미조치 : 처리상태 접수 + 처리예정 / 조치완료 : 처리완료 + 오류아님 + 수정제외" />
+            </th>
           </tr>
           <tr>
             <th>공정률</th>
@@ -367,10 +374,10 @@ function onExcelDownload() {
             <th>대기</th>
             <th>진행</th>
             <th>지연</th>
-            <th>
-              처리율
-              <BaseTooltip text="미조치 : 처리상태 접수 + 처리예정 / 조치완료 : 처리완료 + 오류아님 + 수정제외" />
-            </th>
+            <th>총 수행</th>
+            <th>총 결함</th>
+            <th>결함발생률</th>
+            <th>처리율</th>
             <th>총 결함</th>
             <th>미조치</th>
             <th>조치완료</th>
@@ -384,13 +391,16 @@ function onExcelDownload() {
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '대기')">{{ row.wait }}</button></td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '진행')">{{ row.progress }}</button></td>
             <td><button type="button" class="count-link" @click="goToTestRun(row.system, '지연')">{{ row.delay }}</button></td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
             <td class="fix-rate">{{ row.fixRate }}%</td>
             <td><button type="button" class="count-link" @click="goToDefect(row.system)">{{ row.defects }}</button></td>
             <td><button type="button" class="count-link" @click="goToDefect(row.system)">{{ row.pending }}</button></td>
             <td>{{ row.done }}</td>
           </tr>
           <tr v-if="!filteredSystemDetail.length">
-            <td colspan="10" class="empty-row">조회 결과가 없습니다.</td>
+            <td colspan="13" class="empty-row">조회 결과가 없습니다.</td>
           </tr>
           <tr v-if="filteredSystemDetail.length" class="total-row">
             <td>전체 합계</td>
@@ -399,6 +409,9 @@ function onExcelDownload() {
             <td>{{ systemDetailTotals.wait }}</td>
             <td>{{ systemDetailTotals.progress }}</td>
             <td>{{ systemDetailTotals.delay }}</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
             <td>{{ systemDetailTotals.fixRate }}%</td>
             <td>{{ systemDetailTotals.defects }}</td>
             <td>{{ systemDetailTotals.pending }}</td>

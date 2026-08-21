@@ -323,7 +323,13 @@ function onBulkConfirm(items) {
           </thead>
           <tbody>
             <template v-for="(row, idx) in pagedList" :key="row.id">
-              <tr class="main-row" :class="{ 'main-row--open': expandedIds.has(row.id) }">
+              <tr
+                class="main-row"
+                :class="{
+                  'main-row--open': expandedIds.has(row.id),
+                  'main-row--req-rejected': row.wbsExcluded,
+                }"
+              >
                 <td>
                   <button type="button" class="expand-btn" @click="toggleExpand(row.id)">
                     {{ expandedIds.has(row.id) ? '▲' : '▼' }}
@@ -340,11 +346,12 @@ function onBulkConfirm(items) {
                 <td>{{ row.systemPath || '-' }}</td>
                 <td>{{ row.screenPath || '-' }}</td>
                 <td>{{ row.screenName || '-' }}</td>
-                <td>{{ row.caseId || '미등록' }}</td>
+                <td>{{ row.caseId || '-' }}</td>
                 <td>
                   <button type="button" class="name-link" @click="toggleExpand(row.id)">
                     {{ row.caseName || '미등록' }}
                   </button>
+                  <span v-if="row.wbsExcluded" class="badge badge--danger lock-badge">작업제외</span>
                 </td>
                 <td>{{ row.stepCount || 0 }}</td>
               </tr>
@@ -624,6 +631,18 @@ function onBulkConfirm(items) {
 }
 
 .main-row--open { background: var(--teal-50); }
+
+.main-row--req-rejected td {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.main-row--req-rejected .name-link {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.lock-badge { margin-left: 6px; }
 
 .detail-row td {
   padding: 0;

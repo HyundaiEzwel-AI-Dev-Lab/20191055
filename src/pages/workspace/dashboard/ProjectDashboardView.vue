@@ -10,6 +10,7 @@ import {
   formatPeriod,
   statusTone,
 } from '@/entities/dashboard/mock/projectDashboard'
+import { routeForTaskType } from '@/entities/inbox/mock/inbox'
 
 const router = useRouter()
 const projectStore = useProjectStore()
@@ -26,24 +27,41 @@ onMounted(loadData)
 watch(() => projectStore.currentProject?.id, loadData)
 
 const typeIcons = {
-  기획: { label: '기', color: 'var(--teal-600)' },
+  기획: { label: '기', color: 'var(--teal)' },
   디자인: { label: '디', color: 'var(--blue)' },
   퍼블리싱: { label: '퍼', color: 'var(--orange)' },
   개발: { label: '개', color: 'var(--green)' },
   DEV테스트: { label: 'DEV', color: 'var(--gray)' },
   운영테스트: { label: '운영', color: 'var(--gray)' },
+  단위테스트: { label: '단', color: 'var(--gray)' },
+  STG테스트: { label: 'STG', color: 'var(--gray)' },
 }
 
 function typeIcon(type) {
-  return typeIcons[type] || { label: type?.slice(0, 1) || '-', color: 'var(--muted)' }
+  return typeIcons[type] || { label: type?.slice(0, 1) || '-', color: 'var(--lnb-muted)' }
 }
 
 function complianceLabel(status) {
   return projectDashboardMeta.legend.find((l) => l.key === status)?.label || status
 }
 
+function complianceClass(compliance) {
+  if (compliance === '경과') return 'compliance--경과'
+  if (compliance === '단축') return 'compliance--단축'
+  return 'compliance--정상'
+}
+
 function goWbs() {
   router.push({ name: 'wbs' })
+}
+
+function goScheduleRow(row) {
+  const path = routeForTaskType(row.taskType || '')
+  if (path === '/workspace/wbs') {
+    router.push({ path: '/workspace/wbs', query: { task: row.taskName } })
+    return
+  }
+  router.push(path)
 }
 </script>
 
@@ -72,7 +90,7 @@ function goWbs() {
             </div>
             <div class="progress-text-row">
               <span class="progress-text-row__lab">계획 대비</span>
-              <span class="progress-text-row__val progress-diff">{{ data.totalProgress.diffLabel }}</span>
+              <span class="progress-text-row__val progress-diff">{{ data.totalProgress.diffLabel.replace('계획 대비 ', '') }}</span>
             </div>
           </div>
         </div>
@@ -117,20 +135,20 @@ function goWbs() {
       <section class="card pad summary-panel">
         <div class="summary-panel__head">
           <h3 class="sec-title">지연/단축 정보</h3>
-          <span class="refresh-hint">{{ projectDashboardMeta.refreshInterval }}마다 자동 갱신 (목업)</span>
+          <span class="refresh-hint">{{ projectDashboardMeta.refreshInterval }}마다 자동 갱신</span>
         </div>
         <div class="summary-chips">
           <div class="summary-chip summary-chip--delay" @click="goWbs">
             <span class="summary-chip__lab summary-chip__lab--link">경과(예상)</span>
-            <span class="summary-chip__num">{{ data.delaySummary.expectedDelay }}<small>건</small></span>
+            <span class="summary-chip__num">{{ data.delaySummary.expectedDelay }} <small>건</small></span>
           </div>
           <div class="summary-chip summary-chip--normal">
             <span class="summary-chip__lab">정상</span>
-            <span class="summary-chip__num">{{ data.delaySummary.normal }}<small>건</small></span>
+            <span class="summary-chip__num">{{ data.delaySummary.normal }} <small>건</small></span>
           </div>
           <div class="summary-chip summary-chip--shorten" @click="goWbs">
             <span class="summary-chip__lab summary-chip__lab--link">단축(예상)</span>
-            <span class="summary-chip__num">{{ data.delaySummary.expectedShorten }}<small>건</small></span>
+            <span class="summary-chip__num">{{ data.delaySummary.expectedShorten }} <small>건</small></span>
           </div>
         </div>
         <p class="note">진행/완료 업무별 단축/지연 여부 기준</p>
@@ -150,8 +168,8 @@ function goWbs() {
           }}</span>
           <span class="type-card__name">{{ item.type }}</span>
           <span class="type-card__rate">{{ item.rate != null ? `${item.rate}%` : '- %' }}</span>
-          <div v-if="item.rate != null" class="type-card__bar">
-            <i :style="{ width: `${item.rate}%` }" />
+          <div class="type-card__bar">
+            <i :style="{ width: item.rate != null ? `${item.rate}%` : '0%' }" />
           </div>
           <span class="type-card__status" :class="`type-card__status--${statusTone(item.status)}`">{{ item.statusLabel }}</span>
         </article>
@@ -181,13 +199,12 @@ function goWbs() {
               v-for="row in data.details"
               :key="row.id"
               class="tbl__row"
-              @click="goWbs"
+              @click="goScheduleRow(row)"
             >
               <td>
                 <span class="type-icon" :style="{ background: typeIcon(row.taskType).color }">{{
                   typeIcon(row.taskType).label
                 }}</span>
-                <span class="status-dot" :class="`status-dot--${statusTone(row.status)}`" />
                 {{ row.taskType }}
               </td>
               <td>{{ row.assignee }}<span v-if="row.empId" class="emp-id">({{ row.empId }})</span></td>
@@ -195,19 +212,28 @@ function goWbs() {
               <td>{{ formatPeriod(row.execStart, row.execEnd, !row.execEnd) }}</td>
               <td>
                 <div class="rate-cell">
-                  <b>{{ row.execRate }}%</b>
+                  <span>{{ row.execRate }}%</span>
                   <div class="rate-cell__bar"><i :style="{ width: `${row.execRate}%` }" /></div>
                 </div>
               </td>
-              <td :class="{ 'text-delay': row.planDiff.startsWith('+'), 'text-shorten': row.planDiff.startsWith('-') }">
+              <td
+                :class="{
+                  'text-delay': row.compliance === '경과',
+                  'text-shorten': row.compliance === '단축',
+                }"
+              >
                 {{ row.planDiff }}
               </td>
               <td>
-                <span class="compliance" :class="`compliance--${row.compliance}`">{{ complianceLabel(row.status) }}</span>
+                <span class="status-dot" :class="`status-dot--${statusTone(row.status)}`" />
+                <span class="compliance" :class="complianceClass(row.compliance)">
+                  {{ row.compliance || complianceLabel(row.status) }}
+                </span>
               </td>
             </tr>
           </tbody>
         </table>
+        <div v-if="!data.details.length" class="empty">WBS 일정 항목이 없습니다.</div>
       </div>
     </section>
   </div>
@@ -216,7 +242,7 @@ function goWbs() {
 <style scoped>
 .proj-dash {
   padding: 14px 18px 28px;
-  color: var(--ink);
+  color: var(--lnb-txt);
   font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
@@ -232,13 +258,13 @@ function goWbs() {
 .proj-dash__hint {
   font-size: calc(12px + var(--font-size-offset, 0px));
   font-weight: 500;
-  color: var(--muted);
+  color: var(--lnb-muted);
 }
 
 .sec-title {
   margin: 0 0 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--lnb-line);
   font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
 }
@@ -269,7 +295,7 @@ function goWbs() {
 .schedule-card {
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
@@ -313,7 +339,7 @@ function goWbs() {
 
 .schedule-card__diff {
   font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--teal-700);
+  color: var(--teal);
 }
 
 .schedule-card--delay .schedule-card__diff {
@@ -324,12 +350,12 @@ function goWbs() {
   display: flex;
   gap: 8px;
   margin-top: 2px;
-  color: var(--ink-2);
+  color: var(--lnb-txt);
 }
 
 .schedule-card__key {
   min-width: 56px;
-  color: var(--muted);
+  color: var(--lnb-muted);
 }
 
 .progress-main {
@@ -354,16 +380,16 @@ function goWbs() {
 
 .progress-text-row__lab {
   min-width: 100px;
-  color: var(--muted);
+  color: var(--lnb-muted);
 }
 
 .progress-text-row__val {
   font-weight: 700;
-  color: var(--ink);
+  color: var(--lnb-txt);
 }
 
 .progress-diff {
-  color: var(--teal-700);
+  color: var(--teal);
 }
 
 .period-row {
@@ -371,7 +397,7 @@ function goWbs() {
   flex-direction: column;
   gap: 4px;
   font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
+  color: var(--lnb-muted);
 }
 
 .gauge {
@@ -380,7 +406,7 @@ function goWbs() {
   flex-shrink: 0;
   position: relative;
   border-radius: 50%;
-  background: conic-gradient(var(--teal-500) calc(var(--p) * 1%), var(--line-2) 0);
+  background: conic-gradient(var(--teal) calc(var(--p) * 1%), var(--lnb-line) 0);
 }
 
 .gauge__hole {
@@ -395,13 +421,13 @@ function goWbs() {
 
 .gauge__hole b {
   font-size: calc(20px + var(--font-size-offset, 0px));
-  color: var(--teal-600);
+  color: var(--teal);
 }
 
 .note {
   margin: 8px 0 0;
   font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
+  color: var(--lnb-muted);
   line-height: 1.4;
 }
 
@@ -412,12 +438,12 @@ function goWbs() {
   gap: 8px;
   margin-bottom: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--lnb-line);
 }
 
 .refresh-hint {
   font-size: calc(10.5px + var(--font-size-offset, 0px));
-  color: var(--muted);
+  color: var(--lnb-muted);
 }
 
 .summary-chips {
@@ -433,7 +459,7 @@ function goWbs() {
   gap: 4px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--field);
+  background: var(--lnb-hover);
 }
 
 .summary-chip--delay,
@@ -470,7 +496,7 @@ function goWbs() {
 }
 
 .summary-chip--normal .summary-chip__num {
-  color: var(--teal-600);
+  color: var(--teal);
 }
 
 .summary-chip--shorten .summary-chip__num {
@@ -486,7 +512,7 @@ function goWbs() {
 .type-card {
   padding: 12px 10px;
   border-radius: 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--lnb-line);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -510,18 +536,18 @@ function goWbs() {
 .type-card__name {
   font-size: calc(14px + var(--font-size-offset, 0px));
   font-weight: 700;
-  color: var(--ink-2);
+  color: var(--lnb-txt);
 }
 
 .type-card__rate {
   font-size: calc(20px + var(--font-size-offset, 0px));
   font-weight: 800;
-  color: var(--teal-600);
+  color: var(--teal);
 }
 
 .type-card__bar {
   height: 10px;
-  background: var(--line-2);
+  background: var(--lnb-line);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -529,13 +555,13 @@ function goWbs() {
 .type-card__bar i {
   display: block;
   height: 100%;
-  background: var(--teal-500);
+  background: var(--teal);
   border-radius: 5px;
 }
 
 .type-card__status {
   font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--muted);
+  color: var(--lnb-muted);
   font-weight: 600;
 }
 
@@ -548,7 +574,7 @@ function goWbs() {
 }
 
 .type-card__status--normal {
-  color: var(--teal-600);
+  color: var(--teal);
 }
 
 .listcard {
@@ -581,17 +607,17 @@ function goWbs() {
 }
 
 .tbl thead th {
-  background: var(--field);
+  background: var(--lnb-hover);
   font-weight: 600;
   text-align: center;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--lnb-line);
   white-space: nowrap;
 }
 
 .tbl tbody td {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--lnb-line);
   vertical-align: middle;
 }
 
@@ -623,11 +649,11 @@ function goWbs() {
   height: 8px;
   border-radius: 50%;
   margin-right: 6px;
-  background: var(--muted);
+  background: var(--lnb-muted);
 }
 
 .status-dot--normal {
-  background: var(--teal-500);
+  background: var(--teal);
 }
 
 .status-dot--delay {
@@ -644,7 +670,7 @@ function goWbs() {
 
 .emp-id {
   margin-left: 4px;
-  color: var(--muted);
+  color: var(--lnb-muted);
   font-size: calc(11px + var(--font-size-offset, 0px));
 }
 
@@ -658,14 +684,14 @@ function goWbs() {
   width: 60px;
   height: 6px;
   border-radius: 3px;
-  background: var(--line-2);
+  background: var(--lnb-line);
   overflow: hidden;
 }
 
 .rate-cell__bar i {
   display: block;
   height: 100%;
-  background: var(--teal-500);
+  background: var(--teal);
   border-radius: 3px;
 }
 
@@ -687,8 +713,14 @@ function goWbs() {
 }
 
 .compliance--정상 {
-  background: var(--gray-bg);
+  background: var(--lnb-hover);
   color: var(--gray);
+}
+
+.empty {
+  text-align: center;
+  color: var(--lnb-muted);
+  padding: 24px 12px;
 }
 
 .compliance--경과 {

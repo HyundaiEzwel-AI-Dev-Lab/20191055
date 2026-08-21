@@ -3,7 +3,6 @@
 import { computed, reactive, ref } from 'vue'
 import {
   userMgmtMeta,
-  deptOptions,
   roleOptions,
   positionOptions,
   statusOptions,
@@ -14,9 +13,32 @@ import {
   matchUserFilters,
   userStatusClass,
 } from '@/entities/user-admin/userMgmt'
+import { listOrgUnits } from '@/entities/org-admin/mock/orgAdmin'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+
+function teamNamesFromOrg() {
+  const units = listOrgUnits()
+  const byParent = new Map()
+  for (const unit of units) {
+    const list = byParent.get(unit.parentId) ?? []
+    list.push(unit)
+    byParent.set(unit.parentId, list)
+  }
+  const names = []
+  function walk(parentId) {
+    for (const unit of byParent.get(parentId) ?? []) {
+      if (unit.unitKind === 'TEAM') names.push(unit.name)
+      walk(unit.id)
+    }
+  }
+  walk(null)
+  return names
+}
+
+const orgTeamNames = teamNamesFromOrg()
+const defaultDept = orgTeamNames.includes('플랫폼팀') ? '플랫폼팀' : orgTeamNames[0] || ''
 
 const rows = ref(userList.map((r) => ({ ...r })))
 const filters = ref({ keyword: '', searchType: '이름', dept: '전체', role: '전체', status: '전체' })
@@ -25,7 +47,10 @@ const pageSize = ref(20)
 const currentPage = ref(1)
 const selectedIds = ref([])
 
-const deptSelectOptions = deptOptions.map((o) => ({ value: o, label: o === '전체' ? '선택' : o }))
+const deptSelectOptions = [
+  { value: '전체', label: '선택' },
+  ...orgTeamNames.map((name) => ({ value: name, label: name })),
+]
 
 const filterTags = computed(() => {
   const a = applied.value
@@ -51,7 +76,7 @@ const detailName = ref('')
 const registerForm = reactive({
   id: '',
   name: '',
-  dept: '테크기획팀',
+  dept: defaultDept,
   role: '사용자',
   position: '사원',
   email: '',
@@ -174,7 +199,7 @@ function openRegister() {
   Object.assign(registerForm, {
     id: '',
     name: '',
-    dept: '테크기획팀',
+    dept: defaultDept,
     role: '사용자',
     position: '사원',
     email: '',
@@ -416,7 +441,7 @@ function saveRegister() {
         <div class="modal-field">
           <label>부서</label>
           <select v-model="registerForm.dept" class="filter__select">
-            <option v-for="o in deptOptions.filter((d) => d !== '전체')" :key="o" :value="o">{{ o }}</option>
+            <option v-for="o in orgTeamNames" :key="o" :value="o">{{ o }}</option>
           </select>
         </div>
         <div class="modal-field">

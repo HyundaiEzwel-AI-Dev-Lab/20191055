@@ -140,7 +140,6 @@ function onExcelDownload() {
     { key: 'caseId', label: '케이스' },
     { key: 'caseName', label: '케이스명' },
     { key: 'screenName', label: '화면명' },
-    { key: 'round', label: '차수' },
     { key: 'stepNo', label: '절차' },
     { key: 'title', label: '결함제목' },
     { key: 'grade', label: '등급' },
@@ -212,7 +211,6 @@ function onExcelDownload() {
           <thead>
             <tr>
               <th class="col-no">No</th>
-              <th>차수</th>
               <th>시스템/업무/화면경로</th>
               <th>화면명</th>
               <th>케이스ID</th>
@@ -235,7 +233,6 @@ function onExcelDownload() {
           <tbody>
             <tr v-for="(row, idx) in pagedList" :key="row.id">
               <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
-              <td>{{ row.round }}</td>
               <td>{{ row.systemPath || '-' }}</td>
               <td>{{ row.screenName }}</td>
               <td>{{ row.caseId }}</td>
@@ -259,7 +256,7 @@ function onExcelDownload() {
               <td>{{ row.updatedAt || '-' }}</td>
             </tr>
             <tr v-if="!pagedList.length">
-              <td :colspan="config.showDeployStatus ? 19 : 18" class="empty">조회 결과가 없습니다.</td>
+              <td :colspan="config.showDeployStatus ? 18 : 17" class="empty">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>

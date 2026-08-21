@@ -6,14 +6,6 @@ export const projectStatusMeta = {
   inProgressTooltip: '진행중인 프로젝트는 처리단계가 협의중, 처리중, 테스트인 프로젝트입니다.',
 }
 
-export const statusKpi = {
-  total: 27,
-  received: 6,
-  inProgress: 14,
-  completed: 6,
-  rejected: 1,
-}
-
 export const requestDepts = [
   '마케팅팀',
   '복지서비스기획팀',
@@ -271,3 +263,43 @@ export function matchKpiFilter(row, kpiKey) {
   if (kpiKey === 'rejected') return row.stage === '반려'
   return true
 }
+
+export function calculateStatusKpi(rows) {
+  return {
+    total: rows.length,
+    received: rows.filter((row) => row.stage === '접수').length,
+    inProgress: rows.filter((row) => IN_PROGRESS_STAGES.includes(row.stage)).length,
+    completed: rows.filter((row) => row.stage === '완료').length,
+    rejected: rows.filter((row) => row.stage === '반려').length,
+  }
+}
+
+/** 검색조건만 적용한 목록 — KPI 집계용(처리단계 KPI 클릭은 빼서 카드 숫자가 서로 0이 되지 않게). */
+export function filterProjectStatusBySearch(rows, f) {
+  return rows.filter((row) => {
+    if (f.keyword && !row.name.includes(f.keyword) && !row.projectId.includes(f.keyword)) return false
+    if (f.requestDept && !row.requestDept.includes(f.requestDept)) return false
+    if (f.devDept && row.devDept !== f.devDept) return false
+    if (f.stage !== '전체' && row.stage !== f.stage) return false
+    if (f.openDateFrom || f.openDateTo) {
+      if (!row.scheduledOpenDate || row.scheduledOpenDate === '-') return false
+      if (f.openDateFrom && row.scheduledOpenDate < f.openDateFrom) return false
+      if (f.openDateTo && row.scheduledOpenDate > f.openDateTo) return false
+    }
+    if (f.manager && !row.manager.includes(f.manager)) return false
+    if (f.systems.length && !f.systems.some((s) => row.system.includes(s))) return false
+    if (f.bizCategories.length && !f.bizCategories.some((b) => row.bizCategory.includes(b))) return false
+    if (f.itVoc && !row.itVoc.includes(f.itVoc)) return false
+    if (f.jira && !row.jira.toLowerCase().includes(f.jira.toLowerCase())) return false
+    if (f.initiator && row.initiator !== f.initiator) return false
+    if (f.devType && row.devType !== f.devType) return false
+    if (f.summary && row.summary !== f.summary) return false
+    return true
+  })
+}
+
+export function filterProjectStatusList(rows, activeKpi, f) {
+  return filterProjectStatusBySearch(rows, f).filter((row) => matchKpiFilter(row, activeKpi))
+}
+
+export const statusKpi = calculateStatusKpi(projectStatusList)

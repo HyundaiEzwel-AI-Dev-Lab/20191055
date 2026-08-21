@@ -349,7 +349,7 @@ function onExcelDownload() {
     </SearchFilterBar>
 
     <p v-if="hasOutOfPeriod" class="period-banner">
-      ⚠ 테스트 가능 기간이 아닌 케이스가 포함되어 있습니다. 딤 처리된 케이스는 기간 외 케이스입니다.
+      ⚠ 테스트 가능 기간이 아닙니다.
     </p>
 
     <div class="period card">

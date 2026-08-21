@@ -1,41 +1,38 @@
 // PAG-M-DAS-01 메인 대시보드 / 전체 프로젝트 현황 목업
 // figma: 06_전체프로젝트현황_대시보드.html
 
+export const UNSPECIFIED_LABEL = '미지정'
+const UNSPECIFIED_COLOR = 'var(--lnb-line)'
+
+/** 오픈예정일 미정 행의 표시값. 오픈기간 필터·당해년도 집계에서 제외한다. */
+export const NO_OPEN_DATE = '-'
+
 export const dashboardMeta = {
-  yearScope: '전체 프로젝트 현황은 당해년도 오픈 프로젝트를 조회 대상으로 합니다.',
+  yearScope: '목록은 오픈예정일 2026년 이후(미정 포함), 현황분석은 2026년 오픈 프로젝트 기준입니다.',
   queryTime: '2026-06-23 09:00',
 }
 
-export const stageKpi = {
-  total: 27,
-  received: 6,
-  inProgress: 14,
-  completed: 6,
-  rejected: 1,
+/** 차트 축(라벨·색·정렬). 건수는 buildDashboardStats가 조회 결과로 채운다. */
+export const dashboardAxes = {
+  initiators: [
+    { label: '고객사', count: 0, color: 'var(--teal)' },
+    { label: '이지웰', count: 0, color: 'var(--purple)' },
+    { label: '테크', count: 0, color: 'var(--orange)' },
+    { label: '그룹사', count: 0, color: 'var(--red)' },
+  ],
+  devTypes: [
+    { label: '신규', count: 0, color: 'var(--teal)' },
+    { label: '개선', count: 0, color: 'var(--purple)' },
+  ],
+  summaries: [
+    { label: '매출향상', count: 0 },
+    { label: 'UI/UX 개선', count: 0 },
+    { label: '업무효율', count: 0 },
+    { label: '서비스도입', count: 0 },
+    { label: '성능개선', count: 0 },
+    { label: '정보보안', count: 0 },
+  ],
 }
-
-export const completionRate = 22.22
-
-export const initiators = [
-  { label: '고객사', count: 12, color: 'var(--teal)' },
-  { label: '이지웰', count: 8, color: 'var(--purple)' },
-  { label: '테크', count: 5, color: 'var(--orange)' },
-  { label: '그룹사', count: 2, color: 'var(--red)' },
-]
-
-export const devTypes = [
-  { label: '신규', count: 70, color: 'var(--teal)' },
-  { label: '개선', count: 30, color: 'var(--purple)' },
-]
-
-export const summaries = [
-  { label: '매출향상', count: 30 },
-  { label: 'UI/UX 개선', count: 20 },
-  { label: '업무효율', count: 20 },
-  { label: '서비스도입', count: 10 },
-  { label: '성능개선', count: 10 },
-  { label: '정보보안', count: 10 },
-]
 
 export const requestDepts = [
   '복지서비스기획팀',
@@ -53,6 +50,42 @@ export const devDepts = [
 ]
 
 export { stageFilterOptions as stageOptions } from '@/shared/lib/commonOptions'
+
+function countByAxis(rows, key, axis, unspecified) {
+  const base = axis.filter((item) => item.label !== UNSPECIFIED_LABEL)
+  const known = new Set(base.map((item) => item.label))
+  const items = base.map((item) => ({ ...item, count: rows.filter((row) => row[key] === item.label).length }))
+  const unspecifiedCount = rows.filter((row) => !known.has(row[key])).length
+  if (unspecifiedCount > 0) items.push(unspecified(unspecifiedCount))
+  return items
+}
+
+/** 조회 결과 기준 현황분석 재집계 — KPI·완료율·차트가 필터와 함께 따라간다. */
+export function buildDashboardStats(rows, axes = dashboardAxes) {
+  const completed = rows.filter((row) => row.stage === '완료').length
+  return {
+    stageKpi: {
+      total: rows.length,
+      received: rows.filter((row) => row.stage === '접수').length,
+      inProgress: rows.filter((row) => ['협의중', '처리중', '테스트'].includes(row.stage)).length,
+      completed,
+      rejected: rows.filter((row) => row.stage === '반려').length,
+    },
+    completionRate: rows.length ? Math.round((completed / rows.length) * 10000) / 100 : 0,
+    initiators: countByAxis(rows, 'initiator', axes.initiators,
+      (count) => ({ label: UNSPECIFIED_LABEL, count, color: UNSPECIFIED_COLOR })),
+    devTypes: countByAxis(rows, 'devType', axes.devTypes,
+      (count) => ({ label: UNSPECIFIED_LABEL, count, color: UNSPECIFIED_COLOR })),
+    summaries: countByAxis(rows, 'summary', axes.summaries,
+      (count) => ({ label: UNSPECIFIED_LABEL, count })),
+  }
+}
+
+/** 현황분석 모집단 — 당해년도 오픈만. 오픈예정일 미정은 제외. */
+export function filterCurrentYearOpen(rows, year) {
+  return rows.filter((row) => row.scheduledOpenDate !== NO_OPEN_DATE
+    && Number(row.scheduledOpenDate.slice(0, 4)) === year)
+}
 
 /** 프로젝트 목록 행 */
 export const dashboardProjects = [
@@ -195,4 +228,32 @@ export const dashboardProjects = [
     devType: '개선',
     summary: '정보보안',
   },
+  {
+    id: 'd9',
+    no: 9,
+    stage: '협의중',
+    stageType: 'prog',
+    name: '신규 복지몰 입점 검토',
+    progress: 15,
+    scheduledOpenDate: NO_OPEN_DATE,
+    dDay: null,
+    isCompleted: false,
+    isOverdue: false,
+    requestDept: '복지서비스기획팀',
+    devDept: '고객사운영팀',
+    initiator: '고객사',
+    devType: '신규',
+    summary: '매출향상',
+  },
 ]
+
+const defaultStats = buildDashboardStats(
+  filterCurrentYearOpen(dashboardProjects, 2026),
+  dashboardAxes,
+)
+
+export const stageKpi = defaultStats.stageKpi
+export const completionRate = defaultStats.completionRate
+export const initiators = defaultStats.initiators
+export const devTypes = defaultStats.devTypes
+export const summaries = defaultStats.summaries

@@ -331,7 +331,7 @@ function onMonthPresetChange(preset) {
         <span class="kpi__body">
           <span class="kpi__lab">
             장기프로젝트
-            <BaseTooltip text="개발 공수 합계가 2MM 이상인 프로젝트의 수" />
+            <BaseTooltip text="계획시작일부터 오픈일까지 60일 이상인 프로젝트의 수" />
           </span>
           <span class="kpi__num">{{ performanceSummary.longTermProjects }}<small>건</small></span>
         </span>
@@ -341,16 +341,19 @@ function onMonthPresetChange(preset) {
         <span class="kpi__body">
           <span class="kpi__lab">
             평균 개발 공수
-            <BaseTooltip text="업무유형 '개발'의 평균 공수" />
+            <BaseTooltip text="업무유형 '개발'의 평균 공수(달력일, 주말 포함)" />
           </span>
-          <span class="kpi__num">{{ performanceSummary.avgDevWorkload }}<small>M</small></span>
+          <span class="kpi__num">{{ performanceSummary.avgDevWorkload }}<small>MD</small></span>
         </span>
       </div>
       <div class="kpi kpi--blue">
         <span class="kpi__dot"></span>
         <span class="kpi__body">
-          <span class="kpi__lab">인당 프로젝트</span>
-          <span class="kpi__num">{{ performanceSummary.projectsPerPerson }}<small>건</small></span>
+          <span class="kpi__lab">
+            프로젝트당 투입 인원
+            <BaseTooltip text="조회된 프로젝트에 투입 등록된 인원(중복 제거) ÷ 조회된 프로젝트 수" />
+          </span>
+          <span class="kpi__num">{{ performanceSummary.membersPerProject }}<small>명</small></span>
         </span>
       </div>
     </section>

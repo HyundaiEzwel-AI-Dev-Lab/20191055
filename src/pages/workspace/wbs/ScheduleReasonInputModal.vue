@@ -1,0 +1,144 @@
+<script setup>
+// POP-S-WBS-03 입력 — 계획 종료일을 경과해 완료할 때 지연 사유 입력.
+// info/ScheduleReasonInputModal.vue(오픈일)와 문구·필드가 달라 WBS 전용으로 둔다.
+import { computed, ref, watch } from 'vue'
+import BaseModal from '@/shared/ui/BaseModal.vue'
+
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+  scheduledDate: { type: String, default: '' },
+  actualDate: { type: String, default: '' },
+})
+
+const emit = defineEmits(['update:modelValue', 'save'])
+
+const reason = ref('')
+const charCount = computed(() => reason.value.length)
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) reason.value = ''
+  },
+)
+
+function close() {
+  emit('update:modelValue', false)
+}
+
+function save() {
+  if (!reason.value.trim()) return
+  emit('save', reason.value.trim())
+  close()
+}
+</script>
+
+<template>
+  <BaseModal title="일정 변동 사유 입력" :visible="modelValue" @close="close">
+    <p class="notice notice--plain">
+      계획 종료일을 경과하여 완료 처리합니다.<br />
+      사유를 입력해 주세요.
+    </p>
+    <dl class="info-dl">
+      <div class="info-dl__row">
+        <dt>계획 종료일</dt>
+        <dd>{{ scheduledDate }}</dd>
+      </div>
+      <div class="info-dl__row">
+        <dt>실행 종료일</dt>
+        <dd class="info-dl__late">{{ actualDate }}</dd>
+      </div>
+    </dl>
+    <div class="reason-field">
+      <textarea
+        v-model="reason"
+        class="reason-field__input"
+        rows="4"
+        maxlength="200"
+        placeholder="일정 변동 사유를 입력하세요"
+      />
+      <span class="reason-field__count">{{ charCount }} / 200자</span>
+    </div>
+    <template #footer>
+      <button type="button" class="btn btn--ghost" @click="close">취소</button>
+      <button type="button" class="btn btn--primary" :disabled="!reason.trim()" @click="save">
+        저장
+      </button>
+    </template>
+  </BaseModal>
+</template>
+
+<style scoped>
+.notice--plain {
+  margin: 0 0 14px;
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  line-height: 1.6;
+  color: var(--lnb-txt);
+}
+
+.info-dl {
+  margin: 0 0 14px;
+  background: var(--lnb-hover);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.info-dl__row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px 12px;
+  padding: 11px 14px;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  border-bottom: 1px solid var(--lnb-line);
+}
+
+.info-dl__row:last-child {
+  border-bottom: none;
+}
+
+.info-dl__row dt {
+  color: var(--lnb-muted);
+  font-weight: 500;
+}
+
+.info-dl__row dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.info-dl__late {
+  color: var(--red) !important;
+}
+
+.reason-field {
+  position: relative;
+}
+
+.reason-field__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  line-height: 1.5;
+  resize: vertical;
+  background: var(--lnb-side);
+  color: var(--lnb-txt);
+}
+
+.reason-field__input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.reason-field__count {
+  display: block;
+  margin-top: 6px;
+  text-align: right;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--lnb-muted);
+}
+</style>

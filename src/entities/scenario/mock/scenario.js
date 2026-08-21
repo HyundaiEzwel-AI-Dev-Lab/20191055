@@ -48,6 +48,7 @@ const baseCases = [
     caseId: 'TC-002',
     caseName: '바우처 특복 배정 검증',
     round: '3차',
+    wbsExcluded: true,
     planDate: '2026-04-16',
     stepCount: 3,
     steps: [
@@ -85,6 +86,7 @@ const baseCases = [
     caseId: 'TC-004',
     caseName: '대사 결과 다운로드',
     round: '2차',
+    wbsExcluded: true,
     planDate: '2026-04-10',
     stepCount: 3,
     steps: [
