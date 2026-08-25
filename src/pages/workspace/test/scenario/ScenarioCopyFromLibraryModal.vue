@@ -167,17 +167,50 @@ function confirm() {
           <option v-for="b in bizOptions" :key="b" :value="b">{{ b }}</option>
         </select>
       </div>
-      <div class="fld">
-        <label>화면(메뉴)</label>
-        <input v-model="filters.screenName" class="inp" type="text" placeholder="화면명 검색" @keyup.enter="search" />
+      <div class="fld fld--search">
+        <div class="sfb__search">
+          <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input
+            v-model="filters.screenName"
+            class="sfb__search-input"
+            type="text"
+            placeholder="화면명 검색"
+            @keyup.enter="search"
+          />
+        </div>
       </div>
-      <div class="fld">
-        <label>프로젝트 출처</label>
-        <input v-model="filters.sourceProject" class="inp" type="text" placeholder="프로젝트명 검색" @keyup.enter="search" />
+      <div class="fld fld--search">
+        <div class="sfb__search">
+          <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input
+            v-model="filters.sourceProject"
+            class="sfb__search-input"
+            type="text"
+            placeholder="프로젝트명 검색"
+            @keyup.enter="search"
+          />
+        </div>
       </div>
-      <div class="fld">
-        <label>케이스명</label>
-        <input v-model="filters.caseName" class="inp" type="text" placeholder="케이스명 검색" @keyup.enter="search" />
+      <div class="fld fld--search">
+        <div class="sfb__search">
+          <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input
+            v-model="filters.caseName"
+            class="sfb__search-input"
+            type="text"
+            placeholder="케이스명 검색"
+            @keyup.enter="search"
+          />
+        </div>
       </div>
       <button type="button" class="btn btn--ghost btn--sm filter__btn" @click="resetFilters">초기화</button>
       <button type="button" class="btn btn--primary btn--sm filter__btn" @click="search">조회</button>
@@ -321,6 +354,19 @@ function confirm() {
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 600;
   color: var(--lnb-muted);
+}
+
+.fld--search {
+  justify-content: flex-end;
+}
+.fld--search .sfb__search {
+  /* .fld는 flex-direction:column이라 .sfb__search의 전역 flex: 1 1 160px(가로 컨테이너
+     기준 flex-basis)가 세로축(높이) 기준으로 해석돼 필이 부풀어 보인다 — column 컨테이너
+     안에서는 flex를 끄고 너비만 채운다. */
+  flex: none;
+  max-width: none;
+  min-width: 0;
+  width: 100%;
 }
 
 .inp {

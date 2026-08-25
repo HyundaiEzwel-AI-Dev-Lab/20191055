@@ -11,6 +11,7 @@ const props = defineProps({
   gap: { type: Number, default: 4 },
   trackColor: { type: String, default: 'var(--lnb-line)' },
   ariaLabel: { type: String, default: '' },
+  rounded: { type: Boolean, default: false },
 })
 
 const radius = computed(() => (props.size - props.thickness) / 2)
@@ -65,6 +66,7 @@ const arcs = computed(() => {
         :stroke-width="thickness"
         :stroke-dasharray="arc.dash"
         :stroke-dashoffset="arc.offset"
+        :stroke-linecap="rounded ? 'round' : 'butt'"
         :transform="`rotate(-90 ${size / 2} ${size / 2})`"
       />
     </svg>

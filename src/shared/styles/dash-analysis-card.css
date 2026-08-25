@@ -1,0 +1,81 @@
+/*
+ * 현황분석류 다크카드 — 메인 대시보드(2026-08-21)에서 확정한 모양을 실적 관리 등 같은 차트를
+ * 쓰는 화면끼리 공유한다. 색은 대부분 여기서 정하지 않는다 — 인라인 색(도넛 세그먼트·바·점)은
+ * `shared/lib/useDashConceptPalette.ts`가 컨셉별로 계산해서 각 화면이 `:style`로 준다. 이
+ * 파일은 그 색이 앉을 모양(카드·링·바·구분선)만 잡는다.
+ *
+ * 기본 배경/글자색은 다른 카드처럼 컨셉 토큰(`--lnb-side`/`--lnb-line`/`--lnb-txt`)을 쓰고,
+ * 프리미엄 컨셉에서만 퍼블 목업(현황분석_1k.html)의 다크 톤으로 덮어쓴다.
+ */
+
+.card-dark {
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.15rem;
+  color: var(--lnb-txt);
+  box-shadow: var(--shadow-sm);
+}
+
+.sec-title-dark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0.9rem;
+  font-size: calc(14px + var(--font-size-offset));
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.ring-cap { display: block; font-size: calc(12.5px + var(--font-size-offset)); font-weight: 700; opacity: 0.85; }
+.ring-cap--sm { font-size: calc(10.5px + var(--font-size-offset)); }
+.ring-val { display: block; font-size: calc(23px + var(--font-size-offset)); font-weight: 800; line-height: 1.25; }
+.ring-val--sm { font-size: calc(16px + var(--font-size-offset)); }
+
+/*
+ * 개발구분 링. 독립 카드(.dev-card, 메인 대시보드처럼 "통계"와 나란히 둘 때)와 다른 카드에
+ * 합쳐진 3등분 칸(.dev-region, 실적 관리처럼 발의주체·적요와 한 카드에 둘 때) 둘 다 쓴다 —
+ * 어느 쪽이든 타이틀 아래 남는 높이를 다 차지하고(flex:1) 그 안에서 세로 중앙에 놓인다.
+ */
+.dev-card { display: flex; flex-direction: column; }
+.dev-rings { display: flex; flex: 1; align-items: center; justify-content: space-around; gap: 0.6rem; flex-wrap: wrap; }
+.dev-ring :deep(.hp-donut__center) { text-align: center; }
+
+/* 발의주체(바 차트) + 적요(가로 바)를 한 카드에 나란히 담는다. */
+.bottom-card { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+/* 개발구분·발의주체·적요를 한 카드에 셋으로 나눠 담을 때 — 폭을 정확히 3등분한다. */
+.bottom-card--3col .region { flex: 1 1 0; min-width: 220px; }
+.dev-region { display: flex; flex-direction: column; }
+.region { border-radius: 10px; }
+.region-title { font-size: calc(12px + var(--font-size-offset)); font-weight: 800; margin-bottom: 1rem; opacity: 0.9; }
+.region-count { font-weight: 700; opacity: 0.7; margin-left: 2px; }
+
+.sponsor-region { flex: 1.2 1 300px; display: flex; flex-direction: column; }
+.sponsor-bars { display: flex; align-items: flex-end; gap: 1.35rem; flex: 1; min-height: 160px; }
+.sponsor-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; height: 100%; justify-content: flex-end; }
+.sponsor-bar-col .pct { font-size: calc(11.5px + var(--font-size-offset)); font-weight: 700; }
+.sponsor-bar-col .name { font-size: calc(11px + var(--font-size-offset)); opacity: 0.8; }
+.sponsor-bar-track { width: 100%; flex: 1; display: flex; align-items: flex-end; }
+.sponsor-bar { display: block; width: 100%; border-radius: 6px 6px 0 0; transition: height var(--duration-progress) var(--ease-out-soft); }
+
+.divider-v { width: 1px; background: var(--lnb-line); flex-shrink: 0; align-self: stretch; }
+
+.memo-region { flex: 1 1 280px; }
+.hbar { display: flex; flex-direction: column; gap: 0.6rem; }
+.hbar__row { display: flex; align-items: center; gap: 0.6rem; font-size: var(--font-size-sm); }
+.memo-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.hbar__lab { width: 78px; flex-shrink: 0; opacity: 0.85; }
+.hbar__track { flex: 1; height: 9px; border-radius: 5px; background: var(--lnb-line); overflow: hidden; }
+.hbar__fill { display: block; height: 100%; border-radius: inherit; }
+.hbar__val { width: 22px; text-align: right; font-weight: 700; flex-shrink: 0; }
+
+/* 프리미엄 컨셉 전용 — 퍼블 목업(현황분석_1k.html, 2026-08-21)의 다크 톤. */
+:root[data-concept='premium'] .card-dark,
+:root[data-concept='premium'] .bottom-card {
+  background: oklch(0.22 0.04 195);
+  border-color: transparent;
+  color: #fff;
+}
+:root[data-concept='premium'] .bottom-card { background: #0e3131; }
+:root[data-concept='premium'] .divider-v { background: oklch(0.4 0.03 195); }
+:root[data-concept='premium'] .hbar__track { background: oklch(0.35 0.03 195); }

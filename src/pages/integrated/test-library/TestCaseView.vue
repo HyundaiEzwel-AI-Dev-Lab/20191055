@@ -20,8 +20,10 @@ import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
+const filterExpanded = ref(false)
 const filters = ref(createFilters())
 const applied = ref({ ...filters.value })
 const sortOrder = ref('newest')
@@ -98,7 +100,8 @@ function createFilters() {
     screenName: '',
     caseName: '',
     sourceProject: '',
-    openMonth: '',
+    openFrom: '',
+    openTo: '',
     registeredBy: '',
   }
 }
@@ -106,12 +109,7 @@ function createFilters() {
 const allCases = computed(() => flattenLibraryCases(libraryList))
 
 const filtered = computed(() => {
-  const list = allCases.value.filter((r) =>
-    matchLibraryFilters(r, {
-      ...applied.value,
-      openMonth: applied.value.openMonth || '전체',
-    }),
-  )
+  const list = allCases.value.filter((r) => matchLibraryFilters(r, applied.value))
   return [...list].sort((a, b) => {
     const cmp = a.registeredAt.localeCompare(b.registeredAt)
     return sortOrder.value === 'newest' ? -cmp : cmp
@@ -169,16 +167,9 @@ const bizFilterOptions = computed(() =>
 const filterTags = computed(() => {
   const f = applied.value
   const tags = []
-  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '시스템구분', value: f.system })
-  if (f.bizCategory && f.bizCategory !== '전체') {
-    tags.push({ key: 'bizCategory', label: '업무구분', value: f.bizCategory })
+  if (f.openFrom || f.openTo) {
+    tags.push({ key: 'openRange', label: '프로젝트 오픈월', value: `${f.openFrom || '…'} ~ ${f.openTo || '…'}` })
   }
-  if (f.screenName?.trim()) tags.push({ key: 'screenName', label: '화면', value: f.screenName })
-  if (f.caseName?.trim()) tags.push({ key: 'caseName', label: '케이스명', value: f.caseName })
-  if (f.sourceProject?.trim()) {
-    tags.push({ key: 'sourceProject', label: '프로젝트 출처', value: f.sourceProject })
-  }
-  if (f.openMonth) tags.push({ key: 'openMonth', label: '오픈월', value: f.openMonth })
   if (f.registeredBy?.trim()) {
     tags.push({ key: 'registeredBy', label: '등록자', value: f.registeredBy })
   }
@@ -186,8 +177,12 @@ const filterTags = computed(() => {
 })
 
 function removeFilterTag(key) {
-  if (key === 'system' || key === 'bizCategory') filters.value[key] = '전체'
-  else filters.value[key] = ''
+  if (key === 'openRange') {
+    filters.value.openFrom = ''
+    filters.value.openTo = ''
+  } else {
+    filters.value[key] = ''
+  }
   search()
 }
 
@@ -405,9 +400,9 @@ function onExcelDownload() {
 
     <!-- 검색조건 -->
     <SearchFilterBar
-      v-model:search="filters.caseName"
-      search-placeholder="케이스명 2자 이상"
-      :show-expand="false"
+      v-model:expanded="filterExpanded"
+      v-model:search="filters.sourceProject"
+      search-placeholder="프로젝트 출처"
       :applied-tags="filterTags"
       @reset="resetFilters"
       @search="search"
@@ -428,19 +423,19 @@ function onExcelDownload() {
         />
         <FilterTextPill
           v-model="filters.screenName"
-          label="화면"
-          placeholder="화면명"
+          label="화면 (메뉴)"
+          placeholder="화면 검색"
           readonly
-          @click="openScreenSearch('filter')"
         >
           <template #trailing>
             <button
               type="button"
-              class="tlb-icon-btn tlb-icon-btn--pill"
+              class="tlb-icon-btn"
               title="화면 검색"
+              aria-label="화면 검색"
               @click.stop="openScreenSearch('filter')"
             >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
@@ -448,12 +443,22 @@ function onExcelDownload() {
           </template>
         </FilterTextPill>
         <FilterTextPill
-          v-model="filters.sourceProject"
-          label="프로젝트 출처"
-          placeholder="프로젝트명 또는 프로젝트ID"
+          v-model="filters.caseName"
+          label="케이스명"
+          placeholder="2자 이상"
           @enter="search"
         />
-        <FilterTextPill v-model="filters.openMonth" label="오픈월" type="month" />
+      </template>
+
+      <template #expand>
+        <FilterDateRange
+          label="프로젝트 오픈월"
+          month
+          :from="filters.openFrom"
+          :to="filters.openTo"
+          @update:from="filters.openFrom = $event"
+          @update:to="filters.openTo = $event"
+        />
         <FilterTextPill
           v-model="filters.registeredBy"
           label="등록자"
@@ -462,6 +467,11 @@ function onExcelDownload() {
         />
       </template>
     </SearchFilterBar>
+
+    <div class="tlb-results-head">
+      <h3 class="sec-title">조회 결과</h3>
+      <ExcelDownloadButton @click="onExcelDownload" />
+    </div>
 
     <div class="tlb-split">
       <!-- 좌: 테스트케이스 카드 목록 -->
@@ -558,7 +568,6 @@ function onExcelDownload() {
             </button>
             <button type="button" class="btn btn--ghost btn--sm" @click="addCase">케이스 추가</button>
             <button type="button" class="btn btn--primary btn--sm" @click="saveCase">저장</button>
-            <ExcelDownloadButton @click="onExcelDownload" />
           </div>
         </div>
 
@@ -788,12 +797,12 @@ function onExcelDownload() {
 }
 
 .tlb-icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
-  border: 1px solid var(--lnb-line);
+  border: none;
   border-radius: var(--radius-sm, 6px);
-  background: var(--lnb-side);
+  background: transparent;
   color: var(--lnb-muted);
   display: inline-flex;
   align-items: center;
@@ -804,15 +813,20 @@ function onExcelDownload() {
 
 .tlb-icon-btn:hover {
   color: var(--teal);
-  border-color: var(--teal);
+  background: transparent;
 }
 
-.tlb-icon-btn--pill {
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  margin-right: -8px;
+.tlb-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.9rem 0 10px;
+}
+
+.tlb-results-head .sec-title {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
 }
 
 .tlb-split {

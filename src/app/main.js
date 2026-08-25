@@ -9,6 +9,7 @@ import '@/shared/styles/components.css'
 import '@/shared/styles/layout.css'
 import '@/shared/styles/admin.css'
 import '@/shared/styles/search-filter.css'
+import '@/shared/styles/dash-analysis-card.css'
 
 const app = createApp(App)
 

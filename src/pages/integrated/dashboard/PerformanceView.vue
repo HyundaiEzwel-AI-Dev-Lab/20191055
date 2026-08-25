@@ -19,6 +19,11 @@ import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
+import HpKpiStrip from '@/shared/ui/HpKpiStrip.vue'
+import { useDashConceptPalette } from '@/shared/lib/useDashConceptPalette'
+import { niceBarScaleMax } from '@/shared/lib/niceBarScale'
+
+const { progressSegments, devRingColor, sponsorColor, memoTop, memoRest } = useDashConceptPalette()
 
 const scheduleStatusLabel = {
   DELAYED: '경과',
@@ -185,12 +190,29 @@ watch(pageSize, () => {
   else load()
 })
 
-const toSegments = (items) => items.map((i) => ({ value: i.count, color: i.color, label: i.label }))
-const initiatorSegments = computed(() => toSegments(initiators.value))
-const devTypeSegments = computed(() => toSegments(devTypes.value))
+// KPI 카드 4개를 HpKpiStrip(구분선 한 줄) 형태로 표시한다 — 클릭 필터링은 이 화면에서
+// 미사용이라 clickable을 켜지 않는다.
+const kpiItems = computed(() => [
+  { key: 'projectCount', label: '수행 프로젝트', value: summary.value.projectCount, unit: '건' },
+  {
+    key: 'longTermProjects', label: '장기프로젝트', value: summary.value.longTermProjects, unit: '건',
+    tone: 'accent',
+    tooltip: '계획시작일부터 오픈일까지 60일 이상인 프로젝트의 수',
+  },
+  {
+    key: 'avgDevWorkload', label: '평균 개발 공수', value: summary.value.avgDevWorkload, unit: 'MD',
+    tooltip: "업무유형 '개발'의 평균 공수(달력일, 주말 포함)",
+  },
+  {
+    key: 'membersPerProject', label: '프로젝트당 투입 인원', value: summary.value.membersPerProject, unit: '명',
+    tooltip: '조회된 프로젝트에 투입 등록된 인원(중복 제거) ÷ 조회된 프로젝트 수',
+  },
+])
+
 const initiatorTotal = computed(() => initiators.value.reduce((s, i) => s + i.count, 0))
 const devTypeTotal = computed(() => devTypes.value.reduce((s, i) => s + i.count, 0))
 const summaryMax = computed(() => Math.max(...summaries.value.map((s) => s.count), 1))
+const summaryScaleMax = computed(() => niceBarScaleMax(summaryMax.value))
 const isEmptyResult = computed(() => !loadFailed.value && summary.value.projectCount === 0)
 const recordsEmptyMessage = computed(() => {
   if (loadFailed.value) return '조회에 실패했습니다. 다시 조회해 주세요.'
@@ -359,25 +381,28 @@ function resetFilters() {
         <!-- 프로젝트는 부분일치가 아니라 목록에서 고른 1건(projectId)만 조건이 된다
              (SB-PAG-M-DAS-06-R02). 입력칸은 후보 검색용이다. -->
         <div class="project-suggest">
-          <FilterTextPill
-            label="프로젝트"
-            placeholder="프로젝트명 또는 ID (2글자+)"
-            fill
-            :model-value="filters.projectLabel"
-            @update:model-value="onProjectLabelChange"
-            @enter="search"
-            @focus="projectSuggestOpen = projectCandidates.length > 0"
-          >
-            <template #trailing>
-              <button
-                v-if="filters.projectLabel"
-                type="button"
-                class="project-suggest__clear"
-                aria-label="프로젝트 필터 지우기"
-                @click="clearProjectFilter"
-              >×</button>
-            </template>
-          </FilterTextPill>
+          <div class="project-suggest__search">
+            <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+              <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <input
+              class="sfb__search-input"
+              type="text"
+              :value="filters.projectLabel"
+              placeholder="프로젝트명 또는 ID (2글자+)"
+              @input="onProjectLabelChange($event.target.value)"
+              @keyup.enter="search"
+              @focus="projectSuggestOpen = projectCandidates.length > 0"
+            />
+            <button
+              v-if="filters.projectLabel"
+              type="button"
+              class="project-suggest__clear"
+              aria-label="프로젝트 필터 지우기"
+              @click="clearProjectFilter"
+            >×</button>
+          </div>
           <ul v-if="projectSuggestOpen" class="project-suggest__list">
             <li v-for="c in projectCandidates" :key="c.id">
               <button type="button" @mousedown.prevent="selectProjectCandidate(c)">
@@ -426,165 +451,121 @@ function resetFilters() {
       조회 구간({{ appliedFilters.openFrom }} ~ {{ appliedFilters.openTo }})에 완료·반려 프로젝트가 없습니다.
     </p>
 
-    <section class="card card--panel pad kpi-row">
-      <div class="kpi kpi--neutral">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body"><span class="kpi__lab">수행 프로젝트</span><span class="kpi__num">{{ summary.projectCount }}<small>건</small></span></span>
-      </div>
-      <div class="kpi kpi--red">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body">
-          <!-- 2026-08-20 확정 — 공수 단위가 MD 달력일이 되면서 MM 환산을 걷어냈고 임계값도
-               달력일로 다시 정했다. 서버 PerformanceService.LONG_TERM_CALENDAR_DAYS와 같은 값이어야 한다. -->
-          <span class="kpi__lab">장기프로젝트 <BaseTooltip text="계획시작일부터 오픈일까지 60일 이상인 프로젝트의 수" /></span>
-          <span class="kpi__num">{{ summary.longTermProjects }}<small>건</small></span>
-        </span>
-      </div>
-      <div class="kpi kpi--violet">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body">
-          <!-- 종전에는 영업일 ÷ 20으로 MM을 보여줬다. MD 일수를 그대로 쓴다(2026-08-20 확정). -->
-          <span class="kpi__lab">평균 개발 공수 <BaseTooltip text="업무유형 '개발'의 평균 공수(달력일, 주말 포함)" /></span>
-          <span class="kpi__num">{{ summary.avgDevWorkload }}<small>MD</small></span>
-        </span>
-      </div>
-      <div class="kpi kpi--blue">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body">
-          <span class="kpi__lab">프로젝트당 투입 인원
-            <BaseTooltip text="조회된 프로젝트에 투입 등록된 인원(중복 제거) ÷ 조회된 프로젝트 수" />
-          </span>
-          <span class="kpi__num">{{ summary.membersPerProject }}<small>명</small></span>
-        </span>
-      </div>
-    </section>
+    <HpKpiStrip :items="kpiItems">
+      <template #label-extra="{ item }">
+        <BaseTooltip v-if="item.tooltip" :text="item.tooltip" />
+      </template>
+    </HpKpiStrip>
 
-    <div class="dash-grid dash-grid--3">
-      <section class="card card--panel pad">
-        <h3 class="sec-title">발의주체</h3>
-        <div class="chart-row">
-          <HpDonutChart
-            class="hp-anim-chart"
-            :segments="initiatorSegments"
-            :size="120"
-            :thickness="32"
-            :aria-label="'발의주체 분포'"
-          >
-            <span class="donut__val">{{ initiatorTotal }}</span>
-            <span class="donut__lab">전체</span>
-          </HpDonutChart>
-          <ul class="legend">
-            <li v-for="item in initiators" :key="item.label">
-              <span class="sw" :style="{ background: item.color }"></span>
-              {{ item.label }} <span class="pct">{{ pct(item.count, initiatorTotal) }}%</span> <b>{{ item.count }}</b>
-            </li>
-          </ul>
+    <div class="card-dark bottom-card bottom-card--3col">
+      <div class="region dev-region">
+        <div class="region-title">개발구분</div>
+        <div class="dev-rings">
+          <div v-for="(item, i) in devTypes" :key="item.label" class="dev-ring">
+            <HpDonutChart
+              class="hp-anim-chart"
+              :segments="progressSegments(item.count, devTypeTotal, devRingColor(i))"
+              :size="108"
+              :thickness="13"
+              :gap="0"
+              rounded
+              :aria-label="item.label"
+            >
+              <span class="ring-cap ring-cap--sm">{{ item.label }}</span>
+              <b class="ring-val ring-val--sm">{{ pct(item.count, devTypeTotal) }}%</b>
+            </HpDonutChart>
+          </div>
         </div>
-      </section>
-
-      <section class="card card--panel pad">
-        <h3 class="sec-title">개발구분</h3>
-        <div class="chart-row">
-          <HpDonutChart
-            class="hp-anim-chart"
-            :segments="devTypeSegments"
-            :size="120"
-            :thickness="32"
-            :aria-label="'개발구분 분포'"
-          >
-            <span class="donut__val">{{ devTypeTotal }}</span>
-            <span class="donut__lab">전체</span>
-          </HpDonutChart>
-          <ul class="legend">
-            <li v-for="item in devTypes" :key="item.label">
-              <span class="sw" :style="{ background: item.color }"></span>
-              {{ item.label }} <span class="pct">{{ pct(item.count, devTypeTotal) }}%</span> <b>{{ item.count }}</b>
-            </li>
-          </ul>
+      </div>
+      <div class="divider-v"></div>
+      <div class="region sponsor-region">
+        <div class="region-title">발의주체 <span class="region-count">{{ initiatorTotal }}</span></div>
+        <div class="sponsor-bars">
+          <div v-for="(item, i) in initiators" :key="item.label" class="sponsor-bar-col">
+            <span class="pct">{{ pct(item.count, initiatorTotal) }}%</span>
+            <div class="sponsor-bar-track">
+              <span
+                class="sponsor-bar"
+                :class="{ 'is-filled': barsFilled }"
+                :style="{ height: barsFilled ? `${pct(item.count, initiatorTotal)}%` : '0%', background: sponsorColor(i) }"
+              ></span>
+            </div>
+            <span class="name">{{ item.label }}</span>
+          </div>
         </div>
-      </section>
-
-      <section class="card card--panel pad">
-        <h3 class="sec-title">적요</h3>
+      </div>
+      <div class="divider-v"></div>
+      <div class="region memo-region">
+        <div class="region-title">적요</div>
         <div class="hbar">
           <div v-for="item in summaries" :key="item.label" class="hbar__row">
+            <span class="memo-swatch" :style="{ background: item.count === summaryMax ? memoTop : memoRest }"></span>
             <span class="hbar__lab">{{ item.label }}</span>
             <div class="hbar__track">
               <span
                 class="hbar__fill hp-anim-progress"
                 :class="{ 'is-filled': barsFilled }"
-                :style="{ width: barsFilled ? `${(item.count / summaryMax) * 100}%` : '0%' }"
+                :style="{
+                  width: barsFilled ? `${(item.count / summaryScaleMax) * 100}%` : '0%',
+                  background: item.count === summaryMax ? memoTop : memoRest,
+                }"
               ></span>
             </div>
             <span class="hbar__val">{{ item.count }}</span>
           </div>
         </div>
-      </section>
+      </div>
     </div>
 
+    <div class="listcard__head listcard__head--outside">
+      <h3 class="sec-title">인력별 실적</h3>
+      <span>총 <b>{{ recordsTotal }}</b>명</span>
+      <select v-model="pageSize" @change="onPageSizeChange">
+        <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
+      </select>
+    </div>
     <section class="card card--panel listcard">
-      <div class="listcard__head">
-        <h3 class="sec-title">인력별 실적</h3>
-        <span>총 <b>{{ recordsTotal }}</b>명</span>
-        <select v-model="pageSize" @change="onPageSizeChange">
-          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
-        </select>
-        <!-- [SB 미근거 / 2026-08-19 비활성] FO 목업(20191055 PerformanceView.vue:164) 유래.
-             SB-PAG-M-DAS-06에 엑셀 다운로드 규정이 없어 껐다. 되살릴 때는
-             script/20260819/performance-sb-reconciliation.md §2-E E5를 함께 본다.
-        <button type="button" class="ghost" @click="onExcelDownload">엑셀 다운로드</button>
-        -->
-      </div>
       <div class="listcard__scroll">
-        <table class="tbl tbl--grouped">
+        <table class="data-table">
           <thead>
             <tr>
-              <th rowspan="2">No.</th>
-              <th colspan="3">인력 정보</th>
-              <th colspan="2">투입 프로젝트</th>
-              <th colspan="3">프로젝트</th>
-              <th colspan="5">투입 결과</th>
-            </tr>
-            <tr class="tbl__subhead">
-              <th>부서</th><th>담당자</th><th>직급</th>
-              <th>투입 프로젝트</th><th>투입 공수 합계</th>
-              <th>프로젝트명</th><th>공수</th><th>오픈일</th>
-              <th>참여 업무 수</th><th>경과 수</th><th>계획 공수</th><th>실행 공수</th><th>계획 준수</th>
+              <th class="cell--center">부서</th><th>담당자</th><th class="cell--center">직급</th>
+              <th class="cell--center">투입 프로젝트</th><th class="cell--right">투입 공수 합계</th>
+              <th>프로젝트명</th><th class="cell--right">공수</th><th class="cell--center">오픈일</th>
+              <th class="cell--center">참여 업무 수</th><th class="cell--center">경과 수</th><th class="cell--right">계획 공수</th><th class="cell--right">실행 공수</th><th class="cell--center">계획 준수</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!records.length">
-              <td colspan="14" class="tbl__empty">{{ recordsEmptyMessage }}</td>
+              <td colspan="13" class="tbl__empty">{{ recordsEmptyMessage }}</td>
             </tr>
-            <template v-for="(person, personIdx) in records" :key="person.assigneeId">
+            <template v-for="person in records" :key="person.assigneeId">
               <tr v-if="person.projects.length === 0" class="tbl__row">
-                <td>{{ (currentPage - 1) * pageSize + personIdx + 1 }}</td>
-                <td>{{ person.dept || '-' }}</td>
+                <td class="cell--center">{{ person.dept || '-' }}</td>
                 <td class="tbl__person">{{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span></td>
-                <td>{{ person.position || '-' }}</td>
-                <td>0건</td>
-                <td>0 MD</td>
+                <td class="cell--center">{{ person.position || '-' }}</td>
+                <td class="cell--center">0건</td>
+                <td class="cell--right">0 MD</td>
                 <td colspan="8" class="tbl__empty">투입 프로젝트 없음</td>
               </tr>
               <tr v-for="(proj, pIdx) in person.projects" v-else :key="`${person.assigneeId}-${proj.projectId}`" class="tbl__row">
                 <template v-if="pIdx === 0">
-                  <td :rowspan="person.projects.length">{{ (currentPage - 1) * pageSize + personIdx + 1 }}</td>
-                  <td :rowspan="person.projects.length">{{ person.dept || '-' }}</td>
+                  <td :rowspan="person.projects.length" class="cell--center">{{ person.dept || '-' }}</td>
                   <td :rowspan="person.projects.length" class="tbl__person">
                     {{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span>
                   </td>
-                  <td :rowspan="person.projects.length">{{ person.position || '-' }}</td>
-                  <td :rowspan="person.projects.length">{{ person.projectCount }}건</td>
-                  <td :rowspan="person.projects.length">{{ person.totalMd }} MD</td>
+                  <td :rowspan="person.projects.length" class="cell--center">{{ person.position || '-' }}</td>
+                  <td :rowspan="person.projects.length" class="cell--center">{{ person.projectCount }}건</td>
+                  <td :rowspan="person.projects.length" class="cell--right">{{ person.totalMd }} MD</td>
                 </template>
                 <td class="tbl__proj">{{ proj.name }}</td>
-                <td>{{ proj.projectMd }} MD</td>
-                <td>{{ proj.openDate ?? '-' }}</td>
-                <td>{{ proj.taskCount > 0 ? `${proj.taskCount}건` : '-' }}</td>
-                <td>{{ proj.delayedCount ? `${proj.delayedCount}건` : '-' }}</td>
-                <td>{{ proj.planMd }} MD</td>
-                <td>{{ proj.execMd }} MD</td>
-                <td>
+                <td class="cell--right">{{ proj.projectMd }} MD</td>
+                <td class="cell--center">{{ proj.openDate ?? '-' }}</td>
+                <td class="cell--center">{{ proj.taskCount > 0 ? `${proj.taskCount}건` : '-' }}</td>
+                <td class="cell--center">{{ proj.delayedCount ? `${proj.delayedCount}건` : '-' }}</td>
+                <td class="cell--right">{{ proj.planMd }} MD</td>
+                <td class="cell--right">{{ proj.execMd }} MD</td>
+                <td class="cell--center">
                   <span class="sched-badge" :class="scheduleStatusClass[proj.scheduleStatus]">
                     {{ scheduleStatusLabel[proj.scheduleStatus] }}
                   </span>
@@ -608,51 +589,21 @@ function resetFilters() {
 .state-msg { margin: -0.4rem 0 0.9rem; font-size: var(--font-size-sm); color: var(--lnb-txt); background: var(--lnb-hover); border: 1px solid var(--lnb-line); border-radius: 8px; padding: 0.5rem 0.7rem; }
 .state-msg--error { color: var(--red); background: var(--red-bg); border-color: var(--red); }
 .pad { padding: 0.9rem 1rem; }
-.sec-title { margin: 0 0 0.7rem; font-size: var(--font-size-md); font-weight: 700; padding-bottom: 10px; border-bottom: 1px solid var(--lnb-line); }
-.ghost { height: 32px; padding: 0 0.9rem; border-radius: 7px; font-size: calc(12.5px + var(--font-size-offset)); cursor: pointer; background: var(--lnb-side); border: 1px solid var(--lnb-line); color: var(--lnb-txt); }
+.sec-title { margin: 0; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; padding: 0; border-bottom: none; }
+.sec-title::before { content: none; }
 .project-suggest { position: relative; }
-.project-suggest__clear { border: none; background: none; color: var(--lnb-muted); cursor: pointer; font-size: var(--font-size-lg); line-height: 1; padding: 0 0.2rem; }
+.project-suggest__search { position: relative; width: 100%; }
+.project-suggest__search .sfb__search-input { padding-right: 30px; }
+.project-suggest__clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--lnb-muted); cursor: pointer; font-size: var(--font-size-lg); line-height: 1; padding: 0 0.2rem; z-index: 1; }
 .project-suggest__list { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 2px); margin: 0; padding: 0.25rem 0; list-style: none; background: var(--lnb-side); border: 1px solid var(--lnb-line); border-radius: 6px; max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .project-suggest__list button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 0.4rem 0.6rem; font: inherit; font-size: var(--font-size-sm); color: var(--lnb-txt); cursor: pointer; }
 .project-suggest__list button:hover { background: var(--lnb-hover); }
 .project-suggest__hint { display: block; margin-top: 0.2rem; color: var(--red); font-size: calc(10px + var(--font-size-offset)); }
-.kpi-row { display: flex; gap: 12px; margin-bottom: 16px; }
-.kpi { flex: 1; display: flex; align-items: center; gap: 10px; border: none; border-radius: var(--radius-card); padding: 16px 16px 14px; transition: transform var(--transition-fast); }
-.kpi:hover { transform: translateY(-2px); }
-.kpi__dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
-.kpi__body { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.kpi__lab { display: inline-flex; align-items: center; gap: 4px; font-size: calc(11.5px + var(--font-size-offset)); color: currentColor; opacity: 0.75; font-weight: 600; }
-.kpi__num { display: inline-block; font-size: calc(22px + var(--font-size-offset)); font-weight: 800; color: currentColor; }
-.kpi__num small { font-size: var(--font-size-md); font-weight: 600; margin-left: 2px; }
-.kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
-.kpi--red { background: var(--red-bg); color: var(--red); }
-.kpi--violet { background: var(--purple-bg); color: var(--purple); }
-.kpi--blue { background: var(--blue-bg); color: var(--blue); }
-.dash-grid { display: grid; gap: 0.9rem; margin-bottom: 0.9rem; }
-.dash-grid--3 { grid-template-columns: repeat(3, 1fr); }
-.chart-row { display: flex; gap: 0.9rem; align-items: center; }
-.donut__val { font-size: calc(17px + var(--font-size-offset)); font-weight: 800; }
-.donut__lab { font-size: calc(10px + var(--font-size-offset)); color: var(--lnb-muted); }
-.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: var(--font-size-sm); flex: 1; }
-.legend li { display: flex; align-items: center; gap: 0.45rem; }
-.legend b { margin-left: auto; }
-.legend .pct { color: var(--lnb-muted); font-size: var(--font-size-xs); }
-.sw { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.hbar { display: flex; flex-direction: column; gap: 0.6rem; }
-.hbar__row { display: flex; align-items: center; gap: 0.6rem; font-size: var(--font-size-sm); }
-.hbar__lab { width: 78px; text-align: right; flex-shrink: 0; }
-.hbar__track { flex: 1; height: 16px; background: var(--lnb-hover); border-radius: 8px; overflow: hidden; }
-.hbar__fill { display: block; height: 100%; border-radius: inherit; background: var(--teal); }
-.hbar__val { width: 26px; text-align: right; font-weight: 700; flex-shrink: 0; }
 .listcard__head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem 0.75rem; font-size: var(--font-size-sm); border-bottom: 1px solid var(--lnb-line); }
 .listcard__head select { height: 28px; border: 1px solid var(--lnb-line); border-radius: 6px; padding: 0 0.4rem; font-size: var(--font-size-xs); color: var(--lnb-txt); background: var(--lnb-side); }
 .listcard__head span { margin-left: auto; }
-.listcard__scroll { overflow-x: auto; padding: 0.9rem 1rem 0; }
-.tbl { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.tbl thead th { background: var(--lnb-hover); text-align: center; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--lnb-line); white-space: nowrap; }
-.tbl__subhead th { font-size: var(--font-size-xs); font-weight: 500; }
-.tbl tbody td { padding: 0.6rem 0.6rem; border-bottom: 1px solid var(--lnb-line); text-align: center; }
-.tbl__row:hover { background: var(--teal-50); }
+.listcard__head--outside { padding: 0 0 10px; border-bottom: none; }
+.listcard__scroll { overflow-x: auto; }
 .tbl__person { font-weight: 600; text-align: left; }
 .tbl__emp { display: block; font-size: calc(10px + var(--font-size-offset)); color: var(--lnb-muted); font-weight: 400; }
 .tbl__proj { text-align: left; max-width: 220px; line-height: 1.4; }
@@ -663,9 +614,4 @@ function resetFilters() {
 .sched-badge.short { color: var(--blue); background: var(--blue-bg); }
 .sched-badge.none { color: var(--lnb-muted); background: var(--lnb-hover); }
 
-@media (max-width: 1200px) {
-  .dash-grid--3 { grid-template-columns: 1fr; }
-  .kpi-row { flex-wrap: wrap; }
-  .kpi { min-width: calc(50% - 0.35rem); }
-}
 </style>

@@ -477,7 +477,7 @@ function onOverdueClick(row) {
 .dash-grid { display: grid; gap: 0.9rem; margin-bottom: 0.9rem; }
 .dash-grid--2 { grid-template-columns: 1fr 260px; }
 .dash-grid--3 { grid-template-columns: repeat(3, 1fr); }
-.kpi-row { display: flex; gap: 12px; }
+.kpi-row { display: flex; gap: 12px; margin-bottom: var(--space-lg); }
 .kpi { flex: 1; border: none; border-radius: var(--radius-card); padding: 16px 16px 14px; transition: transform var(--transition-fast); }
 .kpi:hover { transform: translateY(-2px); }
 .kpi__dot { display: block; width: 10px; height: 10px; border-radius: 50%; background: currentColor; margin-bottom: 10px; }

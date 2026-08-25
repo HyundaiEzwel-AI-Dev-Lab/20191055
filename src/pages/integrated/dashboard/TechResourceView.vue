@@ -10,6 +10,7 @@ import {
   getDelayTasks,
 } from '@/entities/dashboard/mock/techResource'
 import { pageSizeOptions } from '@/shared/lib/commonOptions'
+import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import DelayTaskModal from '@/pages/integrated/dashboard/DelayTaskModal.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
@@ -308,6 +309,25 @@ function onTaskCountClick(person, proj) {
   projectStore.setCurrentProject({ id: proj.projectNo, name: proj.name })
   router.push({ path: '/workspace/wbs', query: { assignee: person.name } })
 }
+
+function onExcelDownload() {
+  const rows = filterPersons().flatMap((person) =>
+    person.projects.length
+      ? person.projects.map((proj) => ({ person, proj }))
+      : [{ person, proj: null }],
+  )
+  mockExcelDownload('인력별 투입 현황', rows, [
+    { key: 'dept', label: '부서', value: (r) => r.person.dept },
+    { key: 'name', label: '담당자', value: (r) => r.person.name },
+    { key: 'position', label: '직급', value: (r) => r.person.position || '-' },
+    { key: 'project', label: '프로젝트명', value: (r) => r.proj?.name || '-' },
+    { key: 'stage', label: '처리단계', value: (r) => r.proj?.statusName || '-' },
+    { key: 'progress', label: '공정률', value: (r) => (r.proj ? `${r.proj.progress}%` : '-') },
+    { key: 'openDate', label: '오픈예정일', value: (r) => r.proj?.openDate || '-' },
+    { key: 'taskCount', label: '업무 수', value: (r) => r.proj?.taskCount ?? '-' },
+    { key: 'execProgress', label: '실행률', value: (r) => formatExecProgress(r.proj?.execProgress) },
+  ])
+}
 </script>
 
 <template>
@@ -339,25 +359,28 @@ function onTaskCountClick(person, proj) {
         <!-- 프로젝트는 이름 부분일치가 아니라 목록에서 고른 1건(projectId)만 조건이 된다.
              입력칸은 후보 검색용이다. -->
         <div class="project-suggest sfb-w-lg">
-          <FilterTextPill
-            label="프로젝트"
-            placeholder="프로젝트명 또는 ID (2글자+)"
-            fill
-            :model-value="filters.projectLabel"
-            @update:model-value="onProjectLabelChange"
-            @enter="search"
-            @focus="projectSuggestOpen = projectCandidates.length > 0"
-          >
-            <template #trailing>
-              <button
-                v-if="filters.projectLabel"
-                type="button"
-                class="project-suggest__clear"
-                aria-label="프로젝트 필터 지우기"
-                @click="clearProjectFilter"
-              >×</button>
-            </template>
-          </FilterTextPill>
+          <div class="project-suggest__search">
+            <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+              <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <input
+              class="sfb__search-input"
+              type="text"
+              :value="filters.projectLabel"
+              placeholder="프로젝트명 또는 ID (2글자+)"
+              @input="onProjectLabelChange($event.target.value)"
+              @keyup.enter="search"
+              @focus="projectSuggestOpen = projectCandidates.length > 0"
+            />
+            <button
+              v-if="filters.projectLabel"
+              type="button"
+              class="project-suggest__clear"
+              aria-label="프로젝트 필터 지우기"
+              @click="clearProjectFilter"
+            >×</button>
+          </div>
           <ul v-if="projectSuggestOpen" class="project-suggest__list">
             <li v-for="c in projectCandidates" :key="c.id">
               <button type="button" @mousedown.prevent="selectProjectCandidate(c)">
@@ -411,65 +434,46 @@ function onTaskCountClick(person, proj) {
       </div>
     </section>
 
+    <div class="listcard__head listcard__head--outside">
+      <h3 class="sec-title">인력별 투입 현황</h3>
+      <span>총 <b>{{ recordsTotal }}</b>명</span>
+      <select v-model="pageSize" @change="onPageSizeChange">
+        <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
+      </select>
+      <button type="button" class="ghost" @click="onExcelDownload">엑셀 다운로드</button>
+    </div>
+    <p v-if="showHomonymHint" class="homonym-hint homonym-hint--outside">동명이인이 있습니다. 사번으로 검색해 주세요</p>
     <section class="card card--panel listcard">
-      <div class="listcard__head">
-        <h3 class="sec-title">인력별 투입 현황</h3>
-        <span>총 <b>{{ recordsTotal }}</b>명</span>
-        <select v-model="pageSize" @change="onPageSizeChange">
-          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
-        </select>
-        <!-- [SB 미근거 / 2026-08-19 비활성] FO 목업(20191055 TechResourceView.vue) 유래.
-             SB-PAG-M-DAS-04에 엑셀 다운로드 규정이 없어 껐다. 되살릴 때는
-             script/20260819/tech-resource-sb-reconciliation.md §2-F를 함께 본다.
-        <button type="button" class="ghost" @click="onExcelDownload">엑셀 다운로드</button>
-        -->
-      </div>
-      <p v-if="showHomonymHint" class="homonym-hint">동명이인이 있습니다. 사번으로 검색해 주세요</p>
       <div class="listcard__scroll">
-        <table class="tbl tbl--grouped">
+        <table class="data-table">
           <thead>
             <tr>
-              <th rowspan="2">No.</th>
-              <th colspan="3">인력 정보</th>
-              <th colspan="2">투입 프로젝트</th>
-              <th colspan="4">프로젝트</th>
-              <th colspan="3">투입 현황</th>
-            </tr>
-            <tr class="tbl__subhead">
-              <th>부서</th><th>담당자</th><th>직급</th>
-              <th>진행 프로젝트</th><th>계획 공수 합</th>
-              <th>프로젝트명</th><th>처리단계</th><th>공정률</th><th>오픈예정일</th>
-              <th>계획 공수</th><th>담당 업무 수</th><th>실행 공정률</th><th>계획 준수</th>
+              <th>담당자</th>
+              <th class="cell--center">진행/계획</th>
+              <th>프로젝트명</th><th class="cell--center">처리단계</th><th class="cell--center">공정률</th><th class="cell--center">오픈예정일</th>
+              <th class="cell--center">업무 수</th><th class="cell--center">실행률</th><th class="cell--center">계획 준수</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!records.length">
-              <td colspan="14" class="tbl__empty">{{ recordsEmptyMessage }}</td>
+              <td colspan="9" class="tbl__empty">{{ recordsEmptyMessage }}</td>
             </tr>
-            <template v-for="(person, personIdx) in records" :key="person.assigneeId">
+            <template v-for="person in records" :key="person.assigneeId">
               <tr v-if="person.projects.length === 0" class="tbl__row">
-                <td>{{ (currentPage - 1) * pageSize + personIdx + 1 }}</td>
-                <td>{{ person.dept }}</td>
-                <td class="tbl__person">{{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span></td>
-                <td>{{ person.position || '-' }}</td>
-                <td>0건</td>
-                <td>-</td>
-                <td colspan="8" class="tbl__empty">투입 프로젝트 없음</td>
+                <td class="tbl__person">{{ person.name }}<span class="tbl__emp">{{ person.dept }} · {{ person.position || '-' }}</span></td>
+                <td class="cell--center">0건 / -</td>
+                <td colspan="7" class="tbl__empty">투입 프로젝트 없음</td>
               </tr>
               <tr v-for="(proj, pIdx) in person.projects" v-else :key="`${person.assigneeId}-${proj.projectId}`" class="tbl__row">
                 <template v-if="pIdx === 0">
-                  <td :rowspan="person.projects.length">{{ (currentPage - 1) * pageSize + personIdx + 1 }}</td>
-                  <td :rowspan="person.projects.length">{{ person.dept }}</td>
                   <td :rowspan="person.projects.length" class="tbl__person">
-                    {{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span>
+                    {{ person.name }}<span class="tbl__emp">{{ person.dept }} · {{ person.position || '-' }}</span>
                   </td>
-                  <td :rowspan="person.projects.length">{{ person.position || '-' }}</td>
-                  <td :rowspan="person.projects.length">{{ person.projectCount }}건</td>
-                  <td :rowspan="person.projects.length">{{ formatPlanMd(person.totalPlanMd) }}</td>
+                  <td :rowspan="person.projects.length" class="cell--center">{{ person.projectCount }}건 / {{ formatPlanMd(person.totalPlanMd) }}</td>
                 </template>
                 <td class="tbl__proj">{{ proj.name }}</td>
-                <td><span class="stbadge" :class="STATUS_BADGE_CLASS[proj.statusCode] || 'recv'">{{ proj.statusName }}</span></td>
-                <td>
+                <td class="cell--center"><span class="stbadge" :class="STATUS_BADGE_CLASS[proj.statusCode] || 'recv'">{{ proj.statusName }}</span></td>
+                <td class="cell--center">
                   <div class="prog-wrap">
                     <div class="bar hp-anim-progress" :class="{ 'is-filled': barsFilled }">
                       <i :style="{ width: barsFilled ? `${proj.progress}%` : '0%' }"></i>
@@ -477,13 +481,12 @@ function onTaskCountClick(person, proj) {
                     <span>{{ proj.progress }}%</span>
                   </div>
                 </td>
-                <td>{{ proj.openDate || '-' }}<br v-if="proj.dDay" /><small v-if="proj.dDay">{{ proj.dDay }}</small></td>
-                <td>{{ formatPlanMd(proj.planMd) }}</td>
-                <td>
+                <td class="cell--center">{{ proj.openDate || '-' }}<br v-if="proj.dDay" /><small v-if="proj.dDay">{{ proj.dDay }}</small></td>
+                <td class="cell--center">
                   <button v-if="proj.taskCount > 0" type="button" class="tbl__link" @click="onTaskCountClick(person, proj)">{{ proj.taskCount }}건</button>
                   <span v-else>-</span>
                 </td>
-                <td>
+                <td class="cell--center">
                   <BaseTooltip
                     v-if="proj.lastActualEnd"
                     :text="`최종 실행완료일 ${proj.lastActualEnd}`"
@@ -492,7 +495,7 @@ function onTaskCountClick(person, proj) {
                   </BaseTooltip>
                   <template v-else>{{ formatExecProgress(proj.execProgress) }}</template>
                 </td>
-                <td>
+                <td class="cell--center">
                   <button v-if="proj.scheduleStatus === 'DELAYED'" type="button" class="delay-badge" @click="onDelayClick(person, proj)">
                     경과 ({{ proj.delayCount }}개)
                   </button>
@@ -516,15 +519,18 @@ function onTaskCountClick(person, proj) {
 .hint { margin: 0 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); background: var(--lnb-hover); border: 1px solid var(--lnb-line); display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; }
 .query-time { margin: -0.4rem 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); }
 .pad { padding: 0.9rem 1rem; }
-.sec-title { margin: 0 0 0.7rem; font-size: var(--font-size-md); font-weight: 700; padding-bottom: 10px; border-bottom: 1px solid var(--lnb-line); }
+.sec-title { margin: 0; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; padding: 0; border-bottom: none; }
+.sec-title::before { content: none; }
 .ghost { height: 32px; padding: 0 0.9rem; border-radius: 7px; font-size: calc(12.5px + var(--font-size-offset)); cursor: pointer; background: var(--lnb-side); border: 1px solid var(--lnb-line); color: var(--lnb-txt); }
 .project-suggest { position: relative; }
-.project-suggest__clear { border: none; background: none; color: var(--lnb-muted); cursor: pointer; font-size: var(--font-size-lg); line-height: 1; padding: 0 0.2rem; }
+.project-suggest__search { position: relative; width: 100%; }
+.project-suggest__search .sfb__search-input { padding-right: 30px; }
+.project-suggest__clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--lnb-muted); cursor: pointer; font-size: var(--font-size-lg); line-height: 1; padding: 0 0.2rem; z-index: 1; }
 .project-suggest__list { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 2px); margin: 0; padding: 0.25rem 0; list-style: none; background: var(--lnb-side); border: 1px solid var(--lnb-line); border-radius: 6px; max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .project-suggest__list button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 0.4rem 0.6rem; font: inherit; font-size: var(--font-size-sm); color: var(--lnb-txt); cursor: pointer; }
 .project-suggest__list button:hover { background: var(--lnb-hover); }
 .project-suggest__hint { display: block; margin-top: 0.2rem; color: var(--red); font-size: calc(10px + var(--font-size-offset)); }
-.kpi-row { display: flex; gap: 12px; margin-bottom: 16px; }
+.kpi-row { display: flex; gap: 12px; margin-bottom: var(--space-lg); }
 .kpi { flex: 1; display: flex; align-items: center; gap: 10px; border: none; border-radius: var(--radius-card); padding: 16px 16px 14px; transition: transform var(--transition-fast); }
 .kpi:hover { transform: translateY(-2px); }
 .kpi__dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
@@ -539,13 +545,10 @@ function onTaskCountClick(person, proj) {
 .listcard__head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem 0.75rem; font-size: var(--font-size-sm); border-bottom: 1px solid var(--lnb-line); }
 .listcard__head select { height: 28px; border: 1px solid var(--lnb-line); border-radius: 6px; padding: 0 0.4rem; font-size: var(--font-size-xs); color: var(--lnb-txt); background: var(--lnb-side); }
 .listcard__head span { margin-left: auto; }
+.listcard__head--outside { padding: 0 0 10px; border-bottom: none; }
 .homonym-hint { margin: 0; padding: 0.45rem 1rem 0; font-size: var(--font-size-xs); color: var(--orange); }
-.listcard__scroll { overflow-x: auto; padding: 0.9rem 1rem 0; }
-.tbl { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.tbl thead th { background: var(--lnb-hover); text-align: center; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--lnb-line); white-space: nowrap; }
-.tbl__subhead th { font-size: var(--font-size-xs); font-weight: 500; }
-.tbl tbody td { padding: 0.6rem 0.6rem; border-bottom: 1px solid var(--lnb-line); text-align: center; }
-.tbl__row:hover { background: var(--teal-50); }
+.homonym-hint--outside { padding: 0 0 10px; }
+.listcard__scroll { overflow-x: auto; }
 .tbl__person { font-weight: 600; text-align: left; }
 .tbl__emp { display: block; font-size: calc(10px + var(--font-size-offset)); color: var(--lnb-muted); font-weight: 400; }
 .tbl__proj { text-align: left; max-width: 220px; line-height: 1.4; }

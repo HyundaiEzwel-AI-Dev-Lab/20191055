@@ -284,8 +284,9 @@ function onExcelDownload() {
                 </select>
               </td>
               <td class="cell--center">
-                <label class="cell-checkbox">
-                  <input v-model="row.recurring" type="checkbox" :disabled="isLocked(row)" /> 매년
+                <label class="cell-toggle" :class="{ 'is-on': row.recurring, 'is-disabled': isLocked(row) }">
+                  <input v-model="row.recurring" type="checkbox" :disabled="isLocked(row)" />
+                  <span class="cell-toggle__track"><span class="cell-toggle__thumb"></span></span>
                 </label>
               </td>
               <td>
@@ -321,4 +322,38 @@ function onExcelDownload() {
   font-size: 12px;
   white-space: nowrap;
 }
+.cell-toggle {
+  display: inline-flex;
+  cursor: pointer;
+}
+.cell-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.cell-toggle__track {
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--lnb-line);
+  position: relative;
+  transition: background var(--transition-fast);
+}
+.cell-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+.cell-toggle.is-on .cell-toggle__track { background: var(--teal); }
+.cell-toggle.is-on .cell-toggle__thumb { transform: translateX(14px); }
+.cell-toggle.is-disabled { cursor: not-allowed; opacity: 0.5; }
 </style>

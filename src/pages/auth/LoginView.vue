@@ -1,12 +1,14 @@
 <script setup>
-// PAG-M-COM-02 로그인 화면
+// PAG-M-COM-02 로그인 화면 (h-pms 화면 기준 UI 이관, API는 목업 유지)
 // figma: 01_로그인.html / 기획서: 로그인.pdf
 import { reactive, ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { findUserById } from '@/entities/auth/mockUsers'
 import { useAuthStore } from '@/app/stores/auth'
+import HpPasswordToggle from '@/shared/ui/HpPasswordToggle.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const ID_STORAGE_KEY = 'hpms.savedLoginId'
@@ -19,15 +21,8 @@ const form = reactive({
 })
 const showPassword = ref(false)
 const errorMessage = ref('')
-const showTooltip = ref(false)
-
-const summary = [
-  { key: 'total', label: '전체', value: 27 },
-  { key: 'recv', label: '접수', value: 6 },
-  { key: 'prog', label: '진행', value: 14, tooltip: true },
-  { key: 'done', label: '완료', value: 6 },
-  { key: 'reject', label: '반려', value: 1 },
-]
+const errorCode = ref('')
+const submitting = ref(false)
 
 onMounted(() => {
   const saved = localStorage.getItem(ID_STORAGE_KEY)
@@ -37,8 +32,9 @@ onMounted(() => {
   }
 })
 
-function login() {
+async function login() {
   errorMessage.value = ''
+  errorCode.value = ''
 
   // 1. ID/PW 입력 여부
   if (!form.id.trim() || !form.password.trim()) {
@@ -46,6 +42,7 @@ function login() {
     return
   }
 
+  submitting.value = true
   try {
     // 2. 계정 존재 여부
     const user = findUserById(form.id.trim())
@@ -70,6 +67,7 @@ function login() {
 
     // 4. 비밀번호 오류 횟수 (5회 초과)
     if (user.failCount >= MAX_FAIL) {
+      errorCode.value = 'ACCOUNT_LOCKED'
       errorMessage.value = '로그인 가능 횟수를 초과했습니다. 담당자에게 문의하세요.'
       return
     }
@@ -89,297 +87,208 @@ function login() {
     }
     user.failCount = 0
     authStore.login(user)
-    router.push('/integrated/my-work')
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    router.push(redirect)
   } catch (e) {
     // 6. 시스템 오류
     errorMessage.value = '로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+  } finally {
+    submitting.value = false
   }
 }
 </script>
 
 <template>
-  <div class="login">
-    <div class="left">
-      <div>
-        <div class="sub">전사 프로젝트 관리 시스템</div>
-        <h1>프로젝트의 시작부터 완료까지<br />한 눈에 관리하세요.</h1>
-        <p class="desc">
-          요구사항, 설계, 테스트까지 효율적으로 관리하고<br />
-          전체 IT 프로젝트 진행 현황을 언제든 확인하세요
-        </p>
-      </div>
-      <div class="kpis">
-        <div v-for="item in summary" :key="item.key" class="lk">
-          <div class="l">
-            {{ item.label }}
-            <span
-              v-if="item.tooltip"
-              class="info"
-              @mouseenter="showTooltip = true"
-              @mouseleave="showTooltip = false"
-            >
-              ⓘ
-              <span v-if="showTooltip" class="tip">
-                진행중 상태<br />: 프로젝트 처리상태<br />'처리중, 협의중, 테스트' 상태
-              </span>
-            </span>
-          </div>
-          <div class="v">{{ item.value }}</div>
-        </div>
-      </div>
+  <div class="hp-login">
+    <div class="hp-login__left">
+      <div class="hp-login__sub">HPMS</div>
+      <h1 class="hp-login__title">프로젝트의 시작부터 완료까지<br />한 눈에 관리하세요.</h1>
+      <p class="hp-login__desc">
+        요구사항, 설계, 테스트까지 효율적으로 관리하고<br />
+        전체 IT 프로젝트 진행 현황을 언제든 확인하세요
+      </p>
     </div>
 
-    <div class="right">
-      <form class="form" @submit.prevent="login">
+    <div class="hp-login__right">
+      <form class="hp-login__form" @submit.prevent="login">
         <h2>프로젝트 관리 시스템</h2>
 
         <div>
-          <div class="lab">아이디</div>
-          <div class="tin">
+          <div class="hp-login__label">아이디</div>
+          <div class="hp-login__field">
             <input v-model="form.id" placeholder="USER ID (사번/ ID)" autocomplete="username" />
           </div>
         </div>
 
         <div>
-          <div class="lab">비밀번호</div>
-          <div class="tin">
+          <div class="hp-login__label">비밀번호</div>
+          <div class="hp-login__field">
             <input
               v-model="form.password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="PASSWORD"
               autocomplete="current-password"
             />
-            <span class="eye" @click="showPassword = !showPassword">
-              <svg v-if="showPassword" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 3l18 18" />
-                <path d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3" />
-                <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-              </svg>
-            </span>
+            <HpPasswordToggle v-model="showPassword" />
           </div>
         </div>
 
-        <div class="rowx">
-          <label class="save"><input v-model="form.saveId" type="checkbox" /> ID 저장</label>
+        <div class="hp-login__row">
+          <label class="hp-login__save"><input v-model="form.saveId" type="checkbox" /> ID 저장</label>
         </div>
 
-        <button class="big" type="submit">로그인</button>
+        <button class="hp-login__submit" type="submit" :disabled="submitting">
+          {{ submitting ? '로그인 중...' : '로그인' }}
+        </button>
 
-        <p v-if="errorMessage" class="err">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="hp-login__error">
+          <template v-if="errorCode === 'ACCOUNT_LOCKED'">
+            로그인 가능 횟수를 초과했습니다.<br />웹기획팀에 문의 바랍니다
+          </template>
+          <template v-else>{{ errorMessage }}</template>
+        </p>
 
-        <div class="foot">임직원 사번 계정 · 외주 전용 ID만 로그인 가능</div>
-        <div class="notice">※ 비밀번호 분실 시 웹기획팀에 문의 바랍니다.</div>
+        <div class="hp-login__foot">임직원 사번 계정 · 외주 전용 ID만 로그인 가능</div>
+        <div class="hp-login__notice">※ 비밀번호 분실 시 웹기획팀에 문의 바랍니다.</div>
       </form>
     </div>
   </div>
 </template>
 
 <style scoped>
-.login {
-  --teal: #119a8a;
-  --teal-600: #0e8275;
-  --ink: #1f2a30;
-  --ink-2: #48565e;
-  --muted: #7c8a92;
-  --line: #e3e8eb;
-  --field: #f1f4f5;
-  --red: #e0524a;
+.hp-login {
   position: fixed;
   inset: 0;
   display: flex;
-  font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: var(--font-family);
   color: var(--ink);
 }
-
-.left {
+.hp-login__left {
   flex: 1.2;
-  background: linear-gradient(135deg, #0e8275, #119a8a 60%, #15b3a0);
+  background: linear-gradient(135deg, var(--teal-600), var(--teal) 60%, var(--teal-400));
   color: #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 0 8%;
-  gap: 26px;
+  gap: var(--space-lg);
 }
-.left h1 {
-  font-size: calc(30px + var(--font-size-offset, 0px));
+.hp-login__title {
+  font-size: 30px;
   font-weight: 800;
   line-height: 1.35;
   margin: 0;
 }
-.left .sub {
-  font-size: calc(14px + var(--font-size-offset, 0px));
+.hp-login__sub {
+  font-size: var(--font-size-sm);
   opacity: 0.9;
-  margin-bottom: 10px;
 }
-.left .desc {
-  font-size: calc(13px + var(--font-size-offset, 0px));
+.hp-login__desc {
+  font-size: var(--font-size-md);
   opacity: 0.85;
   line-height: 1.7;
-  margin: 14px 0 0;
+  margin: var(--space-sm) 0 0;
 }
-.left .kpis {
-  display: flex;
-  gap: 12px;
-}
-.left .lk {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  padding: 14px 18px;
-  min-width: 84px;
-}
-.left .lk .l {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  opacity: 0.85;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.left .lk .v {
-  font-size: calc(24px + var(--font-size-offset, 0px));
-  font-weight: 800;
-  margin-top: 2px;
-}
-.info {
-  position: relative;
-  cursor: pointer;
-  opacity: 0.9;
-}
-.tip {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  color: var(--lnb-txt);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 500;
-  line-height: 1.5;
-  white-space: nowrap;
-  box-shadow: var(--shadow-md);
-  z-index: 20;
-}
-
-.right {
+.hp-login__right {
   flex: 1;
   background: var(--lnb-side);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.form {
+.hp-login__form {
   width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-md);
 }
-.form h2 {
-  font-size: calc(20px + var(--font-size-offset, 0px));
-  margin: 0 0 4px;
+.hp-login__form h2 {
+  font-size: 20px;
+  margin: 0 0 var(--space-xs);
   text-align: center;
 }
-.form .lab {
-  font-size: calc(12px + var(--font-size-offset, 0px));
+.hp-login__label {
+  font-size: var(--font-size-sm);
   color: var(--muted);
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-xs);
 }
-.form .tin {
+.hp-login__field {
   height: 42px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  gap: 8px;
+  padding: 0 var(--space-sm);
+  gap: var(--space-xs);
   background: var(--field);
 }
-.form .tin input {
+.hp-login__field input {
   flex: 1;
   border: none;
   background: none;
   outline: none;
-  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-md);
   font-family: inherit;
   color: var(--ink);
 }
-.form .eye {
-  color: var(--muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-.form .eye:hover {
-  color: var(--ink-2);
-}
-.form .rowx {
+.hp-login__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-sm);
   color: var(--ink-2);
 }
-.form .rowx .save {
+.hp-login__save {
   display: flex;
-  gap: 6px;
+  gap: var(--space-xs);
   align-items: center;
-  color: var(--ink-2);
   cursor: pointer;
 }
-.form .rowx a {
-  color: var(--teal-600);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-}
-.form .big {
+.hp-login__submit {
   height: 44px;
   background: var(--teal);
   color: #fff;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   font-weight: 700;
-  font-size: calc(14px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-md);
   cursor: pointer;
   font-family: inherit;
 }
-.form .big:hover {
+.hp-login__submit:hover:not(:disabled) {
   background: var(--teal-600);
 }
-.form .err {
+.hp-login__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.hp-login__error {
   color: var(--red);
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: var(--font-size-sm);
   text-align: center;
   margin: 0;
   min-height: 16px;
 }
-.form .foot {
-  font-size: calc(11px + var(--font-size-offset, 0px));
+.hp-login__foot {
+  font-size: var(--font-size-xs);
   color: var(--muted);
   text-align: center;
 }
-.form .notice {
-  font-size: calc(11px + var(--font-size-offset, 0px));
+.hp-login__notice {
+  font-size: var(--font-size-xs);
   color: var(--ink-2);
   text-align: center;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
 }
 
 @media (max-width: 860px) {
-  .login {
+  .hp-login {
     flex-direction: column;
   }
-  .left {
+  .hp-login__left {
     padding: 40px 24px;
   }
 }

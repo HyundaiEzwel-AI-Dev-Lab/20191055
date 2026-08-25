@@ -5,8 +5,10 @@
  * 색은 전부 컨셉 토큰(`tokens.css`)에서 파생한다. 리터럴 색을 박으면 다크·프리미엄 컨셉에서
  * 묻힌다 — `data-concept`가 `--lnb-*`/`--teal*`만 바꾸기 때문이다.
  *
- * 기존 `.filter`/`.filter__*`(admin.css·layout.css)는 모달 내부 폼에서 계속 쓰므로 남겨 둔다.
- * 이 파일은 화면 상단 검색 영역 전용이다.
+ * 기존 `.filter`/`.filter__*`(admin.css·layout.css)는 모달 내부의 셀렉트 등 다른 필드에서 계속
+ * 쓰므로 남겨 둔다. 다만 "프로젝트명"류 텍스트 검색 입력은 화면 상단이든 모달 내부든 위치를
+ * 가리지 않고 이 파일의 `.sfb__search`/`.sfb__search-input`(돋보기 아이콘 + 무테두리 필)로
+ * 통일한다.
  */
 
 :root {
@@ -14,13 +16,18 @@
   --sfb-label: var(--lnb-muted);
   --sfb-value: var(--lnb-logo);
   --sfb-field: var(--lnb-hover);
-  --sfb-panel: var(--lnb-hover);
+  /*
+   * 펼침 패널 배경. `--lnb-hover`를 그대로 쓰면 셀렉트·검색 필의 무테두리 배경(`--sfb-field`)과
+   * 톤이 같아 패널이 카드 배경과 너무 진하게 갈린다 — 카드 배경(`--lnb-side`)을 대부분 섞어
+   * 옅게 만든다. `color-mix`로 파생해 다크·프리미엄 컨셉이 바뀌어도 리터럴 색을 새로 안 정해도 된다.
+   */
+  --sfb-panel: color-mix(in srgb, var(--lnb-side) 82%, var(--lnb-hover) 18%);
   --sfb-primary: var(--teal);
   --sfb-primary-hover: var(--teal-600);
   --sfb-tag-bg: var(--teal-50);
   --sfb-tag-fg: var(--teal-600);
   /* 포인트 버튼 라벨 — `.btn--primary`(admin.css)와 같은 규칙이다. */
-  --sfb-primary-fg: var(--teal-fg);
+  --sfb-primary-fg: var(--color-text-inverse, #fff);
 }
 
 .sfb {
@@ -68,7 +75,12 @@
   height: 40px;
   box-sizing: border-box;
   padding: 0 14px 0 34px;
-  border: none;
+  /*
+   * 무테두리로 두면 펼침 패널(.sfb__panel-inner)처럼 배경이 같은 --lnb-hover 계열인 곳에서
+   * 필 경계가 안 보인다 — 셀렉트 필(.sfb-pill__face)과 같은 테두리 색을 준다. 배경이
+   * 무엇이든 경계가 항상 드러난다.
+   */
+  border: 1px solid var(--sfb-line);
   border-radius: var(--r-pill);
   background: var(--sfb-field);
   font-size: var(--font-size-md);
@@ -79,6 +91,30 @@
 
 .sfb__search-input::placeholder {
   color: var(--sfb-label);
+}
+
+/*
+ * HpFilterTextPill(라벨|값 pill이었던 role=textbox 필터)이 메인 검색창과 같은 형태로
+ * 옮겨오면서 쓰는 변형이다 — 펼침 패널·필드 그리드에서 칸을 꽉 채우고(--fill), 화면검색
+ * 팝업 버튼 같은 트레일링 아이콘 자리를 낸다(--trailing).
+ */
+.sfb__search--fill {
+  flex: 1 1 auto;
+  max-width: none;
+  width: 100%;
+}
+
+.sfb__search--trailing .sfb__search-input {
+  padding-right: 34px;
+}
+
+.sfb__search-trailing {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
 }
 
 .sfb__fields {
@@ -408,11 +444,6 @@
 
 .sfb-pill__face--fill {
   width: 100%;
-}
-
-/* 화살표가 없는 텍스트 필은 좌우 여백을 같게 둔다. */
-.sfb-pill__face--text {
-  padding-right: 14px;
 }
 
 .sfb-pill__label {
