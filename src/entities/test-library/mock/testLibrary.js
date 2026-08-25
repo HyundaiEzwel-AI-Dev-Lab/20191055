@@ -272,9 +272,8 @@ export function matchLibraryFilters(row, filters) {
     const matchesId = (row.sourceProjectId || '').toLowerCase().includes(q)
     if (!matchesName && !matchesId) return false
   }
-  if (filters.openMonth && filters.openMonth !== '전체' && row.openMonth !== filters.openMonth) {
-    return false
-  }
+  if (filters.openFrom && row.openMonth < filters.openFrom) return false
+  if (filters.openTo && row.openMonth > filters.openTo) return false
   if (
     filters.registeredBy &&
     !row.registeredBy.toLowerCase().includes(filters.registeredBy.toLowerCase())

@@ -1,11 +1,9 @@
 <script setup>
 /**
- * 내업무 캘린더 뷰 — PAG-M-MY-02 / PAG-M-MY-03
+ * 내업무 캘린더 뷰 — PAG-M-MY-02 / PAG-M-MY-03 (h-pms 화면 기준 UI 이관, API는 목업 유지)
  * 멀티데이 업무: 주 단위 가로 span 바 (일별 중복 표기 X)
  */
 import { ref, computed, watch } from 'vue'
-import { projectColors } from '@/entities/inbox/mock/inboxCalendar'
-import { getMyProjects } from '@/app/layouts/headerPopups'
 import { INBOX_GUIDE } from '@/entities/inbox/mock/inbox'
 import { useAuthStore } from '@/app/stores/auth'
 import { useProjectStore } from '@/app/stores/project'
@@ -19,6 +17,15 @@ const emit = defineEmits(['saved'])
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const VISIBLE_LANES = 2
+/**
+ * 프로젝트 식별 컬러 — 테마와 무관하게 고정 팔레트다(저해상도 모니터에서도 흐려지지 않게
+ * 명시적으로 지정한다 — CSS 변수가 아니라 리터럴인 이유).
+ */
+const PROJECT_COLORS = [
+  { rail: '#0d9488', bg: '#d7f0ec', bd: '#8fd4c9', text: '#0a4a45' }, // teal
+  { rail: '#7c3aed', bg: '#ece3fd', bd: '#c1a9f5', text: '#4c1d95' }, // purple
+  { rail: '#2563eb', bg: '#dde9fd', bd: '#a6c6f7', text: '#1e40af' }, // blue
+]
 
 const auth = useAuthStore()
 const projectStore = useProjectStore()
@@ -76,7 +83,7 @@ const calendarDerived = computed(() =>
     })),
 )
 
-const unsched = computed(() =>
+const unscheduled = computed(() =>
   sourceTasks.value
     .filter((task) => !task.planEnd)
     .map((task) => ({
@@ -88,10 +95,8 @@ const unsched = computed(() =>
     })),
 )
 
-const myProjects = computed(() => getMyProjects(auth.user?.id))
-
-const today = new Date(2026, 2, 20)
-const cursor = ref(new Date(2026, 2, 1))
+const today = new Date()
+const cursor = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const showScheduleModal = ref(false)
 const scheduleTarget = ref(null)
 const showBulkScheduleModal = ref(false)
@@ -142,9 +147,9 @@ function layoutWeekBars(weekCells) {
       const segEnd = t.end < weekEnd ? t.end : weekEnd
       const startCol = weekCells.findIndex((c) => c.iso === segStart)
       const endCol = weekCells.findIndex((c) => c.iso === segEnd)
-      const display = resolveTaskDisplay(t)
       return {
-        ...display,
+        ...t,
+        displayStatus: t.status,
         startCol,
         endCol,
         span: endCol - startCol + 1,
@@ -180,13 +185,11 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-function resolveTaskDisplay(task) {
-  return { ...task, displayStatus: task.status }
+function colorOf(idx) {
+  return PROJECT_COLORS[idx % PROJECT_COLORS.length]
 }
 
-function colorOf(idx) {
-  return projectColors[idx % projectColors.length]
-}
+const hoveredTaskId = ref(null)
 
 function prevMonth() {
   cursor.value = new Date(cursor.value.getFullYear(), cursor.value.getMonth() - 1, 1)
@@ -200,55 +203,42 @@ function goToday() {
   cursor.value = new Date(today.getFullYear(), today.getMonth(), 1)
 }
 
-function resolveProject(task) {
-  const raw = (task.project || '').replace(/\s*\([^)]*\)\s*$/, '').trim()
-  const found = myProjects.value.find(
-    (p) =>
-      p.name === raw ||
-      p.name.includes(raw) ||
-      raw.includes(p.name.slice(0, Math.min(10, p.name.length))),
-  )
-  return found || { id: 'p1', name: raw || '프로젝트', stage: '처리중' }
-}
-
 function openScheduleModal(task) {
-  const project = task.projectId
-    ? { id: task.projectId, name: task.project, stage: '처리중' }
-    : resolveProject(task)
+  const isCalendarTask = 'start' in task
+  const start = isCalendarTask ? task.start : null
+  const end = isCalendarTask ? task.end : null
+  const source = sourceTasks.value.find((t) => t.id === task.id) || null
   projectStore.setCurrentProject({
-    id: project.id,
-    name: project.name,
-    stage: project.stage,
+    id: task.projectId,
+    name: task.project,
+    stage: '처리중',
   })
   scheduleTarget.value = {
     wbsId: task.wbsId || task.id || 'WBS-CAL',
     requirementName: task.name,
     taskName: task.name,
-    taskType: '개발',
+    taskType: source?.taskType || '개발',
     assigneeDisplay: auth.user?.name || '김현대',
-    planStart: task.planStart || task.start || null,
-    planEnd: task.planEnd || task.end || null,
-    execStart: task.execStart || null,
-    execEnd: task.execEnd || null,
-    holdStart: task.holdStart || null,
-    holdEnd: task.holdEnd || null,
+    planStart: source?.planStart ?? start,
+    planEnd: source?.planEnd ?? end,
+    execStart: source?.execStart || null,
+    execEnd: source?.execEnd || null,
+    planProgress: source?.planProgress ?? source?.progress ?? 0,
+    execProgress: source?.progress ?? 0,
+    holdStart: source?.holdStart || null,
+    holdEnd: source?.holdEnd || null,
+    restartDate: source?.expectedResume || null,
   }
   showScheduleModal.value = true
 }
 
-function onTaskClick(task) {
-  if (task.displayStatus === 'done') return
-  openScheduleModal(task)
+function onTaskClick(bar) {
+  if (bar.displayStatus === 'done') return
+  openScheduleModal(bar)
 }
 
-function onScheduleRegister(task) {
-  openScheduleModal({
-    ...task,
-    name: task.name,
-    start: null,
-    end: null,
-    project: task.project,
-  })
+function onScheduleRegister(u) {
+  openScheduleModal(u)
 }
 
 function endLabelOf(end) {
@@ -268,18 +258,19 @@ function applyScheduleUpdate(wbsId, start, end) {
     existing.planStart = start || existing.planStart
     existing.planEnd = end
     emit('saved', { wbsId, planStart: start, planEnd: end })
-    return
   }
 }
 
 function onScheduleSave(payload) {
   applyScheduleUpdate(scheduleTarget.value?.wbsId, payload.planStart, payload.planEnd)
+  scheduleTarget.value = null
 }
 
 function onOpenMultiChangeFromSchedule(task) {
   if (!task) return
   bulkTargets.value = [task]
   showBulkScheduleModal.value = true
+  scheduleTarget.value = null
 }
 
 function onBulkScheduleRequest(payload) {
@@ -298,10 +289,25 @@ function onBulkScheduleRequest(payload) {
 function blockStyle(task) {
   if (task.displayStatus === 'done' || task.displayStatus === 'paused') return {}
   const c = colorOf(task.color)
-  return {
-    borderLeftColor: c,
-    background: `${c}18`,
-  }
+  return { background: c.bg, borderLeftColor: c.rail }
+}
+
+/** 호버 시 좌측 레일색 기준 그림자. done/paused는 레일색이 없어 회색 그림자로 대체한다. */
+function hoverShadow(task) {
+  if (hoveredTaskId.value !== task.id) return undefined
+  const rail = task.displayStatus === 'done' || task.displayStatus === 'paused'
+    ? '100, 116, 139'
+    : hexToRgb(colorOf(task.color).rail)
+  return `0 4px 12px rgba(${rail}, .32)`
+}
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16)
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`
+}
+
+function unschedColor(u) {
+  return colorOf(projectColorIndexes.value.get(u.project) ?? 0).rail
 }
 
 function statusLabel(task) {
@@ -332,7 +338,10 @@ function statusLabel(task) {
 
         <div v-for="(week, wi) in calendarWeeks" :key="wi" class="cal-week">
           <div v-for="cell in week.cells" :key="cell.iso" class="cal__cell" :class="{ out: !cell.inMonth, today: cell.isToday }">
-            <div class="cal__day">{{ cell.day }}</div>
+            <div class="cal__day-wrap">
+              <span class="cal__day">{{ cell.day }}</span>
+              <span v-if="cell.isToday" class="cal__today-tag">오늘</span>
+            </div>
           </div>
 
           <div class="cal-week__lanes" :style="{ gridTemplateRows: `repeat(${week.maxLanes}, 34px)` }">
@@ -346,11 +355,19 @@ function statusLabel(task) {
                 paused: bar.displayStatus === 'paused',
                 'continues-prev': bar.continuesPrev,
                 'continues-next': bar.continuesNext,
+                'is-hover': hoveredTaskId === bar.id,
               }"
-              :style="{ gridColumn: `${bar.startCol + 1} / span ${bar.span}`, gridRow: bar.lane + 1, ...blockStyle(bar) }"
+              :style="{
+                gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+                gridRow: bar.lane + 1,
+                ...blockStyle(bar),
+                boxShadow: hoverShadow(bar),
+              }"
               @click="onTaskClick(bar)"
+              @mouseenter="hoveredTaskId = bar.id"
+              @mouseleave="hoveredTaskId = null"
             >
-              <span v-if="statusLabel(bar)" class="tblock__badge">{{ bar }}</span>
+              <span v-if="statusLabel(bar)" class="tblock__badge" :class="bar.displayStatus">{{ statusLabel(bar) }}</span>
               <span class="tblock__lines">
                 <span class="tblock__name">{{ bar.name }} <span class="tblock__end">{{ bar.endLabel }}</span></span>
                 <span class="tblock__project">
@@ -366,7 +383,10 @@ function statusLabel(task) {
         <div class="unsched__head">일정 미등록 업무 <span class="cnt">({{ unscheduled.length }})</span></div>
         <div v-if="unscheduled.length" class="unsched__list">
           <div v-for="u in unscheduled" :key="u.id" class="ucard">
-            <div class="ucard__proj" :title="u.project">{{ u.project }}</div>
+            <div class="ucard__proj">
+              <span class="ucard__dot" :style="{ background: unschedColor(u) }"></span>
+              <span :title="u.project">{{ u.project }}</span>
+            </div>
             <div class="ucard__name">{{ u.name }}</div>
             <button class="btn-ghost" @click="onScheduleRegister(u)">일정 등록</button>
           </div>
@@ -383,12 +403,9 @@ function statusLabel(task) {
       @open-multi-change="onOpenMultiChangeFromSchedule"
     />
     <WbsBulkScheduleModal
-      v-if="showBulkModal"
+      v-model="showBulkScheduleModal"
       :tasks="bulkTargets"
-      :members="bulkMembers"
-      @close="closeBulkModal"
-      @request-plan-change="onRequestPlanChange"
-      @request-hold="onRequestHold"
+      @request="onBulkScheduleRequest"
     />
   </div>
 </template>
@@ -397,91 +414,125 @@ function statusLabel(task) {
    rem은 --font-size-offset에 반응하지 않아 내설정>글자 크기가 먹지 않는다(layout.css:3-11 선례). */
 
 .cal-view { display: flex; flex-direction: column; }
-.cal-view__body { display: grid; grid-template-columns: 1fr 272px; gap: 14px; align-items: start; }
+.cal-view__body { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
 .cal-guide { margin: 12px 2px 0; font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted); line-height: 1.55; }
 
-.cal { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
-.cal__bar { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--color-border-2); }
-.cal__label { min-width: 100px; font-size: var(--font-size-lg); font-weight: 600; color: var(--color-text); }
+.cal { background: var(--lnb-side); border: 1px solid var(--lnb-line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.cal__bar { display: flex; align-items: center; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--lnb-line); }
+.cal__label { min-width: 100px; font-size: calc(18px + var(--font-size-offset)); font-weight: 800; letter-spacing: -0.02em; color: var(--lnb-txt); }
 .cal__nav {
-  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-  background: var(--color-surface); color: var(--color-text-2); cursor: pointer;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--lnb-line); border-radius: 9px;
+  background: var(--lnb-side); color: var(--lnb-muted); cursor: pointer;
 }
-.cal__nav:hover { background: var(--color-field); }
+.cal__nav:hover { background: var(--lnb-hover); }
 .cal__nav svg { width: 14px; height: 14px; }
 .cal__today {
   margin-left: 4px; height: 28px; padding: 0 12px;
-  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-  background: var(--color-surface); font-size: var(--font-size-sm);
-  font-family: inherit; color: var(--color-text-2); cursor: pointer;
+  border: 1px solid var(--lnb-line); border-radius: 8px;
+  background: var(--lnb-side); font-size: calc(13px + var(--font-size-offset)); font-weight: 600;
+  font-family: inherit; color: var(--lnb-muted); cursor: pointer;
 }
-.cal__today:hover { background: var(--color-field); }
+.cal__today:hover { background: var(--lnb-hover); }
 
 .cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-.cal__head { border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
-.cal__wd { text-align: center; padding: 8px 0; font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-muted); }
+.cal__head { border-bottom: 1px solid var(--lnb-line); background: var(--lnb-bg); }
+.cal__wd { text-align: center; padding: 8px 0; font-size: calc(12.5px + var(--font-size-offset)); font-weight: 700; color: var(--lnb-muted); }
 .cal__wd.sun { color: var(--red); }
 .cal__wd.sat { color: var(--blue); }
 
-/* 주 행 */
-.cal-week { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--color-border-2); }
+/* 주 행 — min-height 112px, 업무 lane 수만큼 자동으로 늘어난다 */
+.cal-week { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); min-height: 112px; border-bottom: 1px dashed var(--lnb-line); }
 .cal-week:last-child { border-bottom: none; }
-.cal__cell { padding: 4px 5px 2px; border-right: 1px solid var(--color-border-2); }
+.cal__cell { padding: 6px 6px 2px; border-right: 1px solid var(--lnb-line); }
 .cal__cell:nth-child(7n) { border-right: none; }
-.cal__cell.out { background: var(--color-bg-subtle); }
-.cal__cell.out .cal__day { color: var(--color-text-muted); opacity: 0.5; }
+.cal__cell.out { background: var(--lnb-bg); }
+.cal__cell.out .cal__day { color: var(--lnb-muted); }
 .cal__cell.today { background: var(--lnb-hover); }
-.cal__day { padding: 2px 4px; font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text-2); }
-.cal__cell.today .cal__day { color: var(--teal); font-weight: 700; }
+.cal__day-wrap { display: flex; align-items: center; gap: 6px; }
+.cal__day { display: inline-flex; align-items: center; justify-content: center; font-size: calc(12.5px + var(--font-size-offset)); font-weight: 600; color: var(--lnb-txt); }
+/* 주말은 700 + 요일 색 */
+.cal-week .cal__cell:first-child .cal__day { color: var(--red); font-weight: 700; }
+.cal-week .cal__cell:last-child .cal__day { color: var(--blue); font-weight: 700; }
+/* 오늘: 20px 원형 배경 + 흰 숫자 */
+.cal__cell.today .cal__day {
+  width: 20px; height: 20px; border-radius: 50%; background: var(--lnb-txt); color: #fff; font-weight: 700;
+}
+.cal__today-tag { font-size: 11px; font-weight: 700; color: var(--lnb-txt); }
 
-/* 업무 lane — 주 단위 가로 span 바 */
+/* 업무 lane — 주 단위 가로 span 바. 날짜 셀 아래로 자연스럽게 이어 붙여
+   행 높이가 lane 수만큼 늘어나게 한다(고정 높이 + 접기 금지). */
 .cal-week__lanes {
-  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(7, 1fr);
-  gap: 3px 2px; padding: 2px 4px 0; min-height: 52px;
+  grid-column: 1 / -1;
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 5px 0; padding-bottom: 6px;
 }
 .tblock {
-  display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer;
-  min-height: 32px; padding: 3px 6px; border-radius: 4px;
-  border-left: 3px solid var(--teal); color: var(--color-text-2);
+  display: flex; align-items: center; gap: 6px; overflow: hidden; cursor: pointer;
+  min-height: 30px; padding: 7px 11px; margin: 0 7px; border-radius: 8px;
+  border: 1px solid transparent; border-left: 4px solid var(--teal); color: var(--lnb-txt);
   font-size: calc(10.5px + var(--font-size-offset)); line-height: 1.3;
+  background-image: linear-gradient(100deg, rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 68%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  background-position: -60% 0;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
-/* 주 경계를 넘는 바는 해당 끝의 라운드를 죽이고 셀 경계를 넘겨서 연속으로 읽히게 한다 */
-.tblock.continues-prev { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -2px; padding-left: 4px; }
-.tblock.continues-next { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -2px; }
+/* 호버 시 좌→우 하이라이트 스윕 반복 + 살짝 부상 */
+.tblock.is-hover { animation: mwCalBarSweep 1.15s ease-in-out infinite; transform: translateY(-1px); }
+@keyframes mwCalBarSweep {
+  from { background-position: -60% 0; }
+  to { background-position: 160% 0; }
+}
+/* 주 경계를 넘는 바는 해당 끝의 라운드를 죽이고 그 끝의 여백을 지워 연속으로 읽히게 한다 */
+.tblock.continues-prev { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+.tblock.continues-next { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 .tblock__lines { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .tblock__name, .tblock__project { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tblock__name { font-weight: 600; color: var(--color-text); }
-.tblock__end { font-weight: 400; color: var(--color-text-muted); }
-.tblock__project { font-weight: 400; font-size: calc(9.5px + var(--font-size-offset)); color: var(--color-text-muted); }
-.tblock__badge { flex-shrink: 0; font-size: calc(9px + var(--font-size-offset)); font-weight: 700; }
-.tblock.delayed .tblock__badge { color: var(--color-danger); }
-.tblock.paused .tblock__badge { color: var(--color-text-muted); }
-/* blockStyle()이 인라인으로 배경을 넣으므로 !important가 필요하다 */
-.tblock.done { background: var(--color-field) !important; color: var(--color-text-muted); border-left-color: var(--lnb-line); cursor: default; opacity: 0.75; }
-.tblock.delayed { border: 1px solid var(--color-danger); border-left-width: 3px; }
-.tblock.paused { background: var(--color-field) !important; border-left-color: var(--lnb-line); opacity: 0.85; }
+.tblock__name { font-size: 13px; font-weight: 700; color: var(--lnb-txt); }
+.tblock__end { font-weight: 600; font-size: 11.5px; color: var(--lnb-muted); }
+.tblock__project { font-weight: 400; font-size: 11.5px; color: var(--lnb-muted); }
+/* 상태 배지 — 지연·일시중단 동일 형태: 흰 글씨, radius 4px */
+.tblock__badge {
+  flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: #fff;
+  padding: 2px 6px; border-radius: 4px;
+}
+.tblock__badge.delayed { background: #dc2626; }
+.tblock__badge.paused { background: #64748b; }
+/* blockStyle()이 인라인으로 배경/테두리를 넣으므로 !important가 필요하다 */
+.tblock.done { background: var(--lnb-bg) !important; color: var(--lnb-muted); border-left-color: var(--lnb-line) !important; cursor: default; opacity: 0.8; }
+.tblock.delayed { border-color: #eda9a9 !important; background: #fce0e0 !important; border-left-color: #dc2626 !important; }
+.tblock.delayed .tblock__name { color: #991b1b; }
+.tblock.paused { background: #e6eaef !important; border-left-color: #64748b !important; opacity: 0.9; }
+.tblock.paused .tblock__name { color: #334155; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tblock.is-hover { animation: none; }
+}
 
 /* 일정 미등록 */
 .unsched {
-  position: sticky; top: 0; padding: 14px;
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  position: sticky; top: 0; padding: 18px;
+  background: var(--lnb-side); border: 1px solid var(--lnb-line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
 }
-.unsched__head { margin-bottom: 12px; font-size: var(--font-size-md); font-weight: 600; }
-.unsched__head .cnt { color: var(--teal); font-weight: 700; }
-.unsched__list { display: flex; flex-direction: column; gap: 10px; }
-.unsched__empty { padding: 8px 0; font-size: var(--font-size-sm); color: var(--color-text-muted); }
-.ucard { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px 12px; }
+.unsched__head { margin-bottom: 12px; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; }
+.unsched__head .cnt { color: var(--lnb-muted); font-weight: 600; }
+.unsched__list { display: flex; flex-direction: column; gap: 14px; }
+.unsched__empty { padding: 8px 0; font-size: var(--font-size-sm); color: var(--lnb-muted); }
+.ucard { border: 1px solid var(--lnb-line); border-radius: 12px; padding: 14px; }
 .ucard__proj {
-  margin-bottom: 4px; font-size: var(--font-size-xs); color: var(--color-text-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--lnb-muted);
+  overflow: hidden;
 }
-.ucard__name { margin-bottom: 10px; font-size: var(--font-size-md); font-weight: 600; }
+.ucard__proj span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucard__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ucard__name { margin-bottom: 10px; font-size: calc(14.5px + var(--font-size-offset)); font-weight: 700; }
 .btn-ghost {
-  height: 28px; padding: 0 10px; border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm); font-weight: 500; font-family: inherit;
-  border: 1px solid var(--color-border); background: var(--color-surface);
-  color: var(--color-text-2); cursor: pointer;
+  width: 100%; height: 30px; padding: 0 10px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 700; font-family: inherit;
+  border: 1px solid var(--lnb-line); background: var(--lnb-side);
+  color: var(--lnb-txt); cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
-.btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+.btn-ghost:hover { background: var(--lnb-txt); border-color: var(--lnb-txt); color: #fff; }
 </style>

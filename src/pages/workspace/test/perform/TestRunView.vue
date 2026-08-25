@@ -664,6 +664,7 @@ function onExcelDownload() {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: var(--space-lg);
 }
 
 .kpi-chip {

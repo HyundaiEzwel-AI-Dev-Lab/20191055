@@ -205,13 +205,15 @@
 }
 
 /* 모달 */
+/* 2026-08-24 결정 — 전 화면 팝업을 우측 정렬로 바꾼다(SB 문서상 "레이어팝업=화면 중앙"과는
+   의도적으로 다르다). */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   z-index: 1300;
 }
 

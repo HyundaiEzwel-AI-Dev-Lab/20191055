@@ -389,7 +389,7 @@ function onPageSizeChange() {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0.6rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: var(--space-lg);
 }
 
 .kpi {

@@ -298,7 +298,7 @@ function onExcelDownload() {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-lg);
 }
 
 .kpi-card {

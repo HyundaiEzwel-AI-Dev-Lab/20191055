@@ -111,13 +111,19 @@ onBeforeUnmount(() => {
   >
     <div class="hdr-search">
       <div class="hdr-search__bar">
-        <input
-          v-model="keyword"
-          class="hdr-search__input"
-          type="text"
-          placeholder="프로젝트명 (프로젝트ID), 요청자명을 입력하세요."
-          @keydown.enter="runSearch"
-        />
+        <div class="sfb__search hdr-search__input">
+          <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input
+            v-model="keyword"
+            class="sfb__search-input"
+            type="text"
+            placeholder="프로젝트명 (프로젝트ID), 요청자명을 입력하세요."
+            @keydown.enter="runSearch"
+          />
+        </div>
         <button class="hdr-search__btn" type="button" @click="runSearch">검색</button>
       </div>
       <p class="hdr-search__hint">입력하면 자동으로 검색되며, 검색 버튼 또는 F2 키로도 검색할 수 있습니다.</p>
@@ -176,3 +182,19 @@ onBeforeUnmount(() => {
     </div>
   </HeaderLayerModal>
 </template>
+
+<style scoped>
+.hdr-search__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 모양은 검색 영역 공용 .sfb__search/.sfb__search-input(shared/styles/search-filter.css).
+   여기서는 배치만 잡는다. */
+.hdr-search__input {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+</style>
