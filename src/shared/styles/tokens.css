@@ -84,7 +84,9 @@
   --space-2xl: 48px;
 
   /* Typography */
-  --font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* 'Pretendard Variable'은 npm 패키지 self-host 폰트의 실제 font-family명이다(shared/styles/fonts.css).
+     'Pretendard'는 과거 CDN/시스템 설치 폰트를 가리키던 이름이라 폴백으로 남겨둔다. */
+  --font-family: 'Pretendard Variable', 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-md: 13px;
