@@ -4,6 +4,8 @@
  * - fullscreen: 화면 전체 스크림 + 카드 (기본)
  * - inline: 부모 영역 기준 (position:relative 부모 필요)
  */
+const WAVE_BAR_COUNT = 8
+
 defineProps({
   visible: { type: Boolean, default: false },
   /** 안내 문구 */
@@ -25,8 +27,11 @@ defineProps({
         aria-busy="true"
       >
         <div class="loading__card">
-          <div class="loading__spinner" aria-hidden="true">
-            <span class="loading__ring" />
+          <!-- 막대 웨이브 — 좌에서 우로 파동이 흐른다.
+               장식이라 aria-hidden. 진행 안내는 loading__msg가 aria-live로 읽는다.
+               지연은 --i(막대 순번)로 준다 — 개수를 바꿔도 CSS는 그대로다. -->
+          <div class="loading__wave" aria-hidden="true">
+            <i v-for="n in WAVE_BAR_COUNT" :key="n" :style="{ '--i': n - 1 }" />
           </div>
           <p class="loading__msg">{{ message }}</p>
         </div>
@@ -64,32 +69,36 @@ defineProps({
   gap: 14px;
   min-width: 200px;
   padding: 28px 32px;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
+  /* 검은 반투명 고정 — 컨셉 토큰을 타지 않는다. 어느 컨셉에서도 같은 박스로 보인다. */
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
   box-shadow: var(--shadow-md);
 }
 
-.loading__spinner {
-  width: 40px;
-  height: 40px;
+.loading__wave {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 44px;
 }
 
-.loading__ring {
+.loading__wave i {
   display: block;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 3px solid var(--teal-100);
-  border-top-color: var(--teal);
-  animation: loading-spin 0.75s linear infinite;
+  width: 8px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teal);
+  animation: loading-wave 1.1s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.09s);
 }
 
 .loading__msg {
   margin: 0;
   font-size: calc(var(--font-size-md) + var(--font-size-offset, 0px));
   font-weight: 600;
-  color: var(--lnb-txt);
+  /* 카드가 검은 반투명 고정이라 문구도 흰색 고정 — --lnb-txt는 기본 컨셉에서 어두워 안 보인다. */
+  color: #fff;
   text-align: center;
   line-height: 1.4;
 }
@@ -104,9 +113,23 @@ defineProps({
   opacity: 0;
 }
 
-@keyframes loading-spin {
-  to {
-    transform: rotate(360deg);
+@keyframes loading-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading__wave i {
+    transform: scaleY(0.7);
+    opacity: 0.7;
+    animation: none;
   }
 }
 </style>
