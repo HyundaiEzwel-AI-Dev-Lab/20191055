@@ -87,7 +87,7 @@ async function login() {
     }
     user.failCount = 0
     authStore.login(user)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/integrated/my-work'
     router.push(redirect)
   } catch (e) {
     // 6. 시스템 오류
