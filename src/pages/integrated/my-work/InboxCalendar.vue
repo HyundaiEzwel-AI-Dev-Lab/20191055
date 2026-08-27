@@ -454,11 +454,9 @@ function statusLabel(task) {
 /* 주말은 700 + 요일 색 */
 .cal-week .cal__cell:first-child .cal__day { color: var(--red); font-weight: 700; }
 .cal-week .cal__cell:last-child .cal__day { color: var(--blue); font-weight: 700; }
-/* 오늘: 20px 원형 배경 + 흰 숫자 */
-.cal__cell.today .cal__day {
-  width: 20px; height: 20px; border-radius: 50%; background: var(--lnb-txt); color: #fff; font-weight: 700;
-}
-.cal__today-tag { font-size: 11px; font-weight: 700; color: var(--lnb-txt); }
+/* 오늘: 원형 배지 없이 teal 색+굵게만 (h-pms 기준, 2026-08-27) */
+.cal__cell.today .cal__day { color: var(--teal); font-weight: 700; }
+.cal__today-tag { font-size: calc(11px + var(--font-size-offset)); font-weight: 700; color: var(--lnb-txt); }
 
 /* 업무 lane — 주 단위 가로 span 바. 날짜 셀 아래로 자연스럽게 이어 붙여
    행 높이가 lane 수만큼 늘어나게 한다(고정 높이 + 접기 금지). */
@@ -489,12 +487,12 @@ function statusLabel(task) {
 .tblock.continues-next { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 .tblock__lines { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .tblock__name, .tblock__project { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tblock__name { font-size: 13px; font-weight: 700; color: var(--lnb-txt); }
-.tblock__end { font-weight: 600; font-size: 11.5px; color: var(--lnb-muted); }
-.tblock__project { font-weight: 400; font-size: 11.5px; color: var(--lnb-muted); }
+.tblock__name { font-size: calc(13px + var(--font-size-offset)); font-weight: 700; color: var(--lnb-txt); }
+.tblock__end { font-weight: 600; font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted); }
+.tblock__project { font-weight: 400; font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted); }
 /* 상태 배지 — 지연·일시중단 동일 형태: 흰 글씨, radius 4px */
 .tblock__badge {
-  flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: #fff;
+  flex-shrink: 0; font-size: calc(10.5px + var(--font-size-offset)); font-weight: 700; color: #fff;
   padding: 2px 6px; border-radius: 4px;
 }
 .tblock__badge.delayed { background: #dc2626; }
@@ -522,7 +520,7 @@ function statusLabel(task) {
 .ucard { border: 1px solid var(--lnb-line); border-radius: 12px; padding: 14px; }
 .ucard__proj {
   margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
-  font-size: 11.5px; color: var(--lnb-muted);
+  font-size: calc(11.5px + var(--font-size-offset)); color: var(--lnb-muted);
   overflow: hidden;
 }
 .ucard__proj span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -530,7 +528,7 @@ function statusLabel(task) {
 .ucard__name { margin-bottom: 10px; font-size: calc(14.5px + var(--font-size-offset)); font-weight: 700; }
 .btn-ghost {
   width: 100%; height: 30px; padding: 0 10px; border-radius: var(--radius-sm);
-  font-size: 12.5px; font-weight: 700; font-family: inherit;
+  font-size: calc(12.5px + var(--font-size-offset)); font-weight: 700; font-family: inherit;
   border: 1px solid var(--lnb-line); background: var(--lnb-side);
   color: var(--lnb-txt); cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
