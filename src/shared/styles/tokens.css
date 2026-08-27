@@ -37,6 +37,14 @@
   --color-text-muted: var(--lnb-muted);
   --color-text-inverse: #ffffff;
 
+  /* h-pms 대시보드 4종 정렬용 — h-pms tokens.css와 동일 값 (2026-08-27) */
+  --bg-surface: #ffffff;
+  --border-default: #d5dae2;
+  --text-default: #374151;
+  --radius-card: 14px;
+  --r-card: 14px;
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.08);
+
   --sidebar-bg: var(--lnb-side);
   --sidebar-hover: var(--lnb-hover);
   --sidebar-active: var(--lnb-side);
@@ -163,6 +171,9 @@
   --color-primary-hover: #8ab4f8;
   --color-primary-light: #16223a;
   --color-text-inverse: #ffffff;
+  --bg-surface: #ffffff;
+  --border-default: #cfe3dc;
+  --radius-card: 18px;
   --color-border-2: #80868b;
   --color-text-2: #c4c7c5;
   --color-success: #81c995;
@@ -245,6 +256,10 @@
   --color-primary-hover: #e8e6dc;
   --color-primary-light: #3a3936;
   --color-text-inverse: #141413;
+  --bg-surface: #262624;
+  --border-default: #4a4945;
+  --text-default: #e8e6dc;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
   --color-border-2: #4a4945;
   --color-text-2: #c2c0b6;
   --color-success: #7ab948;

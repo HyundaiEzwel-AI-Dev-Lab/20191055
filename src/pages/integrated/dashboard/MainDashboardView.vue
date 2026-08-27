@@ -27,12 +27,17 @@ import HpPagination from '@/shared/ui/HpPagination.vue'
 import { useProjectStore } from '@/app/stores/project'
 import HpDonutChart from '@/shared/ui/HpDonutChart.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
+import { useDashConceptPalette } from '@/shared/lib/useDashConceptPalette'
+import { niceBarScaleMax } from '@/shared/lib/niceBarScale'
 
 const router = useRouter()
 const projectStore = useProjectStore()
+const { teal, stageColors, memoTop, memoRest, progressSegments, devRingColor, sponsorColor } =
+  useDashConceptPalette()
 
 const meta = ref({ yearScope: '', queryTime: '' })
 // 차트 축(라벨·색·정렬순서)만 들고 있는다. 건수는 조회필터 결과로 stats가 매번 다시 센다 —
@@ -81,14 +86,12 @@ const requirementContext = ref(null)
  * 안티에일리어싱하지 않아 원본 크기에서 계단으로 보였다(빌더는 실적 대시보드와 사본이었다).
  * 집계 소스는 조회필터 결과인 stats다 — SB-PAG-M-DAS-01-R02(조회 결과 변경 시 자동 갱신).
  */
-const toSegments = (items) =>
-  items.map((i) => ({ value: i.count, color: i.color, label: i.label }))
-const initiatorSegments = computed(() => toSegments(stats.value.initiators))
-const devTypeSegments = computed(() => toSegments(stats.value.devTypes))
 const initiatorTotal = computed(() => stats.value.initiators.reduce((s, i) => s + i.count, 0))
 const devTypeTotal = computed(() => stats.value.devTypes.reduce((s, i) => s + i.count, 0))
 const summaryMax = computed(() => Math.max(...stats.value.summaries.map((s) => s.count), 1))
-const gaugePercent = computed(() => `${(stats.value.completionRate / 2).toFixed(1)}%`)
+const summaryScaleMax = computed(() => niceBarScaleMax(summaryMax.value))
+/** 완료율 게이지 — 값/잔여 두 조각짜리 링(gap 0, rounded)이라 progressSegments와 같은 모양이다. */
+const completionSegments = computed(() => progressSegments(stats.value.completionRate, 100, teal.value))
 
 // 조회필터 선택지는 공통코드 항목만 노출한다 — '미지정'은 집계용 가상 항목이라 선택해도
 // 걸리는 행이 없다(코드 미지정 행의 값은 '-'다).
@@ -237,7 +240,11 @@ function onOverdueClick(row) {
 
 <template>
   <div class="dashboard hp-anim-enter">
-    <p class="hint">{{ meta.yearScope }} (조회시점 {{ meta.queryTime }})</p>
+    <div class="notice has-icon guide">
+      <span class="notice__icon">!</span>
+      <span>목록은 오픈예정일 {{ currentYear }}년 이후(미정 포함), 현황분석은 {{ currentYear }}년 오픈 프로젝트 기준입니다.</span>
+      <span class="notice__scope">현황분석 · {{ currentYear }}년 오픈 프로젝트 {{ analysisRows.length }}건 기준</span>
+    </div>
 
     <SearchFilterBar
       v-model:expanded="filterExpanded"
@@ -301,125 +308,112 @@ function onOverdueClick(row) {
       </template>
     </SearchFilterBar>
 
-    <p class="scope-caption">
-      현황분석 · {{ currentYear }}년 오픈 프로젝트 {{ analysisRows.length }}건 기준
-    </p>
-
-    <div class="dash-grid dash-grid--2">
-      <section class="card card--panel pad">
-        <h3 class="sec-title">처리단계</h3>
-        <div class="kpi-row">
-          <div class="kpi kpi--neutral">
-            <span class="kpi__dot"></span>
-            <span class="kpi__lab">전체</span>
-            <span class="kpi__num">{{ stats.stageKpi.total }}</span>
+    <div class="dash-grid dash-grid--stats">
+      <section class="card-dark stats-card">
+        <h3 class="sec-title-dark">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="10" width="4" height="11" rx="1"/><rect x="10" y="5" width="4" height="16" rx="1"/><rect x="17" y="13" width="4" height="8" rx="1"/></svg>
+          통계
+        </h3>
+        <div class="stats-inner">
+          <div class="ring-wrap">
+            <HpDonutChart
+              class="hp-anim-chart"
+              :segments="completionSegments"
+              :size="150"
+              :thickness="17"
+              :gap="0"
+              rounded
+              :aria-label="'완료율'"
+            >
+              <span class="ring-cap">완료율</span>
+              <b class="ring-val">{{ stats.completionRate }}%</b>
+            </HpDonutChart>
           </div>
-          <div class="kpi kpi--gray">
-            <span class="kpi__dot"></span>
-            <span class="kpi__lab">접수</span>
-            <span class="kpi__num">{{ stats.stageKpi.received }}</span>
-          </div>
-          <div class="kpi kpi--blue">
-            <span class="kpi__dot"></span>
-            <span class="kpi__lab">진행중</span>
-            <span class="kpi__num">{{ stats.stageKpi.inProgress }}</span>
-          </div>
-          <div class="kpi kpi--green">
-            <span class="kpi__dot"></span>
-            <span class="kpi__lab">완료</span>
-            <span class="kpi__num">{{ stats.stageKpi.completed }}</span>
-          </div>
-          <div class="kpi kpi--red">
-            <span class="kpi__dot"></span>
-            <span class="kpi__lab">반려</span>
-            <span class="kpi__num">{{ stats.stageKpi.rejected }}</span>
+          <div class="total-box"><span>전체</span><b>{{ stats.stageKpi.total }}</b></div>
+          <div class="stage-list">
+            <div class="stage-row"><span><span class="dot" :style="{ background: stageColors.received }"></span>접수</span><b>{{ stats.stageKpi.received }}</b></div>
+            <div class="stage-row"><span><span class="dot" :style="{ background: stageColors.inProgress }"></span>진행중</span><b>{{ stats.stageKpi.inProgress }}</b></div>
+            <div class="stage-row"><span><span class="dot" :style="{ background: stageColors.completed }"></span>완료</span><b>{{ stats.stageKpi.completed }}</b></div>
+            <div class="stage-row"><span><span class="dot" :style="{ background: stageColors.rejected }"></span>반려</span><b>{{ stats.stageKpi.rejected }}</b></div>
           </div>
         </div>
       </section>
 
-      <section class="card card--panel pad gauge-card">
-        <h3 class="sec-title">완료율</h3>
-        <div class="gauge hp-anim-chart" :style="{ '--p': gaugePercent }">
-          <div class="gauge__arc"></div>
-          <div class="gauge__hole"><b>{{ stats.completionRate }}%</b></div>
+      <section class="card-dark dev-card">
+        <h3 class="sec-title-dark">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="10" width="4" height="11" rx="1"/><rect x="10" y="5" width="4" height="16" rx="1"/><rect x="17" y="13" width="4" height="8" rx="1"/></svg>
+          개발구분
+        </h3>
+        <div class="dev-rings">
+          <div v-for="(item, i) in stats.devTypes" :key="item.label" class="dev-ring">
+            <HpDonutChart
+              class="hp-anim-chart"
+              :segments="progressSegments(item.count, devTypeTotal, devRingColor(i))"
+              :size="108"
+              :thickness="13"
+              :gap="0"
+              rounded
+              :aria-label="item.label"
+            >
+              <span class="ring-cap ring-cap--sm">{{ item.label }}</span>
+              <b class="ring-val ring-val--sm">{{ pct(item.count, devTypeTotal) }}%</b>
+            </HpDonutChart>
+          </div>
         </div>
       </section>
     </div>
 
-    <div class="dash-grid dash-grid--3">
-      <section class="card card--panel pad">
-        <h3 class="sec-title">발의주체</h3>
-        <div class="chart-row">
-          <HpDonutChart
-            class="hp-anim-chart"
-            :segments="initiatorSegments"
-            :size="120"
-            :thickness="32"
-            :aria-label="'발의주체 분포'"
-          >
-            <span class="donut__val">{{ initiatorTotal }}</span>
-            <span class="donut__lab">전체</span>
-          </HpDonutChart>
-          <ul class="legend">
-            <li v-for="item in stats.initiators" :key="item.label">
-              <span class="sw" :style="{ background: item.color }"></span>
-              {{ item.label }} <span class="pct">{{ pct(item.count, initiatorTotal) }}%</span> <b>{{ item.count }}</b>
-            </li>
-          </ul>
+    <div class="card-dark bottom-card">
+      <div class="region sponsor-region">
+        <div class="region-title">발의주체 <span class="region-count">{{ initiatorTotal }}</span></div>
+        <div class="sponsor-bars">
+          <div v-for="(item, i) in stats.initiators" :key="item.label" class="sponsor-bar-col">
+            <span class="pct">{{ pct(item.count, initiatorTotal) }}%</span>
+            <div class="sponsor-bar-track">
+              <span
+                class="sponsor-bar"
+                :class="{ 'is-filled': barsFilled }"
+                :style="{ height: barsFilled ? `${pct(item.count, initiatorTotal)}%` : '0%', background: sponsorColor(i) }"
+              ></span>
+            </div>
+            <span class="name">{{ item.label }}</span>
+          </div>
         </div>
-      </section>
-
-      <section class="card card--panel pad">
-        <h3 class="sec-title">개발구분</h3>
-        <div class="chart-row">
-          <HpDonutChart
-            class="hp-anim-chart"
-            :segments="devTypeSegments"
-            :size="120"
-            :thickness="32"
-            :aria-label="'개발구분 분포'"
-          >
-            <span class="donut__val">{{ devTypeTotal }}</span>
-            <span class="donut__lab">전체</span>
-          </HpDonutChart>
-          <ul class="legend">
-            <li v-for="item in stats.devTypes" :key="item.label">
-              <span class="sw" :style="{ background: item.color }"></span>
-              {{ item.label }} <span class="pct">{{ pct(item.count, devTypeTotal) }}%</span> <b>{{ item.count }}</b>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="card card--panel pad">
-        <h3 class="sec-title">적요</h3>
+      </div>
+      <div class="divider-v"></div>
+      <div class="region memo-region">
+        <div class="region-title">적요</div>
         <div class="hbar">
           <div v-for="item in stats.summaries" :key="item.label" class="hbar__row">
+            <span class="memo-swatch" :style="{ background: item.count === summaryMax ? memoTop : memoRest }"></span>
             <span class="hbar__lab">{{ item.label }}</span>
             <div class="hbar__track">
               <span
                 class="hbar__fill hp-anim-progress"
                 :class="{ 'is-filled': barsFilled }"
-                :style="{ width: barsFilled ? `${(item.count / summaryMax) * 100}%` : '0%' }"
+                :style="{
+                  width: barsFilled ? `${(item.count / summaryScaleMax) * 100}%` : '0%',
+                  background: item.count === summaryMax ? memoTop : memoRest,
+                }"
               ></span>
             </div>
             <span class="hbar__val">{{ item.count }}</span>
           </div>
         </div>
-      </section>
+      </div>
     </div>
 
+    <div class="listcard__head listcard__head--outside">
+      <h3 class="sec-title">프로젝트 목록</h3>
+      <span>총 <b>{{ filteredProjects.length }}</b>건</span>
+      <select v-model="pageSize" class="hp-pagesize-select" @change="onPageSizeChange">
+        <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
+      </select>
+      <ExcelDownloadButton push-end @click="onExcelDownload" />
+    </div>
     <section class="card card--panel listcard">
-      <div class="listcard__head">
-        <h3 class="sec-title">프로젝트 목록</h3>
-        <span>총 <b>{{ filteredProjects.length }}</b>건</span>
-        <select v-model="pageSize" @change="onPageSizeChange">
-          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
-        </select>
-        <button type="button" class="ghost" @click="onExcelDownload">엑셀 다운로드</button>
-      </div>
       <div class="listcard__scroll">
-        <table class="tbl">
+        <table class="data-table">
           <thead>
             <tr>
               <th>No.</th><th>처리단계</th><th>프로젝트명</th><th>공정률</th>
@@ -428,10 +422,10 @@ function onOverdueClick(row) {
           </thead>
           <tbody>
             <tr v-for="row in pagedProjects" :key="row.id" class="click" @click="onProjectClick(row)">
-              <td>{{ row.no }}</td>
-              <td><span class="stbadge">{{ row.stage }}</span></td>
+              <td class="cell--center">{{ row.no }}</td>
+              <td class="cell--center"><span class="stbadge">{{ row.stage }}</span></td>
               <td><button type="button" class="link" @click.stop="onProjectClick(row)">{{ row.name }}</button></td>
-              <td>
+              <td class="cell--right">
                 <div class="prog-wrap">
                   <div class="bar hp-anim-progress" :class="{ 'is-filled': barsFilled }">
                     <i :style="{ width: barsFilled ? `${row.progress}%` : '0%' }"></i>
@@ -439,19 +433,19 @@ function onOverdueClick(row) {
                   <span>{{ row.progress }}%</span>
                 </div>
               </td>
-              <td>
+              <td class="cell--center">
                 <span v-if="!row.isCompleted && row.dDay" :class="{ urgent: row.isUrgent }">{{ row.scheduledOpenDate }} ({{ row.dDay }})</span>
                 <span v-else>{{ row.scheduledOpenDate }}</span>
               </td>
-              <td>
+              <td class="cell--center">
                 <template v-if="row.isCompleted && row.actualOpenDate">
                   <button v-if="row.isOverdue" type="button" class="link over" @click.stop="onOverdueClick(row)">{{ row.actualOpenDate }}</button>
                   <span v-else>{{ row.actualOpenDate }}</span>
                 </template>
                 <span v-else class="empty-cell">-</span>
               </td>
-              <td><button type="button" class="link" @click.stop="onDeptClick(row)">{{ row.requestDept }}</button></td>
-              <td>{{ row.devDept }}</td>
+              <td class="cell--center"><button type="button" class="link" @click.stop="onDeptClick(row)">{{ row.requestDept }}</button></td>
+              <td class="cell--center">{{ row.devDept }}</td>
             </tr>
           </tbody>
         </table>
@@ -468,64 +462,53 @@ function onOverdueClick(row) {
 /* font-size는 --font-size-* 토큰 또는 calc(Npx + var(--font-size-offset))을 쓴다.
    rem은 --font-size-offset에 반응하지 않아 내설정>글자 크기가 먹지 않는다(layout.css:3-11 선례). */
 .dashboard { padding: 1rem 1.5rem 1.5rem; }
-.hint { margin: 0 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); background: var(--lnb-hover); border: 1px solid var(--lnb-line); display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; }
-.scope-caption { margin: 0 0 0.45rem; font-size: var(--font-size-xs); color: var(--lnb-muted); }
+.notice__scope { margin-left: auto; padding-left: 12px; white-space: nowrap; font-weight: 600; color: var(--teal-700); }
 .pad { padding: 0.9rem 1rem; }
-.ghost { height: 32px; padding: 0 0.9rem; border-radius: 7px; font-size: calc(12.5px + var(--font-size-offset)); cursor: pointer; transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast); background: var(--lnb-side); color: var(--lnb-txt); border: 1px solid var(--lnb-line); }
-.ghost:hover { background: var(--lnb-hover); }
-.ghost:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .dash-grid { display: grid; gap: 0.9rem; margin-bottom: 0.9rem; }
-.dash-grid--2 { grid-template-columns: 1fr 260px; }
-.dash-grid--3 { grid-template-columns: repeat(3, 1fr); }
-.kpi-row { display: flex; gap: 12px; margin-bottom: var(--space-lg); }
-.kpi { flex: 1; border: none; border-radius: var(--radius-card); padding: 16px 16px 14px; transition: transform var(--transition-fast); }
-.kpi:hover { transform: translateY(-2px); }
-.kpi__dot { display: block; width: 10px; height: 10px; border-radius: 50%; background: currentColor; margin-bottom: 10px; }
-.kpi__lab { display: block; font-size: calc(11.5px + var(--font-size-offset)); color: currentColor; opacity: 0.75; font-weight: 600; }
-.kpi__num { display: block; font-size: calc(28px + var(--font-size-offset)); font-weight: 800; margin-top: 4px; color: currentColor; }
-.kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
-.kpi--gray { background: var(--gray-bg); color: var(--gray); }
-.kpi--blue { background: var(--blue-bg); color: var(--blue); }
-.kpi--green { background: var(--green-bg); color: var(--green); }
-.kpi--red { background: var(--red-bg); color: var(--red); }
-.gauge-card { display: flex; flex-direction: column; align-items: center; }
-.gauge { --p: 11.1%; width: 150px; height: 84px; position: relative; overflow: hidden; }
-.gauge__arc { width: 150px; height: 150px; border-radius: 50%; background: conic-gradient(from 270deg, var(--teal) 0 var(--p), var(--lnb-line) var(--p) 50%, transparent 50%); }
-.gauge__hole { position: absolute; left: 26px; right: 26px; bottom: 0; top: 26px; background: var(--lnb-side); border-radius: 150px 150px 0 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; }
-.gauge__hole b { font-size: calc(17px + var(--font-size-offset)); }
-.chart-row { display: flex; gap: 0.9rem; align-items: center; }
-.donut__val { font-size: calc(17px + var(--font-size-offset)); font-weight: 800; }
-.donut__lab { font-size: calc(10px + var(--font-size-offset)); color: var(--lnb-muted); }
-.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: var(--font-size-sm); flex: 1; }
-.legend li { display: flex; align-items: center; gap: 0.45rem; }
-.legend b { margin-left: auto; }
-.legend .pct { color: var(--lnb-muted); font-size: var(--font-size-xs); }
-.sw { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.hbar { display: flex; flex-direction: column; gap: 0.6rem; }
-.hbar__row { display: flex; align-items: center; gap: 0.6rem; font-size: var(--font-size-sm); }
-.hbar__lab { width: 78px; text-align: right; flex-shrink: 0; }
-.hbar__track { flex: 1; height: 16px; background: var(--lnb-hover); border-radius: 8px; overflow: hidden; }
-/* 실적 대시보드와 같은 단색. 종전에는 이 화면만 그라디언트여서 같은 막대가 달라 보였다. */
-.hbar__fill { display: block; height: 100%; background: var(--teal); border-radius: inherit; }
-.hbar__val { width: 26px; text-align: right; font-weight: 700; flex-shrink: 0; }
+.dash-grid--stats { grid-template-columns: 1.6fr 1fr; }
+
+/*
+ * .card-dark, .sec-title-dark, .dev-card, .dev-rings, .bottom-card, .region 계열,
+ * .sponsor 계열, .divider-v, .memo-region, .hbar 계열 및 프리미엄 오버라이드는
+ * shared/styles/dash-analysis-card.css(전역)에 있다 — 실적 관리와 공유한다. 여기는
+ * 이 화면에만 있는 "통계" 카드(링+총계+단계목록) 전용 스타일만 둔다.
+ */
+/* 통계 카드는 링·총계·단계목록이 한 줄에 나란한 만큼 아래쪽 여백을 더 둔다. */
+.stats-card { display: flex; flex-direction: column; padding-bottom: 1.6rem; }
+.stats-inner { display: flex; align-items: center; gap: 2.2rem; flex: 1; justify-content: center; flex-wrap: wrap; }
+.ring-wrap { flex-shrink: 0; }
+.total-box { display: flex; align-items: center; gap: 6px; border-left: 1px solid var(--lnb-line); border-right: 1px solid var(--lnb-line); padding: 0 1.1rem; font-size: calc(12.5px + var(--font-size-offset)); font-weight: 600; color: var(--lnb-muted); }
+/* 세자리(100건 이상)까지 늘어나도 숫자가 옆 칸을 밀지 않게 폭을 미리 잡아둔다. */
+.total-box b { display: inline-block; min-width: 3ch; text-align: center; font-size: calc(34px + var(--font-size-offset)); font-weight: 800; opacity: 1; line-height: 1; font-variant-numeric: tabular-nums; }
+.stage-list { display: flex; flex-direction: column; gap: 0.55rem; font-size: var(--font-size-sm); }
+.stage-row { display: flex; justify-content: space-between; align-items: center; width: 118px; gap: 10px; }
+.stage-row span { display: flex; align-items: center; gap: 7px; opacity: 0.85; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+:root[data-concept='premium'] .total-box {
+  border-left-color: rgba(255, 255, 255, 0.2);
+  border-right-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 860px) {
+  .dash-grid--stats { grid-template-columns: 1fr; }
+}
+
+/* 섹션 타이틀(프로젝트 목록) — 내업무 제목과 같은 모양(테알 좌측 바 없음, 밑줄 없음)으로
+   맞춘다. 전역 .sec-title은 다른 화면도 쓰므로 이 파일 scoped에서만 덮는다. */
+.listcard__head :deep(.sec-title) {
+  font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; color: #2a3240;
+  padding-left: 0;
+}
+.listcard__head :deep(.sec-title::before) { content: none; }
 .listcard__head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem 0.75rem; font-size: var(--font-size-sm); border-bottom: 1px solid var(--lnb-line); }
-.listcard__head select { height: 28px; border: 1px solid var(--lnb-line); background: var(--lnb-side); color: var(--lnb-txt); border-radius: 6px; padding: 0 0.4rem; font-size: var(--font-size-xs); }
-.listcard__head span { margin-left: auto; }
-.listcard__scroll { overflow-x: auto; padding: 0.9rem 1rem 0; }
-.tbl { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.tbl thead th { background: var(--lnb-hover); text-align: center; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--lnb-line); white-space: nowrap; }
-.tbl tbody td { padding: 0.6rem 0.6rem; border-bottom: 1px solid var(--lnb-line); }
-.tbl tbody tr.click { cursor: pointer; }
-.tbl tbody tr.click:hover { background: var(--teal-50); }
+.listcard__head--outside { padding: 0 0 10px; border-bottom: none; }
+.listcard__scroll { overflow-x: auto; }
 .link { border: none; background: none; color: var(--teal); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
 .link.over { color: var(--red); }
 .urgent { color: var(--red); font-weight: 700; }
 .empty-cell { color: var(--lnb-muted); }
-.prog-wrap { display: flex; align-items: center; gap: 0.5rem; min-width: 110px; }
+.prog-wrap { display: flex; align-items: center; gap: 0.5rem; min-width: 110px; justify-content: flex-end; }
 .stbadge { font-size: var(--font-size-xs); font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 20px; background: var(--lnb-line); }
-
-@media (max-width: 1200px) {
-  .dash-grid--3 { grid-template-columns: 1fr; }
-  .dash-grid--2 { grid-template-columns: 1fr; }
-}
 </style>
