@@ -26,6 +26,16 @@ export function useDashConceptPalette() {
       ? ['oklch(0.75 0.14 165)', 'oklch(0.65 0.12 165)', 'oklch(0.55 0.1 165)', 'oklch(0.45 0.08 165)']
       : null,
   )
+  const stageColors = computed(() =>
+    isPremium.value
+      ? {
+          received: 'oklch(0.72 0.01 258)',
+          inProgress: 'oklch(0.6 0.14 255)',
+          completed: 'oklch(0.65 0.13 165)',
+          rejected: 'oklch(0.62 0.19 25)',
+        }
+      : { received: 'var(--gray)', inProgress: 'var(--blue)', completed: 'var(--green)', rejected: 'var(--red)' },
+  )
   const memoTop = computed(() => (isPremium.value ? 'oklch(0.75 0.14 165)' : 'var(--teal)'))
   const memoRest = computed(() =>
     isPremium.value ? 'oklch(0.5 0.06 195)' : 'color-mix(in srgb, var(--teal) 35%, var(--lnb-line))',
@@ -60,6 +70,7 @@ export function useDashConceptPalette() {
     isPremium,
     ringTrack,
     teal,
+    stageColors,
     memoTop,
     memoRest,
     progressSegments,

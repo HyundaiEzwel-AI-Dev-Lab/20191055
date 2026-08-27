@@ -9,12 +9,78 @@
   color: var(--teal-600);
 }
 
+/* 아이콘이 있는 안내 배너("!" 원형 + 문구) — h-pms 대시보드 4종 정렬용 이식 (2026-08-27) */
+.notice.has-icon { display: flex; gap: 8px; align-items: flex-start; }
+.notice__icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--teal);
+  color: var(--color-text-inverse); font-size: var(--font-size-xs); font-weight: 800; flex-shrink: 0; margin-top: 1px;
+}
+
+/* 목록 페이지네이션 "N건씩 보기" 셀렉트 — h-pms 이식 (2026-08-27) */
+.hp-pagesize-select {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-default);
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  font-family: inherit;
+  cursor: pointer;
+}
+
 /* 카드 (레거시 테스트 화면 공용) */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   transition: border-radius var(--transition-normal);
+}
+
+/* 대시보드/현황 패널 카드 — h-pms 이식 (2026-08-27). 화면 18곳이 이미 이 클래스를
+   쓰고 있었는데 정의가 없어 .card 기본 스타일만 적용되고 있었다. */
+.card--panel {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--lnb-line);
+  background: var(--lnb-side);
+}
+
+/* 목록 카드 — h-pms 이식 (2026-08-27) */
+.listcard {
+  background: var(--lnb-side);
+  border: 1px solid var(--lnb-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* 목록 표 카드(.card.card--panel.listcard 동시 적용)는 통계 카드와 다른 톤을 쓴다 —
+   h-pms 이식 (2026-08-27) */
+.card.card--panel.listcard {
+  background: var(--bg-surface); border-color: var(--border-default);
+  border-radius: var(--r-card); box-shadow: var(--shadow-card);
+}
+
+/* 카드 안에 놓인 테이블은 자기 라운드/그림자를 갖지 않는다(카드보다 테이블이 더 둥글면
+   헤더 위쪽 두 모서리에 카드 배경이 초승달 모양으로 드러난다). 클리핑·그림자는 바깥
+   카드가 이미 한다 — h-pms 이식 (2026-08-27) */
+.card .data-table,
+.listcard .data-table {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* 셀 정렬 — h-pms 이식 (2026-08-27) */
+.data-table th.cell--center,
+.data-table td.cell--center {
+  text-align: center;
+}
+
+.data-table th.cell--right,
+.data-table td.cell--right {
+  text-align: right;
 }
 
 /* 버튼 */

@@ -337,7 +337,11 @@ function resetFilters() {
 
 <template>
   <div class="performance hp-anim-enter">
-    <p class="hint">{{ meta.notice }}</p>
+    <div class="notice has-icon guide">
+      <span class="notice__icon">!</span>
+      <span>{{ meta.notice }}</span>
+      <span class="notice__scope">조회시점 {{ meta.queryTime }}</span>
+    </div>
 
     <SearchFilterBar
       v-model:expanded="filterExpanded"
@@ -442,8 +446,6 @@ function resetFilters() {
       </template>
     </SearchFilterBar>
 
-    <p class="query-time">조회시점 {{ meta.queryTime }}</p>
-
     <p v-if="loadFailed" class="state-msg state-msg--error">
       실적 데이터 조회에 실패했습니다. 아래 값은 집계 결과가 아닙니다 — 다시 조회해 주세요.
     </p>
@@ -520,7 +522,7 @@ function resetFilters() {
     <div class="listcard__head listcard__head--outside">
       <h3 class="sec-title">인력별 실적</h3>
       <span>총 <b>{{ recordsTotal }}</b>명</span>
-      <select v-model="pageSize" @change="onPageSizeChange">
+      <select v-model="pageSize" class="hp-pagesize-select" @change="onPageSizeChange">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
     </div>
@@ -542,7 +544,7 @@ function resetFilters() {
             <template v-for="person in records" :key="person.assigneeId">
               <tr v-if="person.projects.length === 0" class="tbl__row">
                 <td class="cell--center">{{ person.dept || '-' }}</td>
-                <td class="tbl__person">{{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span></td>
+                <td class="tbl__person cell--center">{{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span></td>
                 <td class="cell--center">{{ person.position || '-' }}</td>
                 <td class="cell--center">0건</td>
                 <td class="cell--right">0 MD</td>
@@ -551,7 +553,7 @@ function resetFilters() {
               <tr v-for="(proj, pIdx) in person.projects" v-else :key="`${person.assigneeId}-${proj.projectId}`" class="tbl__row">
                 <template v-if="pIdx === 0">
                   <td :rowspan="person.projects.length" class="cell--center">{{ person.dept || '-' }}</td>
-                  <td :rowspan="person.projects.length" class="tbl__person">
+                  <td :rowspan="person.projects.length" class="tbl__person cell--center">
                     {{ person.name }}<span class="tbl__emp">({{ person.empNo || '-' }})</span>
                   </td>
                   <td :rowspan="person.projects.length" class="cell--center">{{ person.position || '-' }}</td>
@@ -584,12 +586,13 @@ function resetFilters() {
 /* font-size는 --font-size-* 토큰 또는 calc(Npx + var(--font-size-offset))을 쓴다.
    rem은 --font-size-offset에 반응하지 않아 내설정>글자 크기가 먹지 않는다(layout.css:3-11 선례). */
 .performance { padding: 1rem 1.5rem 1.5rem; }
-.hint { margin: 0 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); background: var(--lnb-hover); border: 1px solid var(--lnb-line); display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; }
-.query-time { margin: -0.4rem 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); }
+/* 안내 배너 오른쪽에 붙는 "조회시점" 캡션. .notice.has-icon이 이미 전역에서 flex 행이라
+   margin-left:auto만으로 맨 오른쪽 정렬된다. */
+.notice__scope { margin-left: auto; padding-left: 12px; white-space: nowrap; font-weight: 600; color: var(--teal-700); }
 .state-msg { margin: -0.4rem 0 0.9rem; font-size: var(--font-size-sm); color: var(--lnb-txt); background: var(--lnb-hover); border: 1px solid var(--lnb-line); border-radius: 8px; padding: 0.5rem 0.7rem; }
 .state-msg--error { color: var(--red); background: var(--red-bg); border-color: var(--red); }
 .pad { padding: 0.9rem 1rem; }
-.sec-title { margin: 0; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; padding: 0; border-bottom: none; }
+.sec-title { margin: 0; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; color: #2a3240; padding: 0; padding-left: 0; border-bottom: none; }
 .sec-title::before { content: none; }
 .project-suggest { position: relative; }
 .project-suggest__search { position: relative; width: 100%; }
@@ -600,11 +603,10 @@ function resetFilters() {
 .project-suggest__list button:hover { background: var(--lnb-hover); }
 .project-suggest__hint { display: block; margin-top: 0.2rem; color: var(--red); font-size: calc(10px + var(--font-size-offset)); }
 .listcard__head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem 0.75rem; font-size: var(--font-size-sm); border-bottom: 1px solid var(--lnb-line); }
-.listcard__head select { height: 28px; border: 1px solid var(--lnb-line); border-radius: 6px; padding: 0 0.4rem; font-size: var(--font-size-xs); color: var(--lnb-txt); background: var(--lnb-side); }
-.listcard__head span { margin-left: auto; }
 .listcard__head--outside { padding: 0 0 10px; border-bottom: none; }
 .listcard__scroll { overflow-x: auto; }
-.tbl__person { font-weight: 600; text-align: left; }
+/* 정렬은 마크업의 .cell--center가 결정한다 — 여기선 글자 굵기만 준다. */
+.tbl__person { font-weight: 600; }
 .tbl__emp { display: block; font-size: calc(10px + var(--font-size-offset)); color: var(--lnb-muted); font-weight: 400; }
 .tbl__proj { text-align: left; max-width: 220px; line-height: 1.4; }
 .tbl__empty { color: var(--lnb-muted); text-align: left; }

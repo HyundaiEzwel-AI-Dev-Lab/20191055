@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   techResourceMeta,
@@ -17,6 +17,8 @@ import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import HpPagination from '@/shared/ui/HpPagination.vue'
+import HpKpiStrip from '@/shared/ui/HpKpiStrip.vue'
+import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import { useProjectStore } from '@/app/stores/project'
 
 const router = useRouter()
@@ -102,10 +104,31 @@ const stageOptions = ref([
   ...mockStageOptions.filter((s) => s !== '전체').map((s) => ({ code: STAGE_CODE_MAP[s] || s, name: s })),
 ])
 
+// h-pms의 실적 관리(HpKpiStrip)와 같은 형태로 통일한다.
+const kpiItems = computed(() => [
+  { key: 'queryCount', label: '조회 인원', value: summary.value.queryCount, unit: '명' },
+  {
+    key: 'assignedCount', label: '투입 인원', value: summary.value.assignedCount, unit: '명',
+    tooltip: '완료·반려를 제외한 진행 프로젝트가 1건 이상인 인원',
+  },
+  {
+    key: 'assignmentRate', label: '투입율', value: summary.value.assignmentRate, unit: '%',
+    tooltip: '투입률 : 투입인원 / 조회인원 x 100 (진행 프로젝트 기준)',
+  },
+  {
+    key: 'projectCount', label: '진행 프로젝트', value: summary.value.projectCount, unit: '건',
+    tooltip: '완료·반려 제외 distinct 건수',
+  },
+])
+
 const filterExpanded = ref(false)
 const pageSize = ref(20)
 const currentPage = ref(1)
 const barsFilled = ref(false)
+// rowspan으로 묶인 담당자의 행 중 하나에 마우스를 올리면 그 사람의 행 전부가 같이
+// hover 색으로 채워지게 한다 — rowspan 셀은 첫 행에만 속해 있어 네이티브 tr:hover만으로는
+// 2·3번째 프로젝트 줄이 반응하지 않는다.
+const hoveredAssigneeId = ref(null)
 const projectHint = ref(false)
 const projectCandidates = ref([])
 const projectSuggestOpen = ref(false)
@@ -332,7 +355,11 @@ function onExcelDownload() {
 
 <template>
   <div class="tech-resource hp-anim-enter">
-    <p class="hint">{{ notice }}</p>
+    <div class="notice has-icon guide">
+      <span class="notice__icon">!</span>
+      <span>{{ notice }}</span>
+      <span class="notice__scope">조회시점 {{ formatAsOf(asOf) }}</span>
+    </div>
 
     <SearchFilterBar
       v-model:expanded="filterExpanded"
@@ -410,39 +437,21 @@ function onExcelDownload() {
       </template>
     </SearchFilterBar>
 
-    <p class="query-time">조회시점 {{ formatAsOf(asOf) }}</p>
-
-    <section class="card card--panel pad kpi-row">
-      <div class="kpi kpi--neutral">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body"><span class="kpi__lab">조회 인원</span><span class="kpi__num">{{ summary.queryCount }}<small>명</small></span></span>
-      </div>
-      <div class="kpi kpi--blue">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body"><span class="kpi__lab">투입 인원 <BaseTooltip text="완료·반려를 제외한 진행 프로젝트가 1건 이상인 인원" /></span><span class="kpi__num">{{ summary.assignedCount }}<small>명</small></span></span>
-      </div>
-      <div class="kpi kpi--teal">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body">
-          <span class="kpi__lab">투입율 <BaseTooltip text="투입률 : 투입인원 / 조회인원 x 100 (진행 프로젝트 기준)" /></span>
-          <span class="kpi__num">{{ summary.assignmentRate }}<small>%</small></span>
-        </span>
-      </div>
-      <div class="kpi kpi--purple">
-        <span class="kpi__dot"></span>
-        <span class="kpi__body"><span class="kpi__lab">진행 프로젝트 <BaseTooltip text="완료·반려 제외 distinct 건수" /></span><span class="kpi__num">{{ summary.projectCount }}<small>건</small></span></span>
-      </div>
-    </section>
+    <HpKpiStrip :items="kpiItems">
+      <template #label-extra="{ item }">
+        <BaseTooltip v-if="item.tooltip" :text="item.tooltip" />
+      </template>
+    </HpKpiStrip>
 
     <div class="listcard__head listcard__head--outside">
       <h3 class="sec-title">인력별 투입 현황</h3>
       <span>총 <b>{{ recordsTotal }}</b>명</span>
-      <select v-model="pageSize" @change="onPageSizeChange">
+      <select v-model="pageSize" class="hp-pagesize-select" @change="onPageSizeChange">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
-      <button type="button" class="ghost" @click="onExcelDownload">엑셀 다운로드</button>
+      <ExcelDownloadButton push-end @click="onExcelDownload" />
     </div>
-    <p v-if="showHomonymHint" class="homonym-hint homonym-hint--outside">동명이인이 있습니다. 사번으로 검색해 주세요</p>
+    <p v-if="showHomonymHint" class="homonym-hint">동명이인이 있습니다. 사번으로 검색해 주세요</p>
     <section class="card card--panel listcard">
       <div class="listcard__scroll">
         <table class="data-table">
@@ -459,15 +468,33 @@ function onExcelDownload() {
               <td colspan="9" class="tbl__empty">{{ recordsEmptyMessage }}</td>
             </tr>
             <template v-for="person in records" :key="person.assigneeId">
-              <tr v-if="person.projects.length === 0" class="tbl__row">
-                <td class="tbl__person">{{ person.name }}<span class="tbl__emp">{{ person.dept }} · {{ person.position || '-' }}</span></td>
-                <td class="cell--center">0건 / -</td>
+              <tr
+                v-if="person.projects.length === 0"
+                class="tbl__row"
+                :class="{ 'is-group-hover': hoveredAssigneeId === person.assigneeId }"
+                @mouseenter="hoveredAssigneeId = person.assigneeId"
+                @mouseleave="hoveredAssigneeId = null"
+              >
+                <td class="tbl__person cell--center">
+                  {{ person.name }}
+                  <span class="tbl__emp">{{ person.dept }} · {{ person.position || '-' }}</span>
+                </td>
+                <td class="cell--center">0건 / 0 MD</td>
                 <td colspan="7" class="tbl__empty">투입 프로젝트 없음</td>
               </tr>
-              <tr v-for="(proj, pIdx) in person.projects" v-else :key="`${person.assigneeId}-${proj.projectId}`" class="tbl__row">
+              <tr
+                v-for="(proj, pIdx) in person.projects"
+                v-else
+                :key="`${person.assigneeId}-${proj.projectId}`"
+                class="tbl__row"
+                :class="{ 'is-group-hover': hoveredAssigneeId === person.assigneeId }"
+                @mouseenter="hoveredAssigneeId = person.assigneeId"
+                @mouseleave="hoveredAssigneeId = null"
+              >
                 <template v-if="pIdx === 0">
-                  <td :rowspan="person.projects.length" class="tbl__person">
-                    {{ person.name }}<span class="tbl__emp">{{ person.dept }} · {{ person.position || '-' }}</span>
+                  <td :rowspan="person.projects.length" class="tbl__person cell--center">
+                    {{ person.name }}
+                    <span class="tbl__emp">{{ person.dept }} · {{ person.position || '-' }}</span>
                   </td>
                   <td :rowspan="person.projects.length" class="cell--center">{{ person.projectCount }}건 / {{ formatPlanMd(person.totalPlanMd) }}</td>
                 </template>
@@ -497,8 +524,9 @@ function onExcelDownload() {
                 </td>
                 <td class="cell--center">
                   <button v-if="proj.scheduleStatus === 'DELAYED'" type="button" class="delay-badge" @click="onDelayClick(person, proj)">
-                    경과 ({{ proj.delayCount }}개)
+                    경과({{ proj.delayCount }}건)
                   </button>
+                  <span v-else>-</span>
                 </td>
               </tr>
             </template>
@@ -516,12 +544,9 @@ function onExcelDownload() {
 /* font-size는 --font-size-* 토큰 또는 calc(Npx + var(--font-size-offset))을 쓴다.
    rem은 --font-size-offset에 반응하지 않아 내설정>글자 크기가 먹지 않는다(layout.css:3-11 선례). */
 .tech-resource { padding: 1rem 1.5rem 1.5rem; }
-.hint { margin: 0 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); background: var(--lnb-hover); border: 1px solid var(--lnb-line); display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; }
-.query-time { margin: -0.4rem 0 0.9rem; font-size: var(--font-size-xs); color: var(--lnb-muted); }
-.pad { padding: 0.9rem 1rem; }
-.sec-title { margin: 0; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; padding: 0; border-bottom: none; }
+.notice__scope { margin-left: auto; padding-left: 12px; white-space: nowrap; font-weight: 600; color: var(--teal-700); }
+.sec-title { margin: 0; font-size: calc(15.5px + var(--font-size-offset)); font-weight: 700; color: #2a3240; padding: 0; border-bottom: none; }
 .sec-title::before { content: none; }
-.ghost { height: 32px; padding: 0 0.9rem; border-radius: 7px; font-size: calc(12.5px + var(--font-size-offset)); cursor: pointer; background: var(--lnb-side); border: 1px solid var(--lnb-line); color: var(--lnb-txt); }
 .project-suggest { position: relative; }
 .project-suggest__search { position: relative; width: 100%; }
 .project-suggest__search .sfb__search-input { padding-right: 30px; }
@@ -530,26 +555,14 @@ function onExcelDownload() {
 .project-suggest__list button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 0.4rem 0.6rem; font: inherit; font-size: var(--font-size-sm); color: var(--lnb-txt); cursor: pointer; }
 .project-suggest__list button:hover { background: var(--lnb-hover); }
 .project-suggest__hint { display: block; margin-top: 0.2rem; color: var(--red); font-size: calc(10px + var(--font-size-offset)); }
-.kpi-row { display: flex; gap: 12px; margin-bottom: var(--space-lg); }
-.kpi { flex: 1; display: flex; align-items: center; gap: 10px; border: none; border-radius: var(--radius-card); padding: 16px 16px 14px; transition: transform var(--transition-fast); }
-.kpi:hover { transform: translateY(-2px); }
-.kpi__dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
-.kpi__body { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.kpi__lab { display: inline-flex; align-items: center; gap: 4px; font-size: calc(11.5px + var(--font-size-offset)); color: currentColor; opacity: 0.75; font-weight: 600; }
-.kpi__num { display: inline-block; font-size: calc(22px + var(--font-size-offset)); font-weight: 800; color: currentColor; }
-.kpi__num small { font-size: var(--font-size-md); font-weight: 600; margin-left: 2px; }
-.kpi--neutral { background: var(--gray-bg); color: var(--lnb-logo); }
-.kpi--blue { background: var(--blue-bg); color: var(--blue); }
-.kpi--teal { background: var(--teal-50); color: var(--teal-600); }
-.kpi--purple { background: var(--purple-bg); color: var(--purple); }
 .listcard__head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem 0.75rem; font-size: var(--font-size-sm); border-bottom: 1px solid var(--lnb-line); }
-.listcard__head select { height: 28px; border: 1px solid var(--lnb-line); border-radius: 6px; padding: 0 0.4rem; font-size: var(--font-size-xs); color: var(--lnb-txt); background: var(--lnb-side); }
-.listcard__head span { margin-left: auto; }
 .listcard__head--outside { padding: 0 0 10px; border-bottom: none; }
-.homonym-hint { margin: 0; padding: 0.45rem 1rem 0; font-size: var(--font-size-xs); color: var(--orange); }
-.homonym-hint--outside { padding: 0 0 10px; }
+.homonym-hint { margin: 0 0 10px; padding: 0; font-size: var(--font-size-xs); color: var(--orange); }
 .listcard__scroll { overflow-x: auto; }
-.tbl__person { font-weight: 600; text-align: left; }
+/* rowspan으로 묶인 담당자의 행 중 하나에 마우스를 올리면 그 사람의 행 전부가 같이
+   hover 색(전역 .data-table tr:hover td와 같은 --teal-50)으로 채워진다. */
+.tbl__row.is-group-hover td { background: var(--teal-50); }
+.tbl__person { font-weight: 600; }
 .tbl__emp { display: block; font-size: calc(10px + var(--font-size-offset)); color: var(--lnb-muted); font-weight: 400; }
 .tbl__proj { text-align: left; max-width: 220px; line-height: 1.4; }
 .tbl__link { border: none; background: none; padding: 0; font: inherit; color: var(--teal-600); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
@@ -566,9 +579,4 @@ function onExcelDownload() {
 .stbadge.done { color: var(--green); background: var(--green-bg); }
 .stbadge.rej { color: var(--red); background: var(--red-bg); }
 .delay-badge { border: none; background: none; padding: 0; font: inherit; font-size: var(--font-size-xs); font-weight: 700; color: var(--red); text-decoration: underline; cursor: pointer; white-space: nowrap; }
-
-@media (max-width: 1200px) {
-  .kpi-row { flex-wrap: wrap; }
-  .kpi { min-width: calc(50% - 0.35rem); }
-}
 </style>
