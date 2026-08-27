@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useTabsStore } from '@/app/stores/tabs'
 import { useSubTabsStore } from '@/app/stores/subTabs'
 import { useProjectStore } from '@/app/stores/project'
+import { useActiveTabVisible } from '@/app/composables/useActiveTabVisible'
 
 const props = defineProps({
   projectId: { type: String, required: true },
@@ -18,6 +19,8 @@ const tabs = computed(() => subTabsStore.getTabs(props.projectId))
 const activeId = computed(() => subTabsStore.getActiveSubTabId(props.projectId))
 
 const scrollEl = ref(null)
+
+useActiveTabVisible(scrollEl, () => activeId.value)
 
 defineExpose({
   scrollBy(delta) {
@@ -63,11 +66,7 @@ function closeTab(event, tab) {
       @click="selectTab(tab)"
     >
       <span class="sub-tab-bar__title">{{ tab.title }}</span>
-      <button
-        v-if="tab.closable"
-        class="sub-tab-bar__close"
-        @click="closeTab($event, tab)"
-      >
+      <button v-if="tab.closable" type="button" class="sub-tab-bar__close" @click="closeTab($event, tab)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 6 6 18M6 6l12 12" />
         </svg>

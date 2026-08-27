@@ -19,6 +19,7 @@ import { getScheduleChange } from '@/entities/dashboard/mock/scheduleChange'
 import ScheduleChangeModal from '@/pages/integrated/dashboard/ScheduleChangeModal.vue'
 import RequirementListModal from '@/pages/integrated/dashboard/RequirementListModal.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
+import SearchableSelect from '@/shared/ui/SearchableSelect.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
@@ -175,12 +176,13 @@ function onPageSizeChange() {
         @search="search"
       >
         <template #primary>
-          <FilterSelectPill
+          <!-- h-pms ProjectStatusPage 기준 — 요청부서는 검색형 입력(SearchableSelect)으로 바꾼다. -->
+          <SearchableSelect
             v-model="filters.requestDept"
             class="sfb-w-lg"
+            variant="pill"
             label="요청부서"
-            empty-label="선택"
-            :options="[{ value: '', label: '선택' }, ...requestDepts]"
+            :options="requestDepts"
           />
           <FilterSelectPill
             v-model="filters.devDept"
@@ -376,7 +378,7 @@ function onPageSizeChange() {
 
 .project-status__hint {
   margin: 0 0 0.9rem;
-  font-size: 0.7rem;
+  font-size: calc(11.2px + var(--font-size-offset));
   color: var(--muted);
   background: var(--color-bg-subtle);
   border: 1px solid var(--line);
@@ -406,7 +408,7 @@ function onPageSizeChange() {
 }
 
 .kpi__lab {
-  font-size: 0.7rem;
+  font-size: calc(11.2px + var(--font-size-offset));
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -422,19 +424,19 @@ function onPageSizeChange() {
   border-radius: 50%;
   background: var(--orange-bg);
   color: var(--orange);
-  font-size: 0.6rem;
+  font-size: calc(9.6px + var(--font-size-offset));
   font-weight: 800;
 }
 
 .kpi__num {
   display: block;
-  font-size: 1.35rem;
+  font-size: calc(21.6px + var(--font-size-offset));
   font-weight: 800;
   margin-top: 0.1rem;
 }
 
 .kpi__num small {
-  font-size: 0.8rem;
+  font-size: calc(12.8px + var(--font-size-offset));
   font-weight: 600;
   margin-left: 0.1rem;
 }
@@ -451,7 +453,7 @@ function onPageSizeChange() {
   top: calc(100% + 0.4rem);
   background: #1f2937;
   color: #f9fafb;
-  font-size: 0.65rem;
+  font-size: calc(10.4px + var(--font-size-offset));
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
   line-height: 1.5;
@@ -472,7 +474,7 @@ function onPageSizeChange() {
 }
 
 .listcard__cnt {
-  font-size: 0.75rem;
+  font-size: calc(12px + var(--font-size-offset));
 }
 
 .listcard__cnt b {
@@ -491,7 +493,7 @@ function onPageSizeChange() {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 0 0.5rem;
-  font-size: 0.7rem;
+  font-size: calc(11.2px + var(--font-size-offset));
   font-family: inherit;
 }
 
@@ -502,7 +504,7 @@ function onPageSizeChange() {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.75rem;
+  font-size: calc(12px + var(--font-size-offset));
 }
 
 .tbl thead th {
@@ -588,7 +590,7 @@ function onPageSizeChange() {
 }
 
 .stbadge {
-  font-size: 0.65rem;
+  font-size: calc(10.4px + var(--font-size-offset));
   font-weight: 700;
   padding: 0.15rem 0.55rem;
   border-radius: 20px;

@@ -585,12 +585,17 @@
   display: none;
 }
 
+/* 탭 폭을 제목 길이와 무관하게 고정하고, 탭 사이에 "|" 구분선을 둔다. 프로젝트 탭("P" 배지가
+   있는 .is-project)만 200px, 나머지(통합관리·내업무 등 배지 없는 탭)는 그 P 배지 자리
+   (너비+간격 24px)만큼 뺀 176px — 배지만 없을 뿐 제목 칸 폭은 똑같이 맞춘다. */
 .tab-bar__item {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 176px;
   height: var(--header-height);
   padding: 0 12px;
+  position: relative;
   color: var(--lnb-muted);
   font-size: calc(13px + var(--font-size-offset, 0px));
   white-space: nowrap;
@@ -600,21 +605,60 @@
   transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
+.tab-bar__item.is-project {
+  width: 200px;
+}
+
+.tab-bar__item:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--lnb-line);
+}
+
 .tab-bar__item:hover {
   color: var(--lnb-txt);
+}
+
+/* x(또는 새로고침) 버튼 자리에 평소엔 점(●)만 보이다가, 탭에 마우스를 올리면 점은 숨고 버튼이
+   나타난다. 점과 버튼을 같은 24×24 칸 안에 겹쳐 그린다. 닫을 수 없는 탭(내업무)도 더 이상
+   점만 고정이 아니다: hover 시 x 대신 새로고침 버튼을 보여준다(둘 다 같은 .tab-bar__close
+   클래스를 쓴다). */
+.tab-bar__close-slot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  /* 닫기 버튼은 18px, 슬롯은 24px(점 표시자 히트 영역) — 크기가 달라 가운데 정렬이 필요하다. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-bar__dot-indicator {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cad1db;
+}
+
+.tab-bar__item:hover .tab-bar__close-slot .tab-bar__dot-indicator,
+.tab-bar__item.is-active .tab-bar__close-slot .tab-bar__dot-indicator {
+  display: none;
 }
 
 .tab-bar__item.is-active {
   color: var(--lnb-logo);
   font-weight: 600;
   border-bottom-color: var(--lnb-logo);
-}
-
-.tab-bar__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .tab-bar__dot.tong {
@@ -625,10 +669,25 @@
   background: var(--lnb-muted);
 }
 
+/* 탭 폭 자체를 고정했으므로(.tab-bar__item, width) 제목은 남은 공간을 채우도록 flex:1로 두고,
+   그 안에서 넘치면 CSS ellipsis로 자른다. 20바이트 JS 자르기(TabBar.vue)는 여전히 상한선으로
+   남아 있지만, 고정 폭 탭에서는 이 CSS 쪽이 먼저 잘릴 수 있다.
+   배지+제목을 한 묶음(.tab-bar__label)으로 묶어 그 묶음 전체를 가운데 정렬한다. 제목 자신은
+   더 이상 flex:1로 혼자 넓게 퍼지지 않고, 묶음이 좁을 때만 줄어들며(min-width:0) 넘치면
+   ellipsis로 자른다. */
+.tab-bar__label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .tab-bar__title {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
 }
 
 .tab-bar__close {
@@ -675,9 +734,50 @@
   background: var(--teal-50);
 }
 
+/* 배경색은 빼고, 검은 테두리만 노출한다. 글자색도 검정으로. 단, 탭이 선택 안 됐을 때는
+   제목 글자와 같은 옅은(out) 색으로 죽인다 — 선택된 탭만 검정으로 또렷하게 보인다. */
 .tab-bar__badge.gae {
-  color: var(--lnb-txt);
-  background: var(--lnb-hover);
+  color: #000;
+  background: none;
+  border: 1px solid #000;
+}
+
+.tab-bar__item:not(.is-active) .tab-bar__badge.gae {
+  color: var(--lnb-muted);
+  border-color: var(--lnb-muted);
+}
+
+/* 내업무 탭 앞의 사람 아이콘. P는 사각(radius 4px) 배지지만 이건 원형 배경으로 넣는다
+   (너비=높이 고정이라야 진짜 원이 된다 — 글자용 padding을 그대로 쓰면 타원이 된다).
+   아이콘 자체 색은 검정, 배경은 빼고 검은 테두리만 둔다. */
+.tab-bar__badge--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.tab-bar__badge--icon svg {
+  width: 12px;
+  height: 12px;
+  color: #000;
+}
+
+.tab-bar__badge.my {
+  background: none;
+  border: 1px solid #000;
+}
+
+/* 탭이 선택 안 됐을 때는 P와 같은 방식으로 옅게(out) 죽인다. */
+.tab-bar__item:not(.is-active) .tab-bar__badge--icon svg {
+  color: var(--lnb-muted);
+}
+
+.tab-bar__item:not(.is-active) .tab-bar__badge.my {
+  border-color: var(--lnb-muted);
 }
 
 /* ===== 2단 Tab (박스 스타일) ===== */

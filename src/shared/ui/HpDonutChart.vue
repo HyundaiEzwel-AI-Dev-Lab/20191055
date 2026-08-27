@@ -33,6 +33,15 @@ const arcs = computed(() => {
       return arc
     })
 })
+
+/*
+ * 끝을 둥글게(rounded) 마감하면 세그먼트 경계에서 두 원이 겹친다 — 나중에 그린 원이
+ * 먼저 그린 원의 둥근 끝을 덮어버린다. 순서대로(값 → 잔여) 그리면 잔여(트랙) 원이
+ * 값 원의 둥근 끝 위에 그려져, "완료율 색이 끝나는 자리"가 트랙 색 둥근 혹으로 덮인다
+ * (h-pms 실측 피드백, 2026-08-21 이식). 화면에 그리는 순서만 뒤집어 첫 세그먼트(보통 값)가
+ * 맨 위에 오게 한다 — 각도 계산(arcs)은 그대로 두고 DOM/페인트 순서만 바꾼다.
+ */
+const paintArcs = computed(() => (props.rounded ? [...arcs.value].reverse() : arcs.value))
 </script>
 
 <template>
@@ -56,7 +65,7 @@ const arcs = computed(() => {
         :stroke-width="thickness"
       />
       <circle
-        v-for="(arc, i) in arcs"
+        v-for="(arc, i) in paintArcs"
         :key="i"
         :cx="size / 2"
         :cy="size / 2"
