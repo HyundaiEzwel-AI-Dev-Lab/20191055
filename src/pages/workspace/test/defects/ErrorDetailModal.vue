@@ -44,6 +44,13 @@ const selected = computed(() => existingDefects.value.find((d) => d.id === selec
 
 const retryHistory = computed(() => (selected.value?.history || []).filter((h) => h.action === '재처리요청'))
 
+/** 최종확인자 — 조치확인성 액션(수정완료/재처리요청/DEV확인/운영확인)의 가장 최근 이력.
+ * 아직 아무도 확인하지 않았으면 '-'로 둔다(확인 전인데 CURRENT_USER를 미리 보여주면 오해를 준다). */
+const CONFIRM_ACTIONS = ['수정완료', '재처리요청', 'DEV확인', '운영확인']
+const lastConfirm = computed(
+  () => (selected.value?.history || []).find((h) => CONFIRM_ACTIONS.includes(h.action)) || null,
+)
+
 /** 운영확인은 DEV확인이 이미 완료되고, 배포상태가 '운영배포'일 때만 활성화 (SB p.173) */
 const canConfirmOps = computed(
   () => selected.value?.result === 'DEV확인' && actionForm.value.deployStatus === '운영배포',
@@ -201,29 +208,33 @@ function saveErrorDetail() {
   emit('changed', newDefect)
 }
 
-function saveAction() {
+/**
+ * 조치 상세 저장 + 조치확인 저장을 버튼 하나로 합친다(h-pms 3차검수 §8-4 이식) — 예전엔
+ * "처리내용 저장"/"확인내용 저장" 두 버튼이라 조치자와 테스터가 각자 저장을 눌러야 했다.
+ * 조치상태는 항상 저장하고, 조치확인은 confirmStatus를 골랐을 때만 함께 반영한다.
+ */
+function saveAll() {
   if (!selected.value) return
+  if (showConfirmBlock.value && confirmStatus.value === '재처리요청' && !confirmComment.value.trim()) {
+    window.alert('재처리요청 내용을 입력해 주세요.')
+    return
+  }
+  if (showConfirmBlock.value && confirmStatus.value === '운영확인' && !canConfirmOps.value) {
+    window.alert('운영확인은 DEV확인 완료 후 배포상태가 "운영배포"일 때만 처리할 수 있습니다.')
+    return
+  }
   if (!window.confirm('처리내용을 저장하시겠습니까?')) return
+  const confirming = showConfirmBlock.value && !!confirmStatus.value
   const updated = updateDefect(selected.value.id, {
     status: actionForm.value.status,
     dueDate: actionForm.value.dueDate,
     deployStatus: actionForm.value.deployStatus,
     attachments: [...actionForm.value.attachments],
+    // result가 있으면 updateDefect가 조치상태를 자동 회귀시킨다(재처리요청→접수, 수정완료→처리완료).
+    ...(confirming ? { result: confirmStatus.value } : {}),
   })
   if (actionForm.value.comment) appendHistory(updated, updated.status, actionForm.value.comment)
-  loadList()
-  selectDefect(updated)
-  emit('changed', updated)
-}
-
-function saveConfirm() {
-  if (!selected.value || !confirmStatus.value) return
-  if (confirmStatus.value === '운영확인' && !canConfirmOps.value) {
-    window.alert('운영확인은 DEV확인 완료 후 배포상태가 "운영배포"일 때만 처리할 수 있습니다.')
-    return
-  }
-  const updated = updateDefect(selected.value.id, { result: confirmStatus.value })
-  appendHistory(updated, confirmStatus.value, confirmComment.value || `${confirmStatus.value} 처리`)
+  if (confirming) appendHistory(updated, confirmStatus.value, confirmComment.value || `${confirmStatus.value} 처리`)
   loadList()
   selectDefect(updated)
   emit('changed', updated)
@@ -237,6 +248,8 @@ function saveConfirm() {
         <span>{{ selected?.round || caseRow?.round }} 시나리오</span>
         <span>{{ selected?.systemPath || caseRow?.systemPath }} · {{ selected?.screenName || caseRow?.screenName }}</span>
         <span>{{ selected?.caseId || caseRow?.caseId }} · {{ selected?.caseName || caseRow?.caseName }}</span>
+        <span v-if="selected">절차 {{ selected.stepNo }}: {{ selected.stepProcedure }}</span>
+        <span v-else-if="step">절차 {{ step.no }}: {{ step.procedure }}</span>
         <span v-if="selected && config.showOccurrencePhase">발생시점 · {{ selected.occurrencePhase }}</span>
       </div>
 
@@ -255,7 +268,7 @@ function saveConfirm() {
                   <th>등급</th>
                   <th>제목</th>
                   <th>테스트결과</th>
-                  <th>등록자(최종확인)</th>
+                  <th>등록자</th>
                   <th>등록일</th>
                   <th>조치상태</th>
                   <th>조치자</th>
@@ -274,7 +287,7 @@ function saveConfirm() {
                   <td>{{ d.grade }}</td>
                   <td class="name">{{ d.title }}</td>
                   <td>{{ d.result }}</td>
-                  <td>{{ d.tester }}{{ d.history?.[0] ? `(${d.history[0].author})` : '' }}</td>
+                  <td>{{ d.tester }}</td>
                   <td>{{ d.registeredAt }}</td>
                   <td>{{ d.status }}</td>
                   <td>{{ d.assignee }}</td>
@@ -356,8 +369,11 @@ function saveConfirm() {
             </div>
 
             <div class="field">
-              <label>등록자</label>
-              <div class="inp inp--ro">{{ selected ? selected.tester : (testerName || CURRENT_USER) }}</div>
+              <label>{{ selected ? '등록자 / 등록일' : '등록자' }}</label>
+              <div class="inp inp--ro">
+                {{ selected ? selected.tester : (testerName || CURRENT_USER) }}
+                <span v-if="selected" class="confirm-at">{{ selected.registeredAt }}</span>
+              </div>
             </div>
 
             <div class="form-box__foot">
@@ -429,10 +445,6 @@ function saveConfirm() {
                 </label>
               </div>
             </div>
-
-            <div class="form-box__foot">
-              <button type="button" class="btn btn--primary btn--sm" @click="saveAction">처리내용 저장</button>
-            </div>
           </section>
 
           <section v-if="showConfirmBlock" class="form-box card confirm-block">
@@ -499,13 +511,9 @@ function saveConfirm() {
             <div class="field">
               <label>최종확인자</label>
               <div class="inp inp--ro">
-                {{ CURRENT_USER }}
-                <span class="confirm-at">{{ selected.history?.[0]?.at || selected.registeredAt }}</span>
+                {{ lastConfirm ? lastConfirm.author : '-' }}
+                <span v-if="lastConfirm" class="confirm-at">{{ lastConfirm.at }}</span>
               </div>
-            </div>
-
-            <div class="form-box__foot">
-              <button type="button" class="btn btn--primary btn--sm" :disabled="!confirmStatus" @click="saveConfirm">확인내용 저장</button>
             </div>
           </section>
 
@@ -533,6 +541,10 @@ function saveConfirm() {
               </tbody>
             </table>
           </section>
+
+          <div v-if="selected" class="form-box__foot">
+            <button type="button" class="btn btn--primary btn--sm" @click="saveAll">처리내용 저장</button>
+          </div>
         </div>
       </div>
     </template>
@@ -544,9 +556,8 @@ function saveConfirm() {
 </template>
 
 <style scoped>
+/* 배경·테두리·라운드는 전역 .card(shared/styles/components.css). 이 모달의 안쪽 여백만 남긴다. */
 .card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
   padding: 14px 16px;
 }
 
@@ -557,7 +568,9 @@ function saveConfirm() {
 }
 
 .list-col {
-  flex: 0 0 280px;
+  flex: 0 0 min(46%, 440px);
+  min-width: 280px;
+  max-width: 520px;
 }
 
 .list-col__head {
@@ -586,7 +599,8 @@ function saveConfirm() {
 }
 
 .existing-tbl {
-  width: 100%;
+  width: max-content;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: calc(10.5px + var(--font-size-offset, 0px));
 }

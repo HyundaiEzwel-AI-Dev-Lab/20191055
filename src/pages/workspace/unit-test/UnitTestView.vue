@@ -15,6 +15,7 @@ import UnitTestDetailModal from '@/pages/workspace/unit-test/UnitTestDetailModal
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const auth = useAuthStore()
@@ -115,6 +116,14 @@ function excludeSelected() {
     if (selectedIds.value.has(row.id)) row.excluded = true
   })
   selectedIds.value = new Set()
+  window.alert('선택한 케이스를 테스트 제외 처리했습니다.')
+}
+
+function restoreExcluded(row) {
+  const ok = window.confirm(`${row.screenName} 케이스의 테스트 제외를 해제하시겠습니까?`)
+  if (!ok) return
+  row.excluded = false
+  window.alert('테스트 제외를 해제했습니다.')
 }
 
 function onExcelDownload() {
@@ -149,8 +158,10 @@ function onDetailSave(payload) {
     row.defectStatus = payload.defect.status
     row.defects.push({
       id: `d-${Date.now()}`,
+      title: payload.defect.title,
+      grade: payload.defect.grade,
       status: payload.defect.status,
-      result: payload.defect.result,
+      content: payload.defect.content,
       registeredAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     })
     if (payload.defect.status === '처리완료') {
@@ -173,7 +184,7 @@ function onDetailSave(payload) {
 
     <SearchFilterBar
       v-model:search="filters.keyword"
-      search-placeholder="화면명 검색"
+      search-placeholder="화면명, 화면경로, 담당자 검색"
       :show-expand="false"
       :applied-tags="filterTags"
       @reset="resetFilters"
@@ -194,13 +205,13 @@ function onDetailSave(payload) {
 
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
-      <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
+      <select v-model="pageSize" class="hp-pagesize-select" @change="currentPage = 1">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
       <button
-        v-if="selectedIds.size"
         type="button"
         class="btn btn--ghost btn--sm"
+        :disabled="!selectedIds.size"
         @click="excludeSelected"
       >
         테스트 제외
@@ -237,7 +248,7 @@ function onDetailSave(payload) {
           </thead>
           <tbody>
             <tr v-for="(row, idx) in pagedList" :key="row.id" :class="{ 'row--excluded': row.excluded }">
-              <td class="col-check">
+              <td class="col-check cell--center">
                 <input
                   type="checkbox"
                   :checked="selectedIds.has(row.id)"
@@ -245,24 +256,27 @@ function onDetailSave(payload) {
                   @change="toggleSelect(row.id)"
                 />
               </td>
-              <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
+              <td class="col-no cell--center">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td>{{ row.systemPath }}</td>
               <td>{{ row.screenPath }}</td>
               <td>
                 <button type="button" class="link-btn" @click="openDetail(row)">
                   {{ row.screenName }}
                 </button>
+                <button v-if="row.excluded" type="button" class="restore-btn" @click="restoreExcluded(row)">
+                  제외해제
+                </button>
               </td>
-              <td>{{ row.taskType }}</td>
-              <td>{{ row.assignee }}</td>
-              <td>{{ row.difficulty }}</td>
-              <td>
+              <td class="cell--center">{{ row.taskType }}</td>
+              <td class="cell--center">{{ row.assignee }}</td>
+              <td class="cell--center">{{ row.difficulty }}</td>
+              <td class="cell--center">
                 <span class="badge" :class="`badge--${unitResultClass(row.testResult)}`">
                   {{ row.testResult }}
                 </span>
               </td>
-              <td>{{ row.testExecutedAt || '-' }}</td>
-              <td>
+              <td class="cell--center">{{ row.testExecutedAt || '-' }}</td>
+              <td class="cell--center">
                 <template v-if="row.defectStatus">
                   <span class="badge" :class="`badge--${defectStatusClass(row.defectStatus)}`">
                     {{ row.defectStatus }}
@@ -270,8 +284,8 @@ function onDetailSave(payload) {
                 </template>
                 <span v-else class="muted">-</span>
               </td>
-              <td>{{ row.defectHandledAt || '-' }}</td>
-              <td>{{ row.lastExecutedAt || '-' }}</td>
+              <td class="cell--center">{{ row.defectHandledAt || '-' }}</td>
+              <td class="cell--center">{{ row.lastExecutedAt || '-' }}</td>
             </tr>
             <tr v-if="!pagedList.length">
               <td colspan="13" class="empty">조회 결과가 없습니다.</td>
@@ -281,25 +295,7 @@ function onDetailSave(payload) {
       </div>
     </div>
 
-    <div v-if="totalPages > 1" class="pager">
-      <button
-        type="button"
-        class="pager__btn"
-        :disabled="currentPage <= 1"
-        @click="currentPage -= 1"
-      >
-        이전
-      </button>
-      <span class="pager__info">{{ currentPage }} / {{ totalPages }}</span>
-      <button
-        type="button"
-        class="pager__btn"
-        :disabled="currentPage >= totalPages"
-        @click="currentPage += 1"
-      >
-        다음
-      </button>
-    </div>
+    <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
 
     <UnitTestDetailModal
       :visible="showDetail"
@@ -358,6 +354,11 @@ function onDetailSave(payload) {
   color: var(--teal-600);
 }
 
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .toolbar__count {
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--ink-2);
@@ -365,16 +366,6 @@ function onDetailSave(payload) {
 
 .toolbar__count b {
   color: var(--teal-600);
-}
-
-.toolbar__mini {
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--lnb-side);
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  font-family: inherit;
 }
 
 .chk {
@@ -400,6 +391,7 @@ function onDetailSave(payload) {
   border-radius: 10px;
   background: var(--line);
   transition: background var(--transition-fast);
+  flex: none;
 }
 
 .chk__switch::after {
@@ -422,36 +414,8 @@ function onDetailSave(payload) {
   transform: translateX(14px);
 }
 
-.listcard {
-  background: var(--lnb-side);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
 .listcard__scroll {
   overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.data-table th,
-.data-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.data-table th {
-  background: var(--field);
-  font-weight: 600;
-  color: var(--ink);
-  text-align: center;
 }
 
 .col-check {
@@ -485,6 +449,18 @@ function onDetailSave(payload) {
   text-decoration: underline;
 }
 
+.restore-btn {
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  background: var(--lnb-side);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: calc(10.5px + var(--font-size-offset, 0px));
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
 .badge {
   display: inline-block;
   padding: 2px 8px;
@@ -502,33 +478,4 @@ function onDetailSave(payload) {
 
 .muted { color: var(--muted); }
 .empty { text-align: center !important; color: var(--muted); padding: 24px !important; }
-
-.pager {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.pager__btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--lnb-side);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.pager__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pager__info {
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--ink-2);
-}
 </style>

@@ -2,7 +2,6 @@
 // PAG-M-TLB-01 테스트 라이브러리 (SB 56~58)
 import { computed, reactive, ref, watch } from 'vue'
 import {
-  testLibraryMeta,
   systemOptions,
   bizOptions,
   sortOptions,
@@ -17,6 +16,7 @@ import {
 } from '@/entities/test-library/mock/testLibrary'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
@@ -253,6 +253,30 @@ function removeStep(idx) {
   })
 }
 
+const dragIndex = ref(null)
+
+function startDragStep(idx) {
+  dragIndex.value = idx
+}
+
+function endDragStep() {
+  dragIndex.value = null
+}
+
+function dropStep(targetIdx) {
+  const from = dragIndex.value
+  if (from === null || from === targetIdx) {
+    endDragStep()
+    return
+  }
+  const [moved] = form.steps.splice(from, 1)
+  form.steps.splice(targetIdx, 0, moved)
+  form.steps.forEach((s, i) => {
+    s.no = i + 1
+  })
+  endDragStep()
+}
+
 function openScreenSearch(mode) {
   screenModalMode.value = mode
   const seed =
@@ -294,14 +318,6 @@ function pickScreen(row) {
 }
 
 function validateForm() {
-  if (!form.system) {
-    window.alert('시스템구분을 선택해 주세요. (화면 검색으로 지정)')
-    return false
-  }
-  if (!form.bizCategory) {
-    window.alert('업무구분을 선택해 주세요. (화면 검색으로 지정)')
-    return false
-  }
   if (!form.screenPath || !form.screenName) {
     window.alert('화면(메뉴)을 검색하여 선택해 주세요.')
     return false
@@ -392,10 +408,10 @@ function onExcelDownload() {
 </script>
 
 <template>
-  <div class="admin-page tlb-page">
+  <main class="tlb-page admin-page hp-anim-enter">
     <div class="notice">
       <span class="notice__icon">!</span>
-      <span>{{ testLibraryMeta.notice }}</span>
+      완료 프로젝트에서 등록한 시나리오와 수동 등록 케이스를 FO/BO 화면 마스터 기준으로 조회합니다.
     </div>
 
     <!-- 검색조건 -->
@@ -403,6 +419,7 @@ function onExcelDownload() {
       v-model:expanded="filterExpanded"
       v-model:search="filters.sourceProject"
       search-placeholder="프로젝트 출처"
+      panel-class="sfb__panel-grid--month-row"
       :applied-tags="filterTags"
       @reset="resetFilters"
       @search="search"
@@ -411,18 +428,21 @@ function onExcelDownload() {
       <template #primary>
         <FilterSelectPill
           v-model="filters.system"
+          class="sfb-w-md"
           label="시스템구분"
           empty-label="선택"
           :options="systemFilterOptions"
         />
         <FilterSelectPill
           v-model="filters.bizCategory"
+          class="sfb-w-md"
           label="업무구분"
           empty-label="선택"
           :options="bizFilterOptions"
         />
         <FilterTextPill
           v-model="filters.screenName"
+          class="sfb-w-lg"
           label="화면 (메뉴)"
           placeholder="화면 검색"
           readonly
@@ -462,7 +482,6 @@ function onExcelDownload() {
         <FilterTextPill
           v-model="filters.registeredBy"
           label="등록자"
-          placeholder="등록자"
           @enter="search"
         />
       </template>
@@ -475,11 +494,9 @@ function onExcelDownload() {
 
     <div class="tlb-split">
       <!-- 좌: 테스트케이스 카드 목록 -->
-      <aside class="card tlb-list">
+      <aside class="card card--panel tlb-list">
         <div class="tlb-list__head">
-          <span class="tlb-list__title">
-            테스트케이스 <b>({{ filtered.length }}개)</b>
-          </span>
+          <span class="tlb-list__title">테스트케이스 (<b>{{ filtered.length }}</b>개)</span>
           <select v-model="sortOrder" class="tlb-list__sort">
             <option v-for="o in sortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
@@ -525,36 +542,20 @@ function onExcelDownload() {
           </div>
         </div>
 
-        <div v-if="totalPages > 1" class="tlb-list__pager">
-          <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">
-            ‹
-          </button>
-          <button
-            v-for="p in totalPages"
-            :key="p"
-            type="button"
-            class="pager__btn"
-            :class="{ 'is-active': currentPage === p }"
-            @click="currentPage = p"
+        <div class="tlb-list__pager">
+          <HpPagination :page="currentPage" :total-pages="totalPages" @update:page="currentPage = $event" />
+          <select
+            v-model="pageSize"
+            class="hp-pagesize-select tlb-list__pagesize"
+            @change="currentPage = 1"
           >
-            {{ p }}
-          </button>
-          <button
-            type="button"
-            class="pager__btn"
-            :disabled="currentPage >= totalPages"
-            @click="currentPage += 1"
-          >
-            ›
-          </button>
-          <select v-model="pageSize" class="tlb-list__pagesize" @change="currentPage = 1">
             <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건</option>
           </select>
         </div>
       </aside>
 
       <!-- 우: 케이스 정보 -->
-      <section class="card tlb-detail">
+      <section class="card card--panel tlb-detail">
         <div class="tlb-detail__head">
           <h3 class="tlb-detail__title">케이스 정보</h3>
           <div class="tlb-detail__actions">
@@ -567,7 +568,7 @@ function onExcelDownload() {
               삭제
             </button>
             <button type="button" class="btn btn--ghost btn--sm" @click="addCase">케이스 추가</button>
-            <button type="button" class="btn btn--primary btn--sm" @click="saveCase">저장</button>
+            <button type="button" class="btn btn--primary btn--sm" :disabled="!hasDetail" @click="saveCase">저장</button>
           </div>
         </div>
 
@@ -664,7 +665,7 @@ function onExcelDownload() {
             </div>
             <div class="tlb-field">
               <label>등록자</label>
-              <input v-model="form.registeredBy" class="filter__input" type="text" />
+              <input class="filter__input" type="text" :value="form.registeredBy" readonly />
             </div>
           </div>
 
@@ -676,16 +677,30 @@ function onExcelDownload() {
             <table class="data-table tlb-steps">
               <thead>
                 <tr>
-                  <th style="width: 40px" />
+                  <th style="width: 36px" />
                   <th style="width: 48px">NO</th>
                   <th>테스트 절차</th>
                   <th>예상결과</th>
-                  <th style="width: 48px" />
+                  <th style="width: 36px" />
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(step, idx) in form.steps" :key="idx">
-                  <td class="tlb-steps__grip">⋮⋮</td>
+                <tr
+                  v-for="(step, idx) in form.steps"
+                  :key="idx"
+                  :class="{ 'is-dragging': dragIndex === idx }"
+                  @dragover.prevent
+                  @drop="dropStep(idx)"
+                >
+                  <td class="tlb-steps__grip">
+                    <span
+                      class="tlb-steps__handle"
+                      draggable="true"
+                      title="끌어서 순서 변경"
+                      @dragstart="startDragStep(idx)"
+                      @dragend="endDragStep"
+                    >⋮⋮</span>
+                  </td>
                   <td>{{ step.no }}</td>
                   <td>
                     <input v-model="step.procedure" class="cell-input" type="text" placeholder="절차 입력" />
@@ -710,19 +725,24 @@ function onExcelDownload() {
       </section>
     </div>
 
-    <BaseModal :visible="showScreenModal" title="화면 (메뉴) 검색" @close="showScreenModal = false">
+    <BaseModal :visible="showScreenModal" title="화면 (메뉴) 검색" wide @close="showScreenModal = false">
       <div class="tlb-screen-modal">
         <div class="tlb-screen-modal__row">
-          <select v-model="screenSystem" class="filter__select">
-            <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-          </select>
-          <input
-            v-model="screenKeyword"
-            class="filter__input"
-            type="text"
-            placeholder="화면명 검색"
-            @keyup.enter="searchScreens"
-          />
+          <!-- 모달 안 검색 셀렉트도 화면 검색영역과 같은 라벨|값 결합 알약(FilterSelectPill)으로 통일한다. -->
+          <FilterSelectPill v-model="screenSystem" label="시스템" :options="systemOptions" />
+          <div class="sfb__search tlb-screen-modal__search">
+            <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+              <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <input
+              v-model="screenKeyword"
+              class="sfb__search-input"
+              type="text"
+              placeholder="화면명 검색"
+              @keyup.enter="searchScreens"
+            />
+          </div>
           <button type="button" class="btn btn--primary btn--sm" @click="searchScreens">조회</button>
         </div>
         <div class="listcard__scroll">
@@ -760,7 +780,7 @@ function onExcelDownload() {
         <button type="button" class="btn btn--ghost" @click="showScreenModal = false">닫기</button>
       </template>
     </BaseModal>
-  </div>
+  </main>
 </template>
 
 <style scoped>
@@ -891,14 +911,10 @@ function onExcelDownload() {
   border-top: 1px solid var(--lnb-line);
 }
 
+/* 크기·테두리·폰트는 공용 .hp-pagesize-select가 책임진다 — 여기서는 페이지네이션 옆
+   간격만 준다. */
 .tlb-list__pagesize {
   margin-left: 6px;
-  height: 26px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  border: 1px solid var(--lnb-line);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--lnb-side);
-  font-family: inherit;
 }
 
 .tlb-card {
@@ -1118,6 +1134,20 @@ function onExcelDownload() {
   user-select: none;
 }
 
+.tlb-steps__handle {
+  cursor: grab;
+  display: inline-block;
+  padding: 4px;
+}
+
+.tlb-steps__handle:active {
+  cursor: grabbing;
+}
+
+tr.is-dragging td {
+  background: var(--teal-50);
+}
+
 .tlb-steps__del {
   border: none;
   background: none;
@@ -1164,8 +1194,15 @@ function onExcelDownload() {
 
 .tlb-screen-modal__row {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.tlb-screen-modal__search {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
 }
 
 .tlb-screen-row {
