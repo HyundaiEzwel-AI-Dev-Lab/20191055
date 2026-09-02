@@ -1,74 +1,40 @@
 <script setup>
-// POP-M-COM-03 비밀번호 재설정 (레이어 팝업)
-// SB v0.9: 휴대폰 인증 프로세스 SPEC OUT → 이름·사번/ID·신규비번 영역으로 구성
-import { reactive, ref, watch } from 'vue'
+// POP-M-COM-03 비밀번호 재설정 (레이어 팝업, 헤더 > 내정보 > 비밀번호 변경에서 진입)
+// SB v0.9: 휴대폰 인증 프로세스 SPEC OUT.
+//
+// 2026-09-02: 이름·사번으로 "다른 사용자"를 찾아 바꾸는 mock 구조를 걷어낸다. 실 서버는
+// 그런 조회 API를 제공하지 않는다 — 비밀번호 변경은 로그인 사용자 본인만 현재 비밀번호
+// 확인 후 가능하다(h-pms PR #290, BR-51: 자가 재설정 자체가 SPEC OUT). 그래서 이름/사번
+// 입력을 로그인 사용자 표시(읽기전용)로 바꾸고, 현재 비밀번호 필드를 추가해 mockUsers에
+// 저장된 값과 대조한다.
+import { reactive } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
-import { findUserForReset } from '@/entities/auth/mockUsers'
+import HpPasswordToggle from '@/shared/ui/HpPasswordToggle.vue'
+import { useAuthStore } from '@/app/stores/auth'
+import { findUserById } from '@/entities/auth/mockUsers'
 
-const props = defineProps({
+defineProps({
   modelValue: { type: Boolean, default: false },
-  /** 내정보 등에서 진입 시 이름·사번 미리채움 */
-  prefill: {
-    type: Object,
-    default: null,
-  },
-  /** true면 이름·사번 수정 불가 (로그인 사용자) */
+  // 과거 이름·사번 조회 UI의 흔적. 신원이 항상 로그인 사용자로 고정되어 더는 쓰이지
+  // 않지만, AppHeader.vue 배선을 건드리지 않기 위해 받아만 두고 무시한다.
+  prefill: { type: Object, default: null },
   lockIdentity: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
-const form = reactive({
-  name: '',
-  empId: '',
-  next: '',
-  confirm: '',
-})
-const showNext = ref(false)
-const showConfirm = ref(false)
-const matchedUser = ref(null)
+const auth = useAuthStore()
 
-const infoAlert = reactive({ show: false, message: '', onOk: null })
-const confirmDialog = reactive({ show: false, message: '', onOk: null })
+const form = reactive({ current: '', next: '', confirm: '' })
+const show = reactive({ current: false, next: false, confirm: false })
 
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (!open) return
-    applyPrefill()
-  },
-)
+/** 비밀번호 생성 규칙(BR-34): 화면에 그대로 노출하는 문구 */
+const PASSWORD_RULES = [
+  '영문/숫자/특수문자 포함 8자리 이상',
+  '영문 대/소문자·숫자·특수문자 중 2종 이상 조합 필수',
+  '동일 문자 연속 3회 이상 사용 불가',
+  '공백 문자 사용 불가',
+]
 
-function applyPrefill() {
-  if (props.prefill?.name || props.prefill?.empId) {
-    form.name = props.prefill.name || ''
-    form.empId = props.prefill.empId || props.prefill.id || ''
-  }
-}
-
-function openInfo(message, onOk = null) {
-  infoAlert.message = message
-  infoAlert.onOk = onOk
-  infoAlert.show = true
-}
-function confirmInfo() {
-  infoAlert.show = false
-  const cb = infoAlert.onOk
-  infoAlert.onOk = null
-  if (cb) cb()
-}
-function openConfirm(message, onOk) {
-  confirmDialog.message = message
-  confirmDialog.onOk = onOk
-  confirmDialog.show = true
-}
-function acceptConfirm() {
-  confirmDialog.show = false
-  const cb = confirmDialog.onOk
-  confirmDialog.onOk = null
-  if (cb) cb()
-}
-
-/** 비밀번호 정책: 8자+ / 2종+ / 동일문자 3연속 금지 / 공백 금지 */
 function checkPolicy(v) {
   if (v.length < 8) return false
   if (/\s/.test(v)) return false
@@ -81,211 +47,105 @@ function checkPolicy(v) {
   return kinds >= 2
 }
 
-function save() {
-  if (!form.name.trim()) {
-    openInfo('이름을 입력해주세요.')
-    return
-  }
-  if (!form.empId.trim()) {
-    openInfo('사번/ID을 입력해주세요.')
-    return
-  }
-
-  const user = findUserForReset({
-    name: form.name.trim(),
-    empId: form.empId.trim(),
-  })
-  if (!user) {
-    openInfo('등록된 사용자 정보를 찾을 수 없습니다.')
-    return
-  }
-  if (user.status === 'locked') {
-    openInfo('잠금처리된 계정입니다. 담당자에게 문의하세요.')
-    return
-  }
-  if (user.status === 'leave') {
-    openInfo('휴직처리된 계정입니다. 담당자에게 문의하세요.')
-    return
-  }
-  if (user.status === 'retired') {
-    openInfo('퇴직 처리된 계정으로 로그인할 수 없습니다.')
-    return
-  }
-  matchedUser.value = user
-
-  if (!form.next) {
-    openInfo('신규 비밀번호를 입력해주세요.')
-    return
-  }
-  if (!form.confirm) {
-    openInfo('비밀번호 확인을 입력해주세요.')
-    return
-  }
-  if (!checkPolicy(form.next)) {
-    openInfo('영문/숫자/특수문자를 포함 8자리 이상 입력해 주세요.')
-    return
-  }
-  if (form.next !== form.confirm) {
-    openInfo('신규 비밀번호와 비밀번호 확인이 일치하지 않습니다.')
-    return
-  }
-  if (user.password === form.next) {
-    openInfo('기존 비밀번호와 동일한 비밀번호는 사용할 수 없습니다.')
-    return
-  }
-
-  openConfirm('등록한 정보를 저장합니다.\n진행하시겠습니까?', doSave)
+function violation() {
+  if (!form.current) return '현재 비밀번호를 입력하세요.'
+  if (!form.next) return '신규 비밀번호를 입력해주세요.'
+  if (!checkPolicy(form.next)) return '영문/숫자/특수문자를 포함 8자리 이상 입력해 주세요.'
+  if (form.next !== form.confirm) return '신규 비밀번호와 비밀번호 확인이 일치하지 않습니다.'
+  if (form.next === form.current) return '현재 비밀번호와 다른 값을 입력하세요.'
+  return null
 }
 
-function doSave() {
-  if (!matchedUser.value) return
-  matchedUser.value.password = form.next
-  matchedUser.value.failCount = 0
-  openInfo('비밀번호가 정상적으로 변경되었습니다.', close)
+function save() {
+  const problem = violation()
+  if (problem) {
+    window.alert(problem)
+    return
+  }
+
+  const me = findUserById(auth.user?.id)
+  if (!me || me.password !== form.current) {
+    window.alert('현재 비밀번호가 올바르지 않습니다.')
+    return
+  }
+
+  if (!window.confirm('비밀번호를 변경하시겠습니까?')) return
+
+  me.password = form.next
+  me.failCount = 0
+  window.alert('비밀번호가 정상적으로 변경되었습니다.')
+  close()
 }
 
 function close() {
-  form.name = ''
-  form.empId = ''
+  form.current = ''
   form.next = ''
   form.confirm = ''
-  showNext.value = false
-  showConfirm.value = false
-  matchedUser.value = null
+  show.current = false
+  show.next = false
+  show.confirm = false
   emit('update:modelValue', false)
 }
 </script>
 
 <template>
   <BaseModal title="비밀번호 재설정" :visible="modelValue" @close="close">
-    <div class="frow">
-      <div class="fld">
-        <label>이름</label>
-        <input
-          v-model="form.name"
-          class="inp"
-          type="text"
-          :disabled="lockIdentity"
-          autocomplete="off"
-        />
-      </div>
-      <div class="fld">
-        <label>사번 / ID</label>
-        <input
-          v-model="form.empId"
-          class="inp"
-          type="text"
-          :disabled="lockIdentity"
-          autocomplete="off"
-        />
-      </div>
-    </div>
+    <div class="identity-line">{{ auth.user?.name }} · {{ auth.user?.id }}</div>
 
     <div class="divider" />
 
-    <div class="fld fld--gap">
-      <label>신규 비밀번호</label>
+    <div class="fld">
+      <label for="pwreset-current">현재 비밀번호</label>
       <div class="inp inp--flex">
         <input
+          id="pwreset-current"
+          v-model="form.current"
+          :type="show.current ? 'text' : 'password'"
+          placeholder="PASSWORD"
+          class="bare"
+          autocomplete="current-password"
+        />
+        <HpPasswordToggle v-model="show.current" label="현재 비밀번호" />
+      </div>
+    </div>
+
+    <div class="fld fld--gap">
+      <label for="pwreset-next">신규 비밀번호</label>
+      <div class="inp inp--flex">
+        <input
+          id="pwreset-next"
           v-model="form.next"
-          :type="showNext ? 'text' : 'password'"
+          :type="show.next ? 'text' : 'password'"
           placeholder="PASSWORD"
           class="bare"
           autocomplete="new-password"
         />
-        <button type="button" class="eye" aria-label="비밀번호 보기" @click="showNext = !showNext">
-          <svg
-            v-if="showNext"
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg
-            v-else
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 3l18 18" />
-            <path
-              d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3"
-            />
-            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-          </svg>
-        </button>
+        <HpPasswordToggle v-model="show.next" label="신규 비밀번호" />
       </div>
     </div>
 
     <div class="fld fld--gap-lg">
-      <label>신규 비밀번호 확인</label>
+      <label for="pwreset-confirm">신규 비밀번호 확인</label>
       <div class="inp inp--flex">
         <input
+          id="pwreset-confirm"
           v-model="form.confirm"
-          :type="showConfirm ? 'text' : 'password'"
+          :type="show.confirm ? 'text' : 'password'"
           placeholder="PASSWORD"
           class="bare"
           autocomplete="new-password"
+          @keyup.enter="save"
         />
-        <button
-          type="button"
-          class="eye"
-          aria-label="비밀번호 확인 보기"
-          @click="showConfirm = !showConfirm"
-        >
-          <svg
-            v-if="showConfirm"
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg
-            v-else
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 3l18 18" />
-            <path
-              d="M10.6 6.1A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.6 17.6 0 0 1-3.2 3.8M6.4 8.1A17.3 17.3 0 0 0 2 12s3.5 6 10 6a10.4 10.4 0 0 0 2.4-.3"
-            />
-            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-          </svg>
-        </button>
+        <HpPasswordToggle v-model="show.confirm" label="신규 비밀번호 확인" />
       </div>
     </div>
 
     <div class="rule">
-      <b>비밀번호 생성 규칙</b><br />
-      · 영문/숫자/특수문자 포함 8자리 이상<br />
-      · 영문 대/소문자·숫자·특수문자 중 2종 이상 조합 필수<br />
-      · 동일 문자 연속 3회 이상 사용 불가<br />
-      · 공백 문자 사용 불가
+      <b>비밀번호 생성 규칙</b>
+      <ul>
+        <li v-for="rule in PASSWORD_RULES" :key="rule">{{ rule }}</li>
+        <li>현재·직전에 쓴 비밀번호와 다른 값</li>
+      </ul>
     </div>
 
     <template #footer>
@@ -293,165 +153,69 @@ function close() {
       <button type="button" class="btn btn--primary" @click="save">저장</button>
     </template>
   </BaseModal>
-
-  <Teleport to="body">
-    <div v-if="infoAlert.show" class="alert-scrim">
-      <div class="alert-box">
-        <p class="alert-box__msg">{{ infoAlert.message }}</p>
-        <div class="alert-box__actions">
-          <button type="button" class="btn btn--primary" @click="confirmInfo">확인</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="confirmDialog.show" class="alert-scrim">
-      <div class="alert-box">
-        <p class="alert-box__msg">{{ confirmDialog.message }}</p>
-        <div class="alert-box__actions">
-          <button type="button" class="btn btn--ghost" @click="confirmDialog.show = false">
-            취소
-          </button>
-          <button type="button" class="btn btn--primary" @click="acceptConfirm">확인</button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
 </template>
 
 <style scoped>
-.frow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 14px;
-  margin-bottom: 4px;
+.identity-line {
+  font-size: calc(12px + var(--font-size-offset));
+  font-weight: 600;
+  color: var(--ink);
 }
-
 .fld {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.fld--gap {
   margin-bottom: 10px;
 }
-
 .fld--gap-lg {
   margin-bottom: 14px;
 }
-
 .fld label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
+  font-size: calc(11px + var(--font-size-offset));
+  color: var(--muted);
   font-weight: 600;
 }
-
 .inp {
   height: 32px;
   width: 100%;
-  background: var(--lnb-side);
-  border: 1px solid var(--lnb-line);
-  border-radius: var(--radius-sm, 7px);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   padding: 0 10px;
   display: flex;
   align-items: center;
-  color: var(--lnb-txt);
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: calc(12px + var(--font-size-offset));
   font-family: inherit;
+  color: var(--ink);
 }
-
 .inp--flex {
   justify-content: space-between;
 }
-
-input.inp:focus {
-  outline: none;
-  border-color: var(--teal);
-}
-
-input.inp:disabled {
-  background: var(--lnb-bg);
-  color: var(--lnb-muted);
-}
-
 .bare {
   flex: 1;
   border: none;
   background: none;
   outline: none;
-  font-size: calc(12px + var(--font-size-offset, 0px));
+  font-size: calc(12px + var(--font-size-offset));
   font-family: inherit;
-  color: var(--lnb-txt);
+  color: var(--ink);
 }
-
-.bare::placeholder {
-  color: var(--lnb-muted);
-}
-
-.eye {
-  cursor: pointer;
-  color: var(--lnb-muted);
-  display: flex;
-  align-items: center;
-  border: none;
-  background: none;
-  padding: 0;
-}
-
-.eye:hover {
-  color: var(--lnb-txt);
-}
-
 .divider {
-  border-top: 1px solid var(--lnb-line);
-  margin: 14px 0;
+  border-top: 1px solid var(--line);
+  margin: 10px 0 14px;
 }
-
 .rule {
-  background: var(--lnb-bg);
-  border: 1px solid var(--lnb-line);
-  border-radius: var(--radius-md, 10px);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   padding: 14px 16px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-txt);
+  font-size: calc(11.5px + var(--font-size-offset));
   line-height: 1.9;
+  color: var(--ink-2);
 }
-
-.alert-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 30, 34, 0.34);
-  z-index: 1300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.alert-box {
-  width: 330px;
-  max-width: 90vw;
-  background: var(--lnb-side);
-  border-radius: var(--radius-lg, 14px);
-  box-shadow: var(--shadow-md, 0 6px 24px rgba(20, 40, 50, 0.12));
-  text-align: center;
-  padding: 24px 22px 18px;
-}
-
-.alert-box__msg {
-  font-size: calc(13.5px + var(--font-size-offset, 0px));
-  line-height: 1.6;
+.rule ul {
   margin: 0;
-  white-space: pre-line;
-  color: var(--lnb-txt);
-}
-
-.alert-box__actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-.alert-box__actions .btn {
-  flex: 1;
+  padding-left: 14px;
+  list-style: '· ';
 }
 </style>

@@ -23,7 +23,7 @@ function close() {
   >
     <template v-if="data">
       <p class="sub">
-        프로젝트명 : {{ data.projectName }} | 담당자 : {{ data.personName }}({{ data.personEmpId }})
+        프로젝트명 : {{ data.projectName }} | 담당자 : {{ data.personName }}({{ data.personEmpId || '-' }})
       </p>
       <p class="total">총 <b>{{ data.total }}</b>건</p>
       <div class="delay-list">
@@ -35,8 +35,10 @@ function close() {
             </div>
             <div class="delay-item__field delay-item__field--wide">
               <span class="delay-item__lab">업무명</span>
-              <span>{{ task.taskName }}</span>
+              <span>{{ task.taskName || '-' }}</span>
             </div>
+            <!-- h-pms는 이 자리에 WBS 번호를 쓰지만(POP-M-DAS-05 30-5 기획 확정) 이 목업 mock에는
+                 WBS 번호 필드가 없다 — 대신 mock이 이미 갖고 있는 업무상세를 유지해 정보 손실을 피한다. -->
             <div class="delay-item__field delay-item__field--wide">
               <span class="delay-item__lab">업무상세</span>
               <span>{{ task.taskDetail }}</span>
@@ -54,6 +56,7 @@ function close() {
             <p>{{ task.reason }}</p>
           </div>
         </article>
+        <p v-if="!data.tasks.length" class="empty">경과 업무가 없습니다.</p>
       </div>
     </template>
 
@@ -92,7 +95,7 @@ function close() {
   border: 1px solid var(--lnb-line);
   border-radius: 10px;
   padding: 12px 14px;
-  background: var(--lnb-side);
+  background: var(--lnb-hover);
 }
 
 .delay-item__grid {
@@ -112,8 +115,14 @@ function close() {
 }
 
 .delay-item__lab {
-  color: var(--lnb-txt);
+  color: var(--lnb-muted);
   font-weight: 600;
+}
+
+.empty {
+  text-align: center;
+  color: var(--lnb-muted);
+  padding: 20px 12px;
 }
 
 .delay-item__dates {

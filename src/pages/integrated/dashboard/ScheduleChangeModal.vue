@@ -154,7 +154,7 @@ function close() {
   margin: 0 0 8px;
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
-  color: var(--teal-600);
+  color: var(--teal);
 }
 
 .reason-box__text {
@@ -190,7 +190,7 @@ function close() {
 }
 
 .history__table thead th {
-  background: var(--lnb-side);
+  background: var(--lnb-hover);
   color: var(--lnb-txt);
   font-weight: 600;
   text-align: center;
