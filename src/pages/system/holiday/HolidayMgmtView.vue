@@ -4,7 +4,6 @@ import { computed, ref } from 'vue'
 import {
   holidayMeta,
   holidayFormTypeOptions,
-  yearOptions,
   holidayList,
   holidayMockToday,
   matchHolidayFilters,
@@ -16,6 +15,8 @@ import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const currentYear = 2026
+// h-pms: 공휴일 선등록(최대 +9년)·소급 입력(-1년)을 모두 조회할 수 있게 연도 범위를 넓게 연다.
+const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 1 + i)
 const yearFilterOptions = yearOptions.map((y) => ({ value: String(y), label: `${y}년` }))
 const typeFilterOptions = [
   { value: '', label: '전체' },
@@ -35,9 +36,9 @@ function toDraft(row) {
     sourceCode: row.registeredBy === 'system' ? 'SYNC' : 'MANUAL',
     createdByName: row.registeredBy,
     createdAt: row.registeredAt,
-    updatedByName: row.updatedBy,
+    // 목업 데이터의 '-' 미수정 표시를 h-pms처럼 null로 정규화해 tbl__muted 판정을 단순화한다.
+    updatedByName: row.updatedBy && row.updatedBy !== '-' ? row.updatedBy : null,
     updatedAt: row.updatedAt,
-    isNew: !!row.isNew,
   }
 }
 
@@ -50,11 +51,27 @@ const originals = ref(new Map())
 const saving = ref(false)
 let newRowSeq = 0
 
+/** 편집 대상 필드만 뽑은 지문. 저장 시 실제로 바뀐 행만 "수정"으로 세도록 판정에 쓴다. */
+function fingerprint(row) {
+  return JSON.stringify([row.holidayDate, row.name, row.typeCode, row.note, row.recurring])
+}
+
 function resetOriginals() {
-  originals.value = new Map(draft.value.map((row) => [row.key, JSON.stringify([row.holidayDate, row.name, row.typeCode, row.note, row.recurring])]))
+  originals.value = new Map(draft.value.map((row) => [row.key, fingerprint(row)]))
 }
 
 resetOriginals()
+
+/**
+ * 휴일 기준 내림차순, 신규 추가한 행은 저장 전까지 항상 맨 위(h-pms와 동일).
+ * 신규 행은 sortKey가 빈 문자열이라 정렬 축에 얹지 않고 맨 위에 고정한다.
+ */
+function byNewestFirstWithNewRowsOnTop(a, b) {
+  if (!a.sortKey || !b.sortKey) {
+    return (a.sortKey ? 1 : 0) - (b.sortKey ? 1 : 0)
+  }
+  return b.sortKey.localeCompare(a.sortKey)
+}
 
 const filtered = computed(() => {
   const mockFilters = {
@@ -68,7 +85,7 @@ const filtered = computed(() => {
       { date: r.holidayDate, type: r.typeCode, name: r.name, note: r.note },
       mockFilters,
     ))
-    .sort((a, b) => (a.sortKey || a.holidayDate).localeCompare(b.sortKey || b.holidayDate))
+    .sort(byNewestFirstWithNewRowsOnTop)
 })
 
 const allSelected = computed(() => {
@@ -121,7 +138,9 @@ function addRow() {
     sortKey: '',
     holidayDate: defaultHolidayDate(),
     name: '',
-    typeCode: holidayFormTypeOptions[0] ?? '',
+    // 첫 유형으로 미리 채우지 않는다 — "휴무유형을 선택하지 않고 저장" 검증이 성립하려면
+    // 미선택 상태가 있어야 한다(h-pms 2026-08-31 기획 확정).
+    typeCode: '',
     note: '',
     recurring: false,
     sourceCode: 'MANUAL',
@@ -129,7 +148,6 @@ function addRow() {
     createdAt: null,
     updatedByName: null,
     updatedAt: null,
-    isNew: true,
   })
 }
 
@@ -146,39 +164,53 @@ function markRemove() {
 
 function saveAll() {
   const remaining = draft.value.filter((r) => !markedForDelete.value.includes(r.key))
-  if (remaining.some((r) => !r.holidayDate || !r.name.trim())) {
-    window.alert('일자와 휴무일명이 비어 있는 행이 있습니다.')
+
+  // 검증 문구를 항목별로 쪼갠다(h-pms 2026-08-31 기획 확정) — 무엇을 채워야 하는지 바로 알 수 있게.
+  if (remaining.some((r) => !r.typeCode)) {
+    window.alert('휴무유형이 선택되지 않았습니다.')
+    return
+  }
+  if (remaining.some((r) => !r.holidayDate)) {
+    window.alert('휴일 날짜가 선택되지 않았습니다.')
+    return
+  }
+  if (remaining.some((r) => !r.name.trim())) {
+    window.alert('휴일명을 입력해주세요.')
     return
   }
   const dates = remaining.map((r) => r.holidayDate)
   if (new Set(dates).size !== dates.length) {
-    window.alert('중복된 일자가 있습니다.')
+    window.alert('해당 날짜에 등록 된 휴무일이 있습니다. 중복 등록입니다.')
     return
   }
-  const creates = remaining.filter((r) => r.isNew)
-  const updates = remaining.filter((r) => !r.isNew)
+
+  const creates = remaining.filter((r) => r.id === null)
+  const updates = remaining.filter((r) => r.id !== null && originals.value.get(r.key) !== fingerprint(r))
+  const updatedKeys = new Set(updates.map((r) => r.key))
+
+  if (!creates.length && !updates.length && !markedForDelete.value.length) {
+    window.alert('저장할 데이터가 없습니다.')
+    return
+  }
+
   if (!window.confirm(`등록 ${creates.length}건, 수정 ${updates.length}건, 삭제 ${markedForDelete.value.length}건을 저장하시겠습니까?`)) return
 
   saving.value = true
   try {
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
     draft.value = remaining.map((r) => {
-      if (r.isNew) {
-        return {
-          ...r,
-          isNew: false,
-          id: r.key,
-          sortKey: r.holidayDate,
-          createdByName: '김현대',
-          createdAt: now,
-        }
+      if (r.id === null) {
+        return { ...r, id: r.key, sortKey: r.holidayDate, createdByName: '김현대', createdAt: now }
       }
-      return { ...r, sortKey: r.holidayDate, updatedByName: '김현대', updatedAt: now }
+      if (updatedKeys.has(r.key)) {
+        return { ...r, sortKey: r.holidayDate, updatedByName: '김현대', updatedAt: now }
+      }
+      return { ...r, sortKey: r.holidayDate }
     })
     markedForDelete.value = []
     selectedKeys.value = []
     resetOriginals()
-    window.alert('저장했습니다.')
+    window.alert('휴무일이 등록되었습니다.')
   } finally {
     saving.value = false
   }
@@ -280,12 +312,13 @@ function onExcelDownload() {
               </td>
               <td class="cell--center">
                 <select v-model="row.typeCode" class="cell-select" :disabled="isLocked(row)">
+                  <option value="">선택</option>
                   <option v-for="t in holidayFormTypeOptions" :key="t" :value="t">{{ t }}</option>
                 </select>
               </td>
               <td class="cell--center">
-                <label class="cell-toggle" :class="{ 'is-on': row.recurring, 'is-disabled': isLocked(row) }">
-                  <input v-model="row.recurring" type="checkbox" :disabled="isLocked(row)" />
+                <label class="cell-toggle" :class="{ 'is-disabled': isLocked(row) }">
+                  <input v-model="row.recurring" type="checkbox" :disabled="isLocked(row)" aria-label="매년 반복" />
                   <span class="cell-toggle__track"><span class="cell-toggle__thumb"></span></span>
                 </label>
               </td>
@@ -295,7 +328,7 @@ function onExcelDownload() {
               <td class="cell--center">{{ row.createdByName ?? '-' }}</td>
               <td class="tbl__muted cell--center">{{ row.createdAt ?? '-' }}</td>
               <td class="cell--center">
-                <span :class="{ 'tbl__muted': !row.updatedByName || row.updatedByName === '-' }">{{ row.updatedByName ?? '-' }}</span>
+                <span :class="{ 'tbl__muted': !row.updatedByName }">{{ row.updatedByName ?? '-' }}</span>
               </td>
               <td class="tbl__muted cell--center">{{ row.updatedAt ?? '-' }}</td>
             </tr>
@@ -310,50 +343,55 @@ function onExcelDownload() {
 </template>
 
 <style scoped>
-.holiday-page { font-size: 13px; }
+.holiday-page { font-size: calc(13px + var(--font-size-offset)); }
 .tbl__muted { color: var(--lnb-muted); }
-.cell--center { text-align: center; }
-.empty { text-align: center !important; color: var(--lnb-muted); padding: 24px !important; }
 .is-marked-delete { opacity: 0.45; text-decoration: line-through; }
-.cell-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 12px;
-  white-space: nowrap;
-}
+
+/* 체크박스를 숨기고 트랙/썸을 그린다. 키보드 포커스는 숨긴 input이 그대로 받는다. (h-pms 이관) */
 .cell-toggle {
+  position: relative;
   display: inline-flex;
+  align-items: center;
   cursor: pointer;
+}
+.cell-toggle.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .cell-toggle input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
-  pointer-events: none;
 }
 .cell-toggle__track {
+  position: relative;
   display: inline-block;
   width: 34px;
-  height: 20px;
+  height: 18px;
   border-radius: 999px;
   background: var(--lnb-line);
-  position: relative;
-  transition: background var(--transition-fast);
+  transition: background 0.15s ease;
 }
 .cell-toggle__thumb {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--transition-fast);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  transition: transform 0.15s ease;
 }
-.cell-toggle.is-on .cell-toggle__track { background: var(--teal); }
-.cell-toggle.is-on .cell-toggle__thumb { transform: translateX(14px); }
-.cell-toggle.is-disabled { cursor: not-allowed; opacity: 0.5; }
+.cell-toggle input:checked + .cell-toggle__track {
+  background: var(--color-primary);
+}
+.cell-toggle input:checked + .cell-toggle__track .cell-toggle__thumb {
+  transform: translateX(16px);
+}
+.cell-toggle input:focus-visible + .cell-toggle__track {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 </style>
