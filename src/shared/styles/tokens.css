@@ -123,6 +123,13 @@
   /* Transition */
   --transition-fast: 120ms ease;
   --transition-normal: 200ms ease;
+
+  /* 진입·프로그레스·차트 애니메이션 — h-pms 이식 (2026-09-02). .hp-anim-enter/-progress/-chart
+     클래스는 이미 화면 52곳에서 쓰이고 있었는데 이 토큰들이 없어 전부 무동작 상태였다. */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-enter: 280ms;
+  --duration-progress: 900ms;
+  --duration-chart: 700ms;
 }
 
 /* ===== 폰트 사이즈: 1~5단계 (내 정보 > 설정 > 폰트 사이즈)
