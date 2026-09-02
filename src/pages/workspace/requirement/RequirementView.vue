@@ -24,6 +24,7 @@ import RequirementFormModal from '@/pages/workspace/requirement/RequirementFormM
 import RequirementBulkRegisterModal from '@/pages/workspace/requirement/RequirementBulkRegisterModal.vue'
 import RequirementScreenSearchModal from '@/pages/workspace/requirement/RequirementScreenSearchModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
@@ -219,6 +220,16 @@ function onSystemSelect(value) {
   onSystemFilterChange()
 }
 
+/** 요구사항명 클릭 — 그 행 아래 원안/분석 미리보기 아코디언만 토글한다(단일 펼침).
+ *  "전체열기"로 여러 행이 열려 있어도 개별 행을 누르면 그 행 하나만 남긴다. */
+function toggleRow(id) {
+  if (expandedIds.value.size === 1 && expandedIds.value.has(id)) {
+    expandedIds.value = new Set()
+    return
+  }
+  expandedIds.value = new Set([id])
+}
+
 function toggleExpandAll() {
   if (!canExpandAll.value) return
   if (allExpandedOnPage.value) {
@@ -261,6 +272,14 @@ function isConfirmLocked(row) {
 function isConfirmationFieldLocked(row, field) {
   if (isConfirmLocked(row)) return true
   return field === 'confirmRequester' ? row.confirmRequester === '확정' : row.confirmTech === '확정'
+}
+
+/** 요건확정 select가 비활성일 때 왜 눌리지 않는지 안내한다(hover 시 title 노출). */
+function confirmLockReason(row, field) {
+  if (row.status === '반려') return '반려된 요구사항은 요건확정할 수 없습니다.'
+  if (row.confirmRequester === '확정' && row.confirmTech === '확정') return '최종확정된 요구사항입니다.'
+  if (row[field] === '확정') return '이미 확정된 항목입니다.'
+  return ''
 }
 
 function onConfirmChange(row, field, value) {
@@ -612,9 +631,6 @@ function onPageSizeChange() {
           empty-label="시스템 선택"
           @update:model-value="onSystemSelect"
         />
-        <FilterSelectPill v-model="filters.status" label="상태" :options="statusOptions" />
-      </template>
-      <template #expand>
         <FilterSelectPill
           v-model="filters.bizCategory"
           label="업무구분"
@@ -622,8 +638,11 @@ function onPageSizeChange() {
           empty-label="업무구분 선택"
           :disabled="!filters.system"
         />
+        <FilterSelectPill v-model="filters.status" label="상태" :options="statusOptions" />
         <FilterSelectPill v-model="filters.priority" label="우선순위" :options="priorityOptions" />
         <FilterSelectPill v-model="filters.confirm" label="요건확정" :options="confirmOptions" />
+      </template>
+      <template #expand>
         <FilterSelectPill v-model="filters.periodType" label="기간" :options="periodOptions" />
         <FilterDateRange
           :from="filters.dateFrom"
@@ -634,12 +653,12 @@ function onPageSizeChange() {
       </template>
     </SearchFilterBar>
 
-    <p class="notice card">{{ requirementMeta.notice }}</p>
+    <p class="notice">{{ requirementMeta.notice }}</p>
 
     <!-- 툴바 -->
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
-      <select v-model="pageSize" class="toolbar__mini" @change="onPageSizeChange">
+      <select v-model="pageSize" class="hp-pagesize-select" @change="onPageSizeChange">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
       <button
@@ -685,14 +704,14 @@ function onPageSizeChange() {
                   @change="toggleSelectAll($event.target.checked)"
                 />
               </th>
-              <th rowspan="2">요구사항 ID</th>
-              <th rowspan="2">시스템/업무</th>
-              <th rowspan="2">화면경로</th>
-              <th rowspan="2">화면명</th>
-              <th rowspan="2">요구사항명</th>
-              <th rowspan="2">구분</th>
-              <th rowspan="2">상태</th>
-              <th rowspan="2">우선순위</th>
+              <th class="col-id" rowspan="2">요구사항 ID</th>
+              <th class="col-system" rowspan="2">시스템/업무</th>
+              <th class="col-path" rowspan="2">화면경로</th>
+              <th class="col-screen" rowspan="2">화면명</th>
+              <th class="col-name" rowspan="2">요구사항명</th>
+              <th class="col-div" rowspan="2">구분</th>
+              <th class="col-status" rowspan="2">상태</th>
+              <th class="col-pri" rowspan="2">우선순위</th>
               <th colspan="2" class="confirm-head">
                 <div class="confirm-head__title">
                   <span>요건확정</span>
@@ -710,8 +729,8 @@ function onPageSizeChange() {
                   </div>
                 </div>
               </th>
-              <th rowspan="2">이슈</th>
-              <th rowspan="2">등록자</th>
+              <th class="col-issue" rowspan="2">이슈</th>
+              <th class="col-reg" rowspan="2">등록자</th>
             </tr>
             <tr class="confirm-subhead">
               <th>요청자</th>
@@ -745,7 +764,7 @@ function onPageSizeChange() {
                 <td>{{ row.screenPath }}</td>
                 <td>{{ row.screenName }}</td>
                 <td>
-                  <button type="button" class="name-link" @click="openEdit(row)">
+                  <button type="button" class="name-link" @click="toggleRow(row.id)">
                     {{ row.name }}
                   </button>
                 </td>
@@ -764,6 +783,7 @@ function onPageSizeChange() {
                     :class="`confirm-select--${confirmClass(row.confirmRequester)}`"
                     :value="row.confirmRequester === '확정' ? '확정' : '미확정'"
                     :disabled="isConfirmationFieldLocked(row, 'confirmRequester')"
+                    :title="confirmLockReason(row, 'confirmRequester')"
                     @change="onConfirmChange(row, 'confirmRequester', $event.target.value)"
                   >
                     <option v-for="o in confirmSelectOptions" :key="o" :value="o">{{ o }}</option>
@@ -775,6 +795,7 @@ function onPageSizeChange() {
                     :class="`confirm-select--${confirmClass(row.confirmTech)}`"
                     :value="row.confirmTech === '확정' ? '확정' : '미확정'"
                     :disabled="isConfirmationFieldLocked(row, 'confirmTech')"
+                    :title="confirmLockReason(row, 'confirmTech')"
                     @change="onConfirmChange(row, 'confirmTech', $event.target.value)"
                   >
                     <option v-for="o in confirmSelectOptions" :key="o" :value="o">{{ o }}</option>
@@ -808,45 +829,6 @@ function onPageSizeChange() {
                         <p class="detail-panel__text">{{ row.analysis || '-' }}</p>
                       </div>
                     </div>
-                    <div class="detail-panel__scopes">
-                      <p class="detail-panel__label">업무범주</p>
-                      <table class="detail-scope-table">
-                        <thead>
-                          <tr>
-                            <th>#</th>
-                            <th>시스템</th>
-                            <th>업무구분</th>
-                            <th>화면경로</th>
-                            <th>화면명</th>
-                            <th>업무유형</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="scope in (row.scopes || [])" :key="scope.id || scope.seq">
-                            <td>{{ scope.seq }}</td>
-                            <td>{{ scope.system }}</td>
-                            <td>{{ scope.bizCategory }}</td>
-                            <td>{{ scope.noScreen ? '-' : (scope.screenPath || '-') }}</td>
-                            <td>{{ scope.noScreen ? '화면없음' : (scope.screenName || '-') }}</td>
-                            <td>{{ (scope.taskTypes || []).join(', ') || '-' }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <div class="detail-panel__confirm">
-                      <span class="confirm-status__item">
-                        요청자 확정
-                        <span class="st" :class="row.confirmRequester === '확정' ? 'st--done' : 'st--recv'">
-                          {{ row.confirmRequester === '확정' ? '확정' : '미확정' }}
-                        </span>
-                      </span>
-                      <span class="confirm-status__item">
-                        테크 확정
-                        <span class="st" :class="row.confirmTech === '확정' ? 'st--done' : 'st--recv'">
-                          {{ row.confirmTech === '확정' ? '확정' : '미확정' }}
-                        </span>
-                      </span>
-                    </div>
                     <div class="detail-panel__meta">
                       <span>
                         등록 {{ row.registeredBy }} {{ row.registeredAt }}
@@ -871,50 +853,7 @@ function onPageSizeChange() {
         </table>
       </div>
 
-      <div class="pager">
-        <button
-          type="button"
-          class="pager__btn"
-          :disabled="currentPage <= 1"
-          @click="currentPage = 1"
-        >
-          «
-        </button>
-        <button
-          type="button"
-          class="pager__btn"
-          :disabled="currentPage <= 1"
-          @click="currentPage--"
-        >
-          ‹
-        </button>
-        <button
-          v-for="p in Math.min(totalPages, 8)"
-          :key="p"
-          type="button"
-          class="pager__btn"
-          :class="{ 'pager__btn--on': currentPage === p }"
-          @click="currentPage = p"
-        >
-          {{ p }}
-        </button>
-        <button
-          type="button"
-          class="pager__btn"
-          :disabled="currentPage >= totalPages"
-          @click="currentPage++"
-        >
-          ›
-        </button>
-        <button
-          type="button"
-          class="pager__btn"
-          :disabled="currentPage >= totalPages"
-          @click="currentPage = totalPages"
-        >
-          »
-        </button>
-      </div>
+      <HpPagination :page="currentPage" :total-pages="totalPages" @update:page="(p) => (currentPage = p)" />
     </div>
 
     <RequirementIssueModal
@@ -952,13 +891,21 @@ function onPageSizeChange() {
 </template>
 
 <style scoped>
+/* h-pms 이식 — .app-shell__content가 유일한 스크롤 컨테이너라 화면 전체가 늘어나면 목록 하단
+   페이지네이션이 뷰포트 밖으로 밀린다. 화면을 가용 높이에 고정하고 .listcard__scroll에만
+   세로 스크롤을 둔다(CommonCodeView.vue .admin-side__scroll과 같은 정책). */
 .requirement {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 14px 18px 28px;
   color: var(--ink);
   font-size: calc(13px + var(--font-size-offset, 0px));
 }
 
 .requirement__title {
+  flex-shrink: 0;
   font-size: calc(16px + var(--font-size-offset, 0px));
   font-weight: 700;
   margin: 2px 2px 12px;
@@ -978,23 +925,8 @@ function onPageSizeChange() {
   border-radius: 20px;
 }
 
-.card {
-  background: var(--lnb-side);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-.notice {
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  background: var(--teal-50);
-  border-color: var(--teal-100);
-  color: var(--teal-600);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  line-height: 1.5;
-}
-
 .toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1070,7 +1002,13 @@ function onPageSizeChange() {
   color: var(--teal-600);
 }
 
+/* 남은 세로 공간을 카드가 흡수(flex:1 + min-height:0)해 페이지네이션이 항상 보이게 한다 —
+   h-pms 이식. */
 .listcard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--lnb-side);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1078,7 +1016,10 @@ function onPageSizeChange() {
 }
 
 .listcard__scroll {
+  flex: 1;
+  min-height: 0;
   overflow-x: auto;
+  overflow-y: auto;
 }
 
 .req-table {
@@ -1090,9 +1031,9 @@ function onPageSizeChange() {
 
 .req-table thead th {
   background: var(--lnb-hover);
-  color: var(--ink);
+  color: var(--muted);
   font-weight: 600;
-  text-align: center;
+  text-align: left;
   padding: 9px 11px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -1109,6 +1050,17 @@ function onPageSizeChange() {
   width: 36px;
   text-align: center;
 }
+
+.col-id { width: 80px; }
+.col-system { width: 100px; }
+.col-path { width: 180px; }
+.col-screen { width: 120px; }
+.col-name { width: 140px; }
+.col-div { width: 48px; }
+.col-status { width: 60px; }
+.col-pri { width: 64px; }
+.col-issue { width: 44px; }
+.col-reg { width: 84px; }
 
 .req-row:hover {
   background: var(--teal-50);
@@ -1193,6 +1145,7 @@ function onPageSizeChange() {
 }
 
 .confirm-head {
+  width: 190px;
   text-align: center;
   vertical-align: middle;
   background: var(--field);
@@ -1304,22 +1257,32 @@ function onPageSizeChange() {
   background: var(--lnb-hover);
 }
 
+/* 아코디언 펼침 시 흰 카드 + 옅은 테두리로 시각 언어를 통일한다 — h-pms 이식. */
 .detail-panel {
-  padding: 14px 16px 14px 48px;
+  padding: 18px 24px 22px 48px;
 }
 
 .detail-panel__blocks {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 16px;
+  margin-bottom: 0;
+}
+
+.detail-panel__content {
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--lnb-line);
+  border-radius: 10px;
+  padding: 14px 16px;
 }
 
 .detail-panel__label {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .detail-panel__text {
@@ -1334,52 +1297,14 @@ function onPageSizeChange() {
   overflow: hidden;
 }
 
-.detail-panel__scopes {
-  margin: 0 0 12px;
-}
-
-.detail-scope-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  margin-top: 6px;
-}
-
-.detail-scope-table th,
-.detail-scope-table td {
-  padding: 7px 9px;
-  border: 1px solid var(--lnb-line);
-  text-align: left;
-  color: var(--ink-2);
-}
-
-.detail-scope-table th {
-  background: var(--lnb-side);
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.detail-panel__confirm {
-  display: flex;
-  gap: 16px;
-  margin: 0 0 12px;
-  flex-wrap: wrap;
-}
-
-.confirm-status__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink-2);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-weight: 600;
-}
-
 .detail-panel__meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lnb-line);
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
   flex-wrap: wrap;
@@ -1389,38 +1314,6 @@ function onPageSizeChange() {
   text-align: center;
   padding: 32px !important;
   color: var(--muted);
-}
-
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 16px;
-}
-
-.pager__btn {
-  min-width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  border: 1px solid var(--line);
-  background: var(--lnb-side);
-  color: var(--ink-2);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.pager__btn--on {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: var(--color-text-inverse);
-  font-weight: 700;
-}
-
-.pager__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .btn {

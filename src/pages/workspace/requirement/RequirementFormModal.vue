@@ -60,9 +60,13 @@ const isReadOnly = computed(() => {
   return props.data?.status === '반려'
 })
 
+/** BR-10 — 요청자·테크 양측 확정(최종확정) 후에는 상태(반려 전이 제외) 등 일반 필드를 잠근다.
+ *  확정 자체는 되돌릴 수 없되, 반려만은 최종확정 후에도 가능하다(canSelectStatus 참고). */
+const isFinallyConfirmed = computed(() => isEdit.value && !!form.confirmRequester && !!form.confirmTech)
+
 const canEditFields = computed(() => {
   if (isRegister.value || isCopy.value) return true
-  return isEdit.value && !isReadOnly.value
+  return isEdit.value && !isReadOnly.value && !isFinallyConfirmed.value
 })
 
 /** 원안: 등록만 입력, 상세/복사는 잠금 (SB 96·98) */
@@ -71,9 +75,15 @@ const originalLocked = computed(() => isEdit.value || isCopy.value)
 /** 구분: 등록·복사만 변경, 상세는 잠금 */
 const reqTypeLocked = computed(() => isEdit.value)
 
-const canEditScreen = computed(() => canEditFields.value)
-
 const showSaveButton = computed(() => canEditFields.value)
+
+/** BR-100 — 최종확정 후에도 확정 당시 "화면없음"으로 남겨 둔 업무범주만 화면 선택을 열어 준다.
+ *  noScreen 체크박스 자체는 canEditFields로 잠기므로, 여기서 scope.noScreen은 곧 확정 당시 값이다. */
+function canFillScreenFor(scope) {
+  if (canEditFields.value) return true
+  if (!isFinallyConfirmed.value) return false
+  return !!scope?.noScreen
+}
 
 const memoCount = computed(() => form.memo.length)
 const showScreenSearch = ref(false)
@@ -208,9 +218,8 @@ const activeScreenSystem = computed(
 )
 
 function openScreenSearch(index = 0) {
-  if (!canEditScreen.value) return
   const scope = form.scopes[index]
-  if (scope?.noScreen) return
+  if (!canFillScreenFor(scope)) return
   screenSearchScopeIndex.value = index
   showScreenSearch.value = true
 }
@@ -265,9 +274,34 @@ function onScopeSystemChange(scope) {
   syncAliasesFromScopes()
 }
 
+// 첨부 제약 — h-pms shared/lib/attachmentPolicy(BR-44)와 같은 값. 실제 업로드는 없고
+// 파일명만 로컬 상태에 담으므로 확장자·용량만 클라이언트에서 그대로 검증한다.
+const ATTACH_ACCEPT = '.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
+const ATTACH_HINT = 'jpg, png, word, excel, ppt 형식만 첨부할 수 있고 파일당 최대 10MB입니다.'
+const ATTACH_MAX_SIZE = 10 * 1024 * 1024
+const ATTACH_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+
+function validateAttachment(file) {
+  const lower = file.name.toLowerCase()
+  if (!ATTACH_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return `${file.name}: jpg, png, word, excel, ppt 형식만 첨부할 수 있습니다.`
+  }
+  if (file.size > ATTACH_MAX_SIZE) {
+    return `${file.name}: 파일 용량은 최대 10MB까지 첨부할 수 있습니다.`
+  }
+  return null
+}
+
 function onAttachmentChange(event) {
   const files = Array.from(event.target.files || [])
-  files.forEach((file) => form.attachments.push(file.name))
+  for (const file of files) {
+    const invalid = validateAttachment(file)
+    if (invalid) {
+      window.alert(invalid)
+      continue
+    }
+    form.attachments.push(file.name)
+  }
   event.target.value = ''
 }
 
@@ -276,8 +310,17 @@ function removeAttachment(idx) {
   form.attachments.splice(idx, 1)
 }
 
+/** 최종확정 후에도 반려로의 전이만은 허용한다(BR-10). 반려 상태 자체는 잠금(isReadOnly)이라
+ *  더 이상 전이할 수 없다. */
+function canSelectStatus(s) {
+  if (isRegister.value || isCopy.value) return true
+  if (isReadOnly.value) return false
+  if (isFinallyConfirmed.value) return s === '반려'
+  return true
+}
+
 function onStatusChange(next) {
-  if (!canEditFields.value) return
+  if (!canSelectStatus(next)) return
   form.status = next
 }
 
@@ -293,9 +336,15 @@ function toSavePayload(extra = {}) {
   }
 }
 
+/** 등록 검증(원안 필수) / 수정 검증(원안은 잠금 필드라 값이 이미 있어 재검증하지 않음) — h-pms
+ *  validateCreateForm/validateEditForm과 같은 문구·순서. */
 function save() {
-  if (!form.name.trim() || !form.original.trim()) {
-    window.alert('미입력 항목을 입력하세요.')
+  if (!form.name.trim()) {
+    window.alert('요구사항명을 입력해 주세요.')
+    return
+  }
+  if (!isEdit.value && !form.original.trim()) {
+    window.alert('요구사항원안을 입력해 주세요.')
     return
   }
   if (!form.scopes.length) {
@@ -303,8 +352,12 @@ function save() {
     return
   }
   for (const scope of form.scopes) {
-    if (!scope.system || !scope.bizCategory) {
-      window.alert('업무범위마다 시스템/업무구분을 선택해 주세요.')
+    if (!scope.system) {
+      window.alert('업무범위마다 시스템을 선택해 주세요.')
+      return
+    }
+    if (!scope.bizCategory) {
+      window.alert('업무범위마다 업무구분을 선택해 주세요.')
       return
     }
     if (!scope.noScreen && !String(scope.screenName || '').trim()) {
@@ -312,9 +365,11 @@ function save() {
       return
     }
   }
-  if (!window.confirm('저장하시겠습니까?')) return
 
+  // 신규 등록(복사 포함)은 h-pms와 동일하게 확인 팝업 없이 바로 저장한다.
+  // 수정만 "저장하시겠습니까?" → 변경사유 순서를 거친다.
   if (isEdit.value) {
+    if (!window.confirm('저장하시겠습니까?')) return
     showChangeReasonModal.value = true
     return
   }
@@ -475,7 +530,7 @@ function diffFields(entry) {
               <button
                 type="button"
                 class="screen-search__field"
-                :disabled="!canEditScreen || scope.noScreen"
+                :disabled="!canFillScreenFor(scope)"
                 @click="openScreenSearch(idx)"
               >
                 <span v-if="screenDisplayFor(scope)" class="screen-search__value">{{ screenDisplayFor(scope) }}</span>
@@ -484,7 +539,7 @@ function diffFields(entry) {
               <button
                 type="button"
                 class="btn btn--ghost btn--sm screen-search__btn"
-                :disabled="!canEditScreen || scope.noScreen"
+                :disabled="!canFillScreenFor(scope)"
                 @click="openScreenSearch(idx)"
               >
                 검색
@@ -539,7 +594,7 @@ function diffFields(entry) {
               type="button"
               class="seg__btn"
               :class="{ 'seg__btn--on': form.status === s }"
-              :disabled="!canEditFields"
+              :disabled="!canSelectStatus(s)"
               @click="onStatusChange(s)"
             >
               {{ s }}
@@ -617,9 +672,10 @@ function diffFields(entry) {
           </span>
           <label v-if="canEditFields" class="attach__add">
             ＋ 파일 추가
-            <input type="file" multiple class="attach__input" @change="onAttachmentChange" />
+            <input type="file" multiple class="attach__input" :accept="ATTACH_ACCEPT" @change="onAttachmentChange" />
           </label>
         </div>
+        <span class="attach__hint">{{ ATTACH_HINT }}</span>
       </div>
 
     </section>
@@ -1043,6 +1099,14 @@ label.fld--req::after {
   inset: 0;
   opacity: 0;
   cursor: pointer;
+}
+
+.attach__hint {
+  display: block;
+  margin-top: 6px;
+  font-size: calc(11.5px + var(--font-size-offset, 0px));
+  color: var(--lnb-txt);
+  opacity: 0.75;
 }
 
 .history-summary {

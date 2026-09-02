@@ -41,7 +41,7 @@ function save() {
 
 <template>
   <BaseModal title="변경 이력 생성" :visible="modelValue" @close="close">
-    <p class="notice">요구사항 수정 사유를 선택해 주세요. 저장 시 변경 이력에 기록됩니다.</p>
+    <p class="notice notice--plain">요구사항 수정 사유를 선택해 주세요. 저장 시 변경 이력에 기록됩니다.</p>
 
     <select v-model="reasonCode" class="reason-select">
       <option value="">사유 선택</option>
@@ -69,7 +69,7 @@ function save() {
 </template>
 
 <style scoped>
-.notice {
+.notice--plain {
   margin: 0 0 14px;
   font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.6;
