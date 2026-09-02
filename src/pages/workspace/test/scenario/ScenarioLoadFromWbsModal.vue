@@ -1,5 +1,7 @@
 <script setup>
 // POP-S-UAT-05 시나리오 불러오기 — DEV모드는 단위테스트만, 운영(UAT)모드는 DEV+운영 차수만 단일선택 → 덮어쓰기
+// h-pms는 scenarioId 기준 실 API(loadable-sources)로 배선하지만, 목업은 차수 후보를 mode로만 구분하므로
+// 기존 mode prop 기반 로직은 유지하고 마크업/문구만 h-pms에 맞춘다.
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import { roundCaseCounts } from '@/entities/scenario/mock/scenario'
@@ -36,9 +38,7 @@ function confirm() {
     return
   }
   if (
-    !window.confirm(
-      `선택한 ${selected.value} 시나리오를 불러오시겠습니까? 기존에 입력한 내용은 사라집니다.`,
-    )
+    !window.confirm(`${selected.value} 시나리오를 불러오시겠습니까? 기존에 입력한 내용은 사라집니다.`)
   ) {
     return
   }
@@ -51,7 +51,8 @@ function confirm() {
 <template>
   <BaseModal title="시나리오 불러오기" :visible="modelValue" @close="close">
     <p class="notice">
-      불러올 시나리오를 선택한 후 [불러오기] 버튼을 클릭하세요. 현재 편집 중인 시나리오는 선택한 시나리오로 덮어쓰기됩니다.
+      불러올 시나리오를 선택한 후 [불러오기] 버튼을 클릭하세요.<br />
+      <span class="notice__danger">현재 편집 중인 시나리오는 선택한 시나리오로 덮어쓰기됩니다.</span>
     </p>
     <div v-if="!availableRounds.length" class="empty">불러올 시나리오가 없습니다.</div>
     <ul v-else class="round-list">
@@ -71,25 +72,24 @@ function confirm() {
 </template>
 
 <style scoped>
-.notice {
-  margin: 0 0 14px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  line-height: 1.55;
-  color: var(--lnb-muted);
+/* .notice 박스 자체는 전역 스타일이라 덮지 않고, 덮어쓰기 경고 문장 하나만 강조한다. */
+.notice__danger {
+  color: var(--red);
+  font-weight: 600;
 }
 
 .empty {
   padding: 32px;
   text-align: center;
   font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
+  color: var(--muted);
 }
 
 .round-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--lnb-line);
+  border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -101,13 +101,13 @@ function confirm() {
   padding: 11px 14px;
   font-size: calc(13px + var(--font-size-offset, 0px));
   cursor: pointer;
-  border-bottom: 1px solid var(--lnb-line);
+  border-bottom: 1px solid var(--line);
 }
 
 .round-item__count {
   margin-left: auto;
   font-size: calc(11.5px + var(--font-size-offset, 0px));
-  color: var(--lnb-muted);
+  color: var(--muted);
 }
 
 .round-list li:last-child .round-item {
