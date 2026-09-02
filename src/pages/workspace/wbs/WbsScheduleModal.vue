@@ -141,13 +141,6 @@ function close() {
   emit('update:modelValue', false)
 }
 
-function missingPlanField() {
-  if (!planStart.value && !planEnd.value) return '계획 시작일, 계획 종료일'
-  if (!planStart.value) return '계획 시작일'
-  if (!planEnd.value) return '계획 종료일'
-  return ''
-}
-
 function buildPayload(extra = {}) {
   return {
     planStart: planStart.value || null,
@@ -164,13 +157,12 @@ function buildPayload(extra = {}) {
 }
 
 function save() {
-  if (!taskName.value.trim()) {
-    window.alert('업무명을 입력하세요.')
-    return
-  }
-  const miss = missingPlanField()
-  if (miss) {
-    window.alert(`${miss}을 입력하세요.`)
+  const missing = []
+  if (!taskName.value.trim()) missing.push('업무명')
+  if (!planStart.value) missing.push('계획 시작일')
+  if (!planEnd.value) missing.push('계획 종료일')
+  if (missing.length) {
+    window.alert(`${missing.join(', ')}을 입력하세요.`)
     return
   }
   if (planStart.value > planEnd.value) {
@@ -289,7 +281,7 @@ function onDelayReasonSave(reason) {
   finishComplete(pendingCompleteDate.value, reason)
 }
 
-function applyRestart(row) {
+function applyRestart(row, correctedEnd) {
   const t = row || props.task
   if (!t) return
   const extra = {
@@ -298,9 +290,13 @@ function applyRestart(row) {
     holdEnd: null,
     restartDate: null,
   }
-  if (t.correctedPlanEnd) {
-    extra.planEnd = t.correctedPlanEnd
-    planEnd.value = t.correctedPlanEnd
+  // 모달 미리보기가 쓴 보정값(예정보다 일찍 재착수 시 미실현 홀딩일수만큼 당긴 날짜)을
+  // 그대로 적용한다 — t.correctedPlanEnd(홀딩 전량 반영)만 쓰면 화면에 보여준 날짜와
+  // 실제 반영값이 어긋난다.
+  const nextPlanEnd = correctedEnd || t.correctedPlanEnd
+  if (nextPlanEnd) {
+    extra.planEnd = nextPlanEnd
+    planEnd.value = nextPlanEnd
   }
   extra.execProgress = calcExecProgress(
     { ...t, ...extra, execEnd: null, excluded: false },
@@ -709,16 +705,6 @@ function openMultiChange() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 16px;
-}
-
-.notice {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  background: var(--lnb-side);
-  border-radius: var(--radius-md);
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  line-height: 1.6;
-  color: var(--teal-700);
 }
 
 .schedule-cols {

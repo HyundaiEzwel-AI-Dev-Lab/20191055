@@ -22,12 +22,17 @@ import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
 import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const { mode, config, pageTitle } = useTestContext()
 const route = useRoute()
 const auth = useAuthStore()
 const currentUser = computed(() => auth.user?.name || '')
+
+/** 결과 저장/지연 판정 등에 쓰는 "오늘" — 목업 고정일(계획일 사이에 걸리도록 고정). */
+const TODAY = '2026-04-17'
+const PAGE_SIZE = 20
 
 const rows = ref([])
 const expanded = ref(new Set())
@@ -38,6 +43,9 @@ const showTesterChange = ref(false)
 const showRunInfo = ref(false)
 const runInfoTarget = ref(null)
 const showCommonNoteModal = ref(false)
+/** 상단 KPI 칩으로 고른 상태. null이면 '전체'로 조건이 붙지 않는다. */
+const chipStatus = ref(null)
+const page = ref(1)
 
 const filters = ref({
   system: '전체',
@@ -55,6 +63,7 @@ const filters = ref({
 function loadRows() {
   rows.value = getTestRunList(mode.value, auth.user?.id)
   expanded.value = new Set()
+  page.value = 1
 }
 
 onMounted(() => {
@@ -65,9 +74,25 @@ onMounted(() => {
 })
 watch(mode, loadRows)
 
+/** h-pms 이식 — 지연 판정은 KPI칩 집계(computeTestRunKpi)와 같은 기준(계획종료일 경과 + 대기)을 쓴다. */
+function isRowDelayed(row) {
+  return row.planEnd < TODAY && row.result === '대기'
+}
+
+/** 상단 KPI 칩 클릭 필터 — 진행상태(대기/진행/지연/미조치)는 케이스 단위, 결과값(정상/오류 등)은
+ * 절차(스텝) 셀 중 하나라도 그 결과면 포함한다(오류등록 여부와 같은 "포함 여부" 판정). */
+function matchChipStatus(row) {
+  if (!chipStatus.value) return true
+  const c = chipStatus.value
+  if (c === '지연') return isRowDelayed(row)
+  if (c === '미조치') return row.fixPending > 0
+  if (c === '대기' || c === '진행') return row.result === c
+  return row.steps.some((step) => row.testers.some((name) => step.byTester[name]?.result === c))
+}
+
 const filtered = computed(() =>
-  rows.value.filter((r) =>
-    matchTestRunFilters(r, filters.value, myTestsOnly.value),
+  rows.value.filter(
+    (r) => matchTestRunFilters(r, filters.value, myTestsOnly.value) && matchChipStatus(r),
   ),
 )
 
@@ -75,11 +100,55 @@ const kpi = computed(() => computeTestRunKpi(filtered.value))
 
 const period = computed(() => config.value.testPeriod)
 
-const hasOutOfPeriod = computed(() => filtered.value.some((r) => isCaseDimmed(r, period.value)))
+/** h-pms 이식 — 기간 안이라도 케이스 계획 시작일이 아직 오지 않았으면 딤 처리한다. */
+function isDimmed(row) {
+  if (row.planStart > TODAY) return true
+  return isCaseDimmed(row, period.value)
+}
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
+
+const pagedRows = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE
+  return filtered.value.slice(start, start + PAGE_SIZE)
+})
+
+const hasOutOfPeriod = computed(() => pagedRows.value.some((r) => isDimmed(r)))
 
 const allExpanded = computed(
-  () => filtered.value.length > 0 && filtered.value.every((r) => expanded.value.has(r.id)),
+  () => pagedRows.value.length > 0 && pagedRows.value.every((r) => expanded.value.has(r.id)),
 )
+
+/**
+ * 상단 요약 칩(h-pms 이식) — 진행상태/결과/미조치 3구역으로 묶는다. group 필드로 구역을 표시해
+ * 두고 template의 kpiGroups가 이 배열을 구역별로 걸러 쓴다.
+ */
+const kpiChips = computed(() => [
+  { status: null, label: '전체', count: kpi.value.total, group: 'progress' },
+  { status: '대기', label: '대기', count: kpi.value.wait, group: 'progress' },
+  { status: '진행', label: '진행', count: kpi.value.progress, group: 'progress' },
+  { status: '지연', label: '지연', count: kpi.value.delay, tone: 'warn', group: 'progress' },
+  { status: '정상', label: '정상', count: kpi.value.ok, tone: 'ok', group: 'result' },
+  { status: '오류', label: '오류', count: kpi.value.error, tone: 'err', group: 'result' },
+  { status: '재처리요청', label: '재처리요청', count: kpi.value.retry, group: 'result' },
+  { status: '수정완료', label: '수정완료', count: kpi.value.fixed, group: 'result' },
+  { status: '기타', label: '기타', count: kpi.value.etc, group: 'result' },
+  { status: '미조치', label: '미조치', count: kpi.value.pending, tone: 'warn', group: 'unresolved' },
+])
+const kpiGroups = computed(() =>
+  ['progress', 'result', 'unresolved'].map((group) => ({
+    group,
+    chips: kpiChips.value.filter((c) => c.group === group),
+  })),
+)
+
+/** 칩 클릭 필터 — 같은 칩을 다시 누르면 '전체'로 풀린다. 필터링 후에는 남은 케이스를 펼쳐
+ * 어느 절차가 그 상태인지 바로 보이게 한다. */
+function selectChip(status) {
+  chipStatus.value = chipStatus.value === status ? null : status
+  page.value = 1
+  if (chipStatus.value) expandAll()
+}
 
 function resetFilters() {
   filters.value = {
@@ -94,10 +163,14 @@ function resetFilters() {
     dateFrom: '',
     dateTo: '',
   }
+  chipStatus.value = null
+  page.value = 1
 }
 
 /** 필터는 실시간 반영 — 조회 버튼은 Enter/클릭 진입점만 제공 */
-function search() {}
+function search() {
+  page.value = 1
+}
 
 const systemFilterOptions = computed(() =>
   (config.value.systemOptions || []).map((s) =>
@@ -115,7 +188,6 @@ const filterTags = computed(() => {
   if (f.round && f.round !== '전체') tags.push({ key: 'round', label: '차수', value: f.round })
   if (f.keyword?.trim()) tags.push({ key: 'keyword', label: '케이스', value: f.keyword })
   if (f.tester?.trim()) tags.push({ key: 'tester', label: '테스터', value: f.tester })
-  if (myTestsOnly.value) tags.push({ key: 'myTestsOnly', label: '내 테스트만', value: 'ON' })
   if (f.dateFrom || f.dateTo) {
     tags.push({
       key: 'dateRange',
@@ -136,13 +208,29 @@ function removeFilterTag(key) {
   if (key === 'dateRange') {
     filters.value.dateFrom = ''
     filters.value.dateTo = ''
-  } else if (key === 'myTestsOnly') {
-    myTestsOnly.value = false
   } else if (key === 'keyword' || key === 'tester' || key === 'screenKeyword') {
     filters.value[key] = ''
   } else {
     filters.value[key] = '전체'
   }
+}
+
+/**
+ * h-pms 이식 — 케이스 리스트(라벨 행 + 각 케이스 행)의 좌우 스크롤이 행마다 따로 놀지 않고
+ * 하나로 묶이게 한다(어느 행을 밀어도 전체가 같이 움직인다). 절차표(.case-body)는 폭이 완전히
+ * 달라 여기 넣지 않는다 — .case-head-scroll 요소끼리 scrollLeft만 동기화한다. scroll 이벤트는
+ * 버블링하지 않아 캡처 단계로 상위(.case-list)에서 위임해 받는다.
+ */
+const caseListEl = ref(null)
+let syncingCaseHeadScroll = false
+function onCaseHeadScrollCapture(e) {
+  const source = e.target
+  if (syncingCaseHeadScroll || !source.classList?.contains('case-head-scroll')) return
+  syncingCaseHeadScroll = true
+  caseListEl.value?.querySelectorAll('.case-head-scroll').forEach((el) => {
+    if (el !== source) el.scrollLeft = source.scrollLeft
+  })
+  syncingCaseHeadScroll = false
 }
 
 function toggleExpand(id) {
@@ -153,7 +241,7 @@ function toggleExpand(id) {
 }
 
 function expandAll() {
-  expanded.value = new Set(filtered.value.map((r) => r.id))
+  expanded.value = new Set(pagedRows.value.map((r) => r.id))
 }
 
 function collapseAll() {
@@ -207,8 +295,14 @@ function onCommonNoteSave(text) {
   scenarioMeta.commonNote[mode.value] = text
 }
 
+/** h-pms 이식 — 오류등록/조치여부는 담당자별이 아니라 절차(스텝) 1건당 공용이라, 내가 입력
+ * 가능한(담당) 결과 중 '오류'인 테스터 컬럼만 신규 등록 대상으로 쓴다. */
+function myErrorTesterFor(row, step) {
+  return row.testers.find((name) => isMyColumn(name) && step.byTester[name]?.result === '오류') || ''
+}
+
 function openError(row, step) {
-  const testerName = row.testers.find((name) => isMyColumn(name)) || ''
+  const testerName = myErrorTesterFor(row, step)
   errorTarget.value = { row, step, testerName }
 }
 
@@ -243,7 +337,7 @@ function setStepResult(row, step, testerName, result) {
   if (!cell) return
   cell.result = result
   if (result !== '대기' && !cell.executedAt) {
-    cell.executedAt = '2026-04-17'
+    cell.executedAt = TODAY
   }
   recalcRow(row)
 }
@@ -310,22 +404,19 @@ function onExcelDownload() {
       <template #primary>
         <FilterSelectPill
           v-model="filters.system"
+          class="sfb-w-md"
           label="업무범주"
           empty-label="시스템 선택"
           :options="systemFilterOptions"
         />
         <FilterSelectPill
           v-model="filters.bizCategory"
+          class="sfb-w-md"
           label="업무구분"
           :options="config.bizCategoryOptions"
         />
-        <FilterSelectPill v-model="filters.round" label="차수" :options="config.roundOptions" />
-        <FilterTextPill v-model="filters.tester" label="테스터" placeholder="테스터" />
-        <label class="chk chk--toggle">
-          <input v-model="myTestsOnly" type="checkbox" />
-          <span class="chk__switch"></span>
-          내 테스트만
-        </label>
+        <FilterSelectPill v-model="filters.round" class="sfb-w-xs" label="차수" :options="config.roundOptions" />
+        <FilterTextPill v-model="filters.tester" class="sfb-w-sm" label="테스터" placeholder="테스터" />
       </template>
       <template #expand>
         <FilterDateRange
@@ -349,77 +440,126 @@ function onExcelDownload() {
     </SearchFilterBar>
 
     <p v-if="hasOutOfPeriod" class="period-banner">
-      ⚠ 테스트 가능 기간이 아닙니다.
+      ⚠ 테스트 가능 기간이 아닙니다. (예정일 : {{ period.start }} ~ {{ period.end }}) 테스트 계획일 도래 후 진행해주세요.
     </p>
 
     <div class="period card">
       <div class="period__head">
         <b>테스트 기간 (WBS 기준)</b>
         <span class="muted">{{ period.start }} ~ {{ period.end }}</span>
-        <button type="button" class="note-link" @click="showCommonNoteModal = true">테스트 참고사항</button>
+        <button type="button" class="note-link" @click="showCommonNoteModal = true">
+          <svg class="note-link__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9" />
+            <line x1="12" y1="11" x2="12" y2="16" />
+            <circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none" />
+          </svg>
+          테스트 참고사항
+        </button>
       </div>
       <div class="kpi-row">
-        <div class="kpi-chip"><span class="kpi-chip__lab">전체</span><span class="kpi-chip__num">{{ kpi.total }}</span></div>
-        <div class="kpi-chip"><span class="kpi-chip__lab">대기</span><span class="kpi-chip__num">{{ kpi.wait }}</span></div>
-        <div class="kpi-chip"><span class="kpi-chip__lab">진행</span><span class="kpi-chip__num">{{ kpi.progress }}</span></div>
-        <div class="kpi-chip kpi-chip--warn"><span class="kpi-chip__lab">지연</span><span class="kpi-chip__num">{{ kpi.delay }}</span></div>
-        <div class="kpi-chip kpi-chip--ok"><span class="kpi-chip__lab">정상</span><span class="kpi-chip__num">{{ kpi.ok }}</span></div>
-        <div class="kpi-chip kpi-chip--err"><span class="kpi-chip__lab">오류</span><span class="kpi-chip__num">{{ kpi.error }}</span></div>
-        <div class="kpi-chip"><span class="kpi-chip__lab">재처리요청</span><span class="kpi-chip__num">{{ kpi.retry }}</span></div>
-        <div class="kpi-chip"><span class="kpi-chip__lab">수정완료</span><span class="kpi-chip__num">{{ kpi.fixed }}</span></div>
-        <div class="kpi-chip kpi-chip--warn"><span class="kpi-chip__lab">미조치</span><span class="kpi-chip__num">{{ kpi.pending }}</span></div>
-        <div class="kpi-chip"><span class="kpi-chip__lab">기타</span><span class="kpi-chip__num">{{ kpi.etc }}</span></div>
+        <div
+          v-for="grp in kpiGroups"
+          :key="grp.group"
+          class="kpi-group"
+          :class="grp.group !== 'progress' ? `kpi-group--${grp.group}` : ''"
+        >
+          <button
+            v-for="chip in grp.chips"
+            :key="chip.label"
+            type="button"
+            class="kpi-chip"
+            :class="[chip.tone ? `kpi-chip--${chip.tone}` : '', { 'kpi-chip--on': chipStatus === chip.status }]"
+            :aria-pressed="chipStatus === chip.status"
+            @click="selectChip(chip.status)"
+          >
+            <span class="kpi-chip__lab">{{ chip.label }}</span><span class="kpi-chip__num">{{ chip.count }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <div class="toolbar">
       <span class="toolbar__count">
         총 {{ filtered.length }}건
-        <button type="button" class="toolbar__expand-btn" @click="allExpanded ? collapseAll() : expandAll()">
+        <button
+          type="button"
+          class="toolbar__expand-btn"
+          :disabled="!pagedRows.length"
+          @click="allExpanded ? collapseAll() : expandAll()"
+        >
           {{ allExpanded ? '전체 접기' : '전체 열기' }}
         </button>
       </span>
       <div class="toolbar__btns">
+        <button type="button" class="toolbar__toggle" :class="{ 'toolbar__toggle--on': myTestsOnly }" @click="myTestsOnly = !myTestsOnly">
+          내 테스트만
+        </button>
         <button type="button" class="btn btn--primary btn--sm" @click="openTesterChange">테스터/계획변경</button>
         <ExcelDownloadButton @click="onExcelDownload" />
       </div>
     </div>
 
-    <div class="case-list">
+    <div ref="caseListEl" class="case-list" @scroll.capture="onCaseHeadScrollCapture">
+      <div class="case-head-scroll case-head-scroll--master">
+        <div class="case-head case-head--labels">
+          <span />
+          <span>NO</span>
+          <span>요구사항ID</span>
+          <span>수행구분</span>
+          <span>시스템/업무/화면경로</span>
+          <span>화면명</span>
+          <span>케이스ID</span>
+          <span>케이스명</span>
+          <span>계획일</span>
+          <span>테스터</span>
+          <span>절차(진행/전체)</span>
+          <span>진행율</span>
+          <span>결과</span>
+          <span>오류건수</span>
+          <span>수정/미조치</span>
+          <span>최종수행일</span>
+          <span />
+        </div>
+      </div>
       <div
-        v-for="(row, idx) in filtered"
+        v-for="(row, idx) in pagedRows"
         :key="row.id"
         class="case-item card"
-        :class="{ dimmed: isCaseDimmed(row, period), open: expanded.has(row.id) }"
+        :class="{ dimmed: isDimmed(row), open: expanded.has(row.id) }"
       >
-        <div class="case-head" @click="toggleExpand(row.id)">
-          <span class="case-head__arrow">{{ expanded.has(row.id) ? '▲' : '▼' }}</span>
-          <span class="case-head__no">{{ idx + 1 }}</span>
-          <span class="case-head__req">{{ row.reqId }}</span>
-          <span class="case-head__type">{{ row.executionType }}</span>
-          <span class="case-head__path" :title="row.systemPath">{{ row.systemPath }}</span>
-          <span class="case-head__screen">{{ row.screenName }}</span>
-          <span class="case-head__id">{{ row.caseId }}</span>
-          <span class="case-head__name">{{ row.caseName }}</span>
-          <span class="case-head__date">{{ row.planStart }} ~ {{ row.planEnd }}</span>
-          <span class="case-head__testers">{{ row.testerCount }}</span>
-          <span class="case-head__steps">{{ row.stepDone }}/{{ row.stepTotal * row.testerCount }}</span>
-          <span class="case-head__prog">{{ row.progress }}%</span>
-          <span class="case-head__result" :class="resultClass(row.result)">{{ row.result }}</span>
-          <span class="case-head__err">{{ row.errorCount }}</span>
-          <span class="case-head__fix">{{ row.fixDone }}/{{ row.fixPending }}</span>
-          <span class="case-head__at">{{ row.lastExecutedAt || '-' }}</span>
-          <button
-            type="button"
-            class="case-head__info-btn"
-            @click.stop="openRunInfo(row)"
-          >
-            수행정보({{ row.testerCount }})
-          </button>
+        <div class="case-head-scroll">
+          <div class="case-head" @click="toggleExpand(row.id)">
+            <span class="case-head__arrow">{{ expanded.has(row.id) ? '▲' : '▼' }}</span>
+            <span class="case-head__no">{{ (page - 1) * PAGE_SIZE + idx + 1 }}</span>
+            <span class="case-head__req">{{ row.reqId }}</span>
+            <span class="case-head__type">{{ row.executionType }}</span>
+            <span class="case-head__path" :title="row.systemPath">{{ row.systemPath }}</span>
+            <span class="case-head__screen">{{ row.screenName }}</span>
+            <span class="case-head__id">{{ row.caseId }}</span>
+            <span class="case-head__name">{{ row.caseName }}</span>
+            <span class="case-head__date">{{ row.planStart }} ~ {{ row.planEnd }}</span>
+            <span class="case-head__testers">{{ row.testerCount }}</span>
+            <span class="case-head__steps">{{ row.stepDone }}/{{ row.stepTotal * row.testerCount }}</span>
+            <span class="case-head__prog">{{ row.progress }}%</span>
+            <span class="case-head__result" :class="resultClass(row.result)">{{ row.result }}</span>
+            <span class="case-head__err">{{ row.errorCount }}</span>
+            <span class="case-head__fix">{{ row.fixDone }}/{{ row.fixPending }}</span>
+            <span class="case-head__at">{{ row.lastExecutedAt || '-' }}</span>
+            <button
+              type="button"
+              class="case-head__info-btn"
+              @click.stop="openRunInfo(row)"
+            >
+              수행정보({{ row.testerCount }})
+            </button>
+          </div>
         </div>
 
         <div v-if="expanded.has(row.id)" class="case-body">
-          <table class="step-grid">
+          <p v-if="!row.testers.length" class="no-tester">
+            배정된 테스터가 없어 결과를 입력할 수 없습니다. 상단 <b>[테스터/계획변경]</b>에서 이 케이스에 테스터를 배정해 주세요.
+          </p>
+          <table v-else class="step-grid">
             <thead>
               <tr>
                 <th rowspan="2">NO</th>
@@ -472,9 +612,23 @@ function onExcelDownload() {
                   </td>
                 </template>
                 <!-- 오류등록/조치여부는 담당자별이 아니라 절차(케이스) 1건당 공용 컬럼이다.
-                     등록과 조회가 동일한 팝업(ErrorDetailModal)을 쓰므로 버튼은 하나면 된다. -->
+                     등록과 조회가 동일한 팝업(ErrorDetailModal)을 쓰므로 버튼은 하나면 된다 —
+                     이미 등록된 오류가 있으면(step.fixStatus) 조회로, 없으면 등록으로 동작·색만 바뀐다. -->
                 <td class="center error-actions">
-                  <button type="button" class="link-btn" @click="openError(row, step)">오류등록</button>
+                  <button
+                    type="button"
+                    class="err-btn"
+                    :class="step.fixStatus ? 'err-btn--lookup' : 'err-btn--register'"
+                    :disabled="!step.fixStatus && !myErrorTesterFor(row, step)"
+                    :title="
+                      step.fixStatus
+                        ? '이 절차에 등록된 오류 조회'
+                        : (myErrorTesterFor(row, step) ? '' : `본인이 담당한 절차의 결과를 '오류'로 설정하면 등록할 수 있습니다.`)
+                    "
+                    @click="openError(row, step)"
+                  >
+                    등록/조회
+                  </button>
                 </td>
                 <td class="center">
                   <span
@@ -495,6 +649,8 @@ function onExcelDownload() {
       <p v-if="!filtered.length" class="empty">조회 결과가 없습니다.</p>
     </div>
 
+    <HpPagination v-model:page="page" :total-pages="totalPages" />
+
     <ErrorDetailModal
       :visible="!!errorTarget"
       :case-row="errorTarget?.row"
@@ -507,7 +663,7 @@ function onExcelDownload() {
     />
     <TestRunTesterChangeModal
       v-model="showTesterChange"
-      :cases="filtered"
+      :cases="rows"
       @save="onTesterChangeSave"
     />
     <TestRunInfoModal v-model="showRunInfo" :case-row="runInfoTarget" @save="onRunInfoSave" />
@@ -580,65 +736,32 @@ function onExcelDownload() {
   font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
-.chk {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  margin-right: auto;
-}
-
-.chk--toggle {
-  margin-right: 0;
-  margin-left: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.chk--toggle input {
-  display: none;
-}
-
-.chk__switch {
-  position: relative;
-  width: 32px;
-  height: 18px;
-  border-radius: 10px;
-  background: var(--line);
-  transition: background var(--transition-fast);
-}
-
-.chk__switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform var(--transition-fast);
-}
-
-.chk--toggle input:checked + .chk__switch {
-  background: var(--teal);
-}
-
-.chk--toggle input:checked + .chk__switch::after {
-  transform: translateX(14px);
-}
-
+/* h-pms 이식 — 텍스트 링크가 아니라 파란 알약형 버튼(정보 아이콘 + 텍스트)으로. */
 .note-link {
   margin-left: auto;
-  border: none;
-  background: none;
-  color: var(--teal-600);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--blue);
+  background: var(--blue-bg);
+  color: var(--blue);
   font-weight: 600;
   font-size: calc(12px + var(--font-size-offset, 0px));
   cursor: pointer;
   font-family: inherit;
-  padding: 0;
+}
+
+.note-link:hover {
+  filter: brightness(0.97);
+}
+
+.note-link__icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 .period {
@@ -660,20 +783,60 @@ function onExcelDownload() {
   color: var(--teal-600);
 }
 
+/* h-pms 이식 — 칩을 진행상태/결과/미조치 3구역 박스로 묶는다. 박스 폭은 칩 개수에 비례하게
+   flex-grow를 줘서 칩 4개짜리와 5개짜리가 억지로 같은 폭이 되지 않는다. 미조치(1개)는 늘어나면
+   휑해 보여 flex-grow 없이 내용만큼만 차지한다. */
 .kpi-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: var(--space-lg);
+  gap: 12px;
+  align-items: stretch;
 }
 
+.kpi-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 4 1 0;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--field);
+}
+
+.kpi-group--result {
+  flex-grow: 5;
+  border-color: var(--teal-100);
+  background: var(--teal-50);
+}
+
+.kpi-group--unresolved {
+  flex: 0 0 auto;
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+
+/* 칩은 button이다 — 누르면 그 상태를 가진 케이스만 남는다. */
 .kpi-chip {
   flex: 1;
   min-width: 72px;
   padding: 8px 10px;
-  background: var(--field);
+  background: var(--bg-surface, #fff);
   border-radius: 8px;
   text-align: center;
+  border: 1px solid transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.kpi-chip:hover {
+  border-color: var(--line);
+}
+
+.kpi-chip--on {
+  border-color: var(--color-primary);
+  background: var(--lnb-side);
 }
 
 .kpi-chip__lab {
@@ -718,9 +881,36 @@ function onExcelDownload() {
   font-family: inherit;
 }
 
+.toolbar__expand-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .toolbar__btns {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+/* h-pms 이식 — '내 테스트만'을 필터 영역의 토글 스위치가 아니라 WBS 관리 화면의 '내 업무만'과
+   같은 버튼 UI·위치(총건수 옆이 아닌 액션 버튼 그룹 앞)로 통일한다. */
+.toolbar__toggle {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--lnb-side);
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--muted);
+}
+
+.toolbar__toggle--on {
+  background: var(--teal-50);
+  border-color: var(--teal-100);
+  color: var(--teal-600);
+  font-weight: 700;
 }
 
 .case-list {
@@ -739,9 +929,32 @@ function onExcelDownload() {
   pointer-events: none;
 }
 
+/* h-pms 이식 — 계획일 등 컬럼이 좁아 두 줄로 줄바꿈되던 문제를 고정 폭 + 좌우 스크롤로 바꾼다.
+   스크롤은 .case-head 행 단위(.case-head-scroll)에 둔다 — 절차표(.case-body, 테스터가 많으면
+   훨씬 넓다)와 폭을 공유하지 않기 위해서다. */
+.case-head-scroll {
+  overflow-x: auto;
+}
+
+/* 실제 스크롤 가능 영역은 행마다 있지만, 화면에 보이는 스크롤바는 라벨 행(--master) 것 하나만
+   남기고 나머지는 숨긴다. 스크롤 위치는 onCaseHeadScrollCapture가 동기화하므로 라벨 행
+   스크롤바 하나만 움직여도 전체가 같이 따라간다. */
+.case-head-scroll:not(.case-head-scroll--master) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.case-head-scroll:not(.case-head-scroll--master)::-webkit-scrollbar {
+  display: none;
+}
+
 .case-head {
   display: grid;
-  grid-template-columns: 28px 36px 72px 64px 1.2fr 88px 80px 1fr 120px 40px 56px 48px 64px 40px 56px 100px 84px;
+  grid-template-columns:
+    28px 36px 72px 64px minmax(180px, 1.2fr) 88px 80px minmax(160px, 1fr)
+    160px 52px 56px 48px 64px 40px 56px 100px 84px;
+  /* 컬럼 폭 합계만큼은 줄어들지 않는다 — 좁아지면 컬럼이 찌그러지는 대신 좌우 스크롤이 뜬다. */
+  min-width: 1480px;
   gap: 6px;
   align-items: center;
   width: 100%;
@@ -752,6 +965,15 @@ function onExcelDownload() {
   font-size: calc(11px + var(--font-size-offset, 0px));
   text-align: left;
   cursor: pointer;
+}
+
+.case-head--labels {
+  cursor: default;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .case-head__info-btn {
@@ -841,17 +1063,61 @@ function onExcelDownload() {
 .result-sel.err { border-color: var(--red); color: var(--red); }
 .result-sel.wait { color: var(--muted); }
 
-.link-btn {
+/* h-pms 이식 — 등록/조회는 같은 오류를 여는 버튼 하나다. 높이는 옆 결과 셀렉트(.result-sel)와
+   맞춘 28px 고정이라 절차 줄바꿈으로 행 높이가 달라져도 버튼 크기는 흔들리지 않는다. */
+.err-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 76px;
+  padding: 0 4px;
   border: none;
   background: none;
-  color: var(--teal-600);
-  font-weight: 700;
   cursor: pointer;
+  font-family: inherit;
   font-size: calc(11px + var(--font-size-offset, 0px));
+  font-weight: 700;
+}
+
+.err-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.err-btn--register {
+  color: var(--teal-600);
+}
+
+.err-btn--register:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.err-btn--lookup {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.err-btn--lookup:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 .error-actions {
   text-align: center;
+}
+
+.no-tester {
+  margin: 0;
+  padding: 14px 16px;
+  color: var(--muted);
+  font-size: calc(13px + var(--font-size-offset, 0px));
+  background: var(--field);
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+}
+
+.no-tester b {
+  color: var(--ink);
 }
 
 .fix-tag {

@@ -9,6 +9,17 @@
   color: var(--teal-600);
 }
 
+/* 박스 없는 한 줄 안내 — 모달 본문 첫 줄 설명 등. 전역 `.notice`(teal 박스)를 그대로 쓰면 아래
+   내용까지 강조가 겹치는 자리용 — h-pms 이식 (2026-09-02) */
+.notice--plain {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 /* 아이콘이 있는 안내 배너("!" 원형 + 문구) — h-pms 대시보드 4종 정렬용 이식 (2026-08-27) */
 .notice.has-icon { display: flex; gap: 8px; align-items: flex-start; }
 .notice__icon {
@@ -249,6 +260,38 @@
   cursor: not-allowed;
 }
 
+/* HpPagination 'prev-next' 모드의 n / m 표기 — h-pms 이식 (2026-09-02). 종전엔 이 클래스에
+   전역 정의가 없어 화면마다 있거나 없거나 했다. */
+.pager__info {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* HpPagination 기본('numbers') 모드 — h-pms 이식 (2026-09-02). 이 클래스에 전역 정의가 없어
+   HpPagination을 쓰는 화면마다 번호 버튼이 스타일 없이 노출되고 있었다. */
+.pager__pg {
+  min-width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pager__pg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pager__pg--on {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--color-text-inverse);
+  font-weight: 700;
+}
+
 /* KPI 카드 */
 .kpi-card {
   padding: var(--space-lg);
@@ -406,4 +449,76 @@
   outline: none;
   font-size: calc(var(--font-size-sm) + var(--font-size-offset, 0px));
   background: transparent;
+}
+
+/* 화면/카드 진입: fade + subtle translate — h-pms 이식 (2026-09-02) */
+.hp-anim-enter {
+  animation: hp-fade-up var(--duration-enter) var(--ease-out-soft) both;
+}
+
+@keyframes hp-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * progress fill: 렌더 직후 width를 0으로 두고 다음 프레임에 target width로 바꾸면
+ * 0 → target draw가 발생한다(각 화면의 barsFilled 패턴과 함께 쓴다).
+ */
+.hp-anim-progress,
+.hp-anim-progress > i,
+.hp-anim-progress.hbar__fill,
+.hp-anim-progress .hbar__fill {
+  transition: width var(--duration-progress) var(--ease-out-soft);
+  will-change: width;
+}
+
+/* chart/gauge/donut 진입 준비 */
+.hp-anim-chart {
+  animation: hp-chart-in var(--duration-chart) var(--ease-out-soft) both;
+}
+
+@keyframes hp-chart-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82) rotate(-50deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* SVG stroke draw 준비. --hp-chart-len/--hp-chart-offset을 JS에서 path 길이에 맞게 세팅 후
+   .is-drawn을 토글한다. */
+.hp-anim-chart-draw {
+  stroke-dasharray: var(--hp-chart-len, 1);
+  stroke-dashoffset: var(--hp-chart-offset, 1);
+  transition: stroke-dashoffset var(--duration-chart) var(--ease-out-soft);
+}
+
+.hp-anim-chart-draw.is-drawn {
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-anim-enter,
+  .hp-anim-chart {
+    animation: none !important;
+  }
+
+  .hp-anim-progress,
+  .hp-anim-progress > i,
+  .hp-anim-progress.hbar__fill,
+  .hp-anim-progress .hbar__fill,
+  .hp-anim-chart-draw {
+    transition: none !important;
+    will-change: auto;
+  }
 }

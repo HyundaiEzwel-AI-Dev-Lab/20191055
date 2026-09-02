@@ -1,5 +1,8 @@
 <script setup>
 // PAG-M-SYS-05 화면(메뉴) 관리
+// h-pms 최신본 정렬: 시스템을 표 컬럼이 아니라 좌측 패널로 뺀다(공통코드 관리와 같은 구조).
+// 좌측에서 시스템 하나를 고르면 표는 그 시스템 화면만 다룬다 — 행에서 시스템을 바꾸는 경로는
+// 없다(신규 행도 좌측에서 고른 시스템으로 만든다). 업무구분은 표 안 select + 상단 필터로 남긴다.
 import { computed, ref, watch } from 'vue'
 import {
   menuMgmtMeta,
@@ -16,26 +19,13 @@ import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200]
 
-const systemFilterOptions = computed(() => [
-  { value: '', label: '전체' },
-  ...systemOptions.map((s) => ({ value: s, label: s })),
-])
+const selectedSystem = ref(systemOptions[0])
 
 const filters = ref({
   keyword: '',
-  systemCode: 'HIMS',
-  workCategoryCode: '고객사/제도',
+  workCategoryCode: '',
   screenCode: '',
   screenPath: '',
-})
-
-const selectedSystem = computed({
-  get: () => filters.value.systemCode,
-  set: (v) => { filters.value.systemCode = v },
-})
-const selectedBiz = computed({
-  get: () => filters.value.workCategoryCode,
-  set: (v) => { filters.value.workCategoryCode = v },
 })
 
 const bizList = computed(() => bizCategoriesBySystem[selectedSystem.value] || [])
@@ -44,16 +34,17 @@ const workCategoryFilterOptions = computed(() => [
   ...bizList.value.map((b) => ({ value: b, label: b })),
 ])
 
-watch(selectedSystem, (sys) => {
-  const list = bizCategoriesBySystem[sys] || []
-  selectedBiz.value = list.includes('고객사/제도') ? '고객사/제도' : list[0] || ''
-})
+function selectGroupSystem(code) {
+  if (selectedSystem.value === code) return
+  selectedSystem.value = code
+  filters.value.workCategoryCode = ''
+}
 
 function toDraftRow(row, systemCode, biz) {
   return {
     id: row.id,
     screenCode: row.id,
-    systemCode: systemCode || null,
+    systemCode,
     workCategoryCode: row.bizCategory || biz || null,
     screenPath: row.path || '',
     screenName: row.name || '',
@@ -73,15 +64,16 @@ const markedForDelete = ref([])
 let newRowSeq = 0
 
 function loadDraftRows() {
-  const sys = filters.value.systemCode || 'HIMS'
-  const biz = filters.value.workCategoryCode || bizList.value[0] || ''
-  draftRows.value = getScreenCodes(sys, biz).map((r) => toDraftRow(r, sys, biz))
+  const sys = selectedSystem.value
+  // 업무구분을 고르지 않으면(전체) 그 시스템의 업무구분 전부를 모아 보여준다.
+  const bizTargets = filters.value.workCategoryCode ? [filters.value.workCategoryCode] : bizList.value
+  draftRows.value = bizTargets.flatMap((biz) => getScreenCodes(sys, biz).map((r) => toDraftRow(r, sys, biz)))
   selectedCodes.value = []
   markedForDelete.value = []
   currentPage.value = 1
 }
 
-watch([() => filters.value.systemCode, () => filters.value.workCategoryCode], loadDraftRows, { immediate: true })
+watch([selectedSystem, () => filters.value.workCategoryCode], loadDraftRows, { immediate: true })
 
 const filteredDraft = computed(() => {
   const f = filters.value
@@ -119,8 +111,7 @@ function search() {
 function resetFilters() {
   filters.value = {
     keyword: '',
-    systemCode: 'HIMS',
-    workCategoryCode: '고객사/제도',
+    workCategoryCode: '',
     screenCode: '',
     screenPath: '',
   }
@@ -145,8 +136,8 @@ function addRow() {
   draftRows.value.unshift({
     id: -newRowSeq,
     screenCode: '',
-    systemCode: filters.value.systemCode || null,
-    workCategoryCode: filters.value.workCategoryCode || null,
+    systemCode: selectedSystem.value,
+    workCategoryCode: null,
     screenPath: '',
     screenName: '',
     active: true,
@@ -219,25 +210,17 @@ function saveAll() {
   window.alert('저장했습니다.')
 }
 
-function onSystemChanged(row) {
-  if (!row.workCategoryCode) return
-  const allowed = bizCategoriesBySystem[row.systemCode] || []
-  if (!allowed.includes(row.workCategoryCode)) row.workCategoryCode = allowed[0] || null
-}
-
-function workCategoriesForRow(row) {
-  return (bizCategoriesBySystem[row.systemCode] || []).map((b) => ({ code: b, name: b }))
-}
-
 function onExcelDownload() {
-  mockExcelDownload(`화면코드_${filters.value.systemCode}_${filters.value.workCategoryCode}`, filteredDraft.value, [
+  mockExcelDownload(`화면코드_${selectedSystem.value}_${filters.value.workCategoryCode || '전체'}`, filteredDraft.value, [
     { key: 'screenCode', label: '화면코드' },
-    { key: 'screenName', label: '화면명' },
+    { key: 'workCategoryCode', label: '업무구분' },
     { key: 'screenPath', label: '화면경로' },
+    { key: 'screenName', label: '화면명' },
     { key: 'active', label: '사용여부' },
     { key: 'createdByName', label: '등록자' },
     { key: 'createdAt', label: '등록일시' },
     { key: 'updatedByName', label: '수정자' },
+    { key: 'updatedAt', label: '수정일시' },
   ])
 }
 </script>
@@ -246,14 +229,9 @@ function onExcelDownload() {
   <main class="menu-mgmt-page admin-page hp-anim-enter">
     <div class="notice">ⓘ {{ menuMgmtMeta.notice }}</div>
 
+    <!-- 시스템은 좌측 패널이 맡는다 — 같은 조건을 두 곳에서 고르면 어느 쪽이 이겼는지 안 보인다. -->
     <SearchFilterBar :show-search="false" @reset="resetFilters" @search="search">
       <template #primary>
-        <FilterSelectPill
-          v-model="filters.systemCode"
-          class="sfb-w-md"
-          label="시스템코드"
-          :options="systemFilterOptions"
-        />
         <FilterSelectPill
           v-model="filters.workCategoryCode"
           class="sfb-w-md"
@@ -284,113 +262,124 @@ function onExcelDownload() {
       </template>
     </SearchFilterBar>
 
-    <div class="toolbar">
-      <span class="toolbar__count">화면코드 · 총 <b>{{ filteredDraft.length }}</b>건</span>
-      <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
-        <option v-for="n in PAGE_SIZE_OPTIONS" :key="n" :value="n">{{ n }}건씩 보기</option>
-      </select>
-      <div class="toolbar__actions">
-        <button type="button" class="btn btn--ghost btn--sm" @click="addRow">＋</button>
-        <button type="button" class="btn btn--ghost btn--sm" @click="removeSelected">－</button>
-        <button type="button" class="btn btn--primary btn--sm" @click="saveAll">저장</button>
-        <ExcelDownloadButton @click="onExcelDownload" />
+    <div class="admin-split">
+      <aside class="card card--panel admin-side">
+        <div class="admin-side__head">
+          <h3 class="admin-side__title">시스템</h3>
+        </div>
+        <div class="admin-side__scroll">
+          <button
+            v-for="s in systemOptions"
+            :key="s"
+            type="button"
+            class="admin-side__item"
+            :class="{ 'is-on': s === selectedSystem }"
+            @click="selectGroupSystem(s)"
+          >
+            {{ s }}
+          </button>
+        </div>
+      </aside>
+
+      <div class="admin-main">
+        <div class="toolbar">
+          <span class="toolbar__count">
+            <b>{{ selectedSystem }}</b> · 화면코드 총 <b>{{ filteredDraft.length }}</b>건
+          </span>
+          <select v-model="pageSize" class="hp-pagesize-select" @change="currentPage = 1">
+            <option v-for="n in PAGE_SIZE_OPTIONS" :key="n" :value="n">{{ n }}건씩 보기</option>
+          </select>
+          <div class="toolbar__actions">
+            <button type="button" class="btn btn--ghost btn--sm" @click="addRow">＋</button>
+            <button type="button" class="btn btn--ghost btn--sm" @click="removeSelected">－</button>
+            <button type="button" class="btn btn--primary btn--sm" @click="saveAll">저장</button>
+            <ExcelDownloadButton @click="onExcelDownload" />
+          </div>
+        </div>
+
+        <div class="listcard card--panel">
+          <div class="listcard__scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
+                  <th>화면코드</th>
+                  <th>업무구분</th>
+                  <th>화면경로</th>
+                  <th>화면명</th>
+                  <th>사용여부</th>
+                  <th>등록자</th>
+                  <th>등록일시</th>
+                  <th>수정자</th>
+                  <th>수정일시</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in visibleRows"
+                  :key="rowKey(row)"
+                  :class="{ 'is-marked-delete': markedForDelete.includes(row.screenCode) }"
+                >
+                  <td class="cell--center">
+                    <input
+                      type="checkbox"
+                      :disabled="row.systemManaged"
+                      :checked="selectedCodes.includes(rowKey(row))"
+                      @change="toggleSelect(rowKey(row))"
+                    />
+                  </td>
+                  <td class="cell--center">
+                    <span v-if="row.isNew" class="tbl__muted">저장 시 자동 채번</span>
+                    <template v-else>
+                      <span class="tbl__name">{{ row.screenCode }}</span>
+                      <span v-if="row.systemManaged" class="badge badge--ok" title="연동 화면 — 사용여부 변경/삭제 불가">연동</span>
+                    </template>
+                  </td>
+                  <td class="cell--center">
+                    <!-- 시스템이 좌측에서 이미 정해져 신규 행도 업무구분을 바로 고를 수 있다. -->
+                    <select v-model="row.workCategoryCode" class="cell-select cell-select--category">
+                      <option :value="null">미분류</option>
+                      <option v-for="b in bizList" :key="b" :value="b">{{ b }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input v-model="row.screenPath" class="cell-input" type="text" placeholder="화면경로 입력" />
+                  </td>
+                  <td>
+                    <input v-model="row.screenName" class="cell-input" type="text" placeholder="화면명 입력" />
+                  </td>
+                  <td class="cell--center">
+                    <select
+                      v-model="row.active"
+                      class="cell-select cell-select--flag"
+                      :class="{ 'is-off': !row.active }"
+                      :disabled="row.systemManaged"
+                    >
+                      <option :value="true">Y</option>
+                      <option :value="false">N</option>
+                    </select>
+                  </td>
+                  <td class="cell--center">{{ row.createdByName ?? '-' }}</td>
+                  <td class="tbl__muted cell--center">{{ row.createdAt ?? '-' }}</td>
+                  <td class="cell--center">{{ row.updatedByName ?? '-' }}</td>
+                  <td class="tbl__muted cell--center">{{ row.updatedAt ?? '-' }}</td>
+                </tr>
+                <tr v-if="!visibleRows.length">
+                  <td colspan="10" class="empty">화면코드가 없습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
       </div>
     </div>
-
-    <div class="listcard card--panel">
-      <div class="listcard__scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width: 36px"><input type="checkbox" @change="toggleSelectAll" /></th>
-              <th>화면코드</th>
-              <th>시스템</th>
-              <th>업무구분</th>
-              <th>화면경로</th>
-              <th>화면명</th>
-              <th>사용여부</th>
-              <th>등록자</th>
-              <th>등록일시</th>
-              <th>수정자</th>
-              <th>수정일시</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in visibleRows"
-              :key="rowKey(row)"
-              :class="{ 'is-marked-delete': markedForDelete.includes(row.screenCode) }"
-            >
-              <td class="cell--center">
-                <input
-                  type="checkbox"
-                  :disabled="row.systemManaged"
-                  :checked="selectedCodes.includes(rowKey(row))"
-                  @change="toggleSelect(rowKey(row))"
-                />
-              </td>
-              <td class="cell--center">
-                <span v-if="row.isNew" class="tbl__muted">저장 시 자동 채번</span>
-                <template v-else>
-                  <span class="tbl__name">{{ row.screenCode }}</span>
-                  <span v-if="row.systemManaged" class="badge badge--ok" title="연동 화면 — 사용여부 변경/삭제 불가">연동</span>
-                </template>
-              </td>
-              <td class="cell--center">
-                <select v-model="row.systemCode" class="cell-select" @change="onSystemChanged(row)">
-                  <option :value="null">미지정</option>
-                  <option v-for="s in systemOptions" :key="s" :value="s">{{ s }}</option>
-                </select>
-              </td>
-              <td class="cell--center">
-                <select
-                  v-model="row.workCategoryCode"
-                  class="cell-select cell-select--category"
-                  :disabled="row.isNew && !row.systemCode"
-                >
-                  <option v-if="row.isNew && !row.systemCode" :value="null">시스템 선택 후 지정</option>
-                  <template v-else>
-                    <option :value="null">미분류</option>
-                    <option v-for="c in workCategoriesForRow(row)" :key="c.code" :value="c.code">{{ c.name }}</option>
-                  </template>
-                </select>
-              </td>
-              <td>
-                <input v-model="row.screenPath" class="cell-input" type="text" placeholder="화면경로 입력" />
-              </td>
-              <td>
-                <input v-model="row.screenName" class="cell-input" type="text" placeholder="화면명 입력" />
-              </td>
-              <td class="cell--center">
-                <select
-                  v-model="row.active"
-                  class="cell-select cell-select--flag"
-                  :class="{ 'is-off': !row.active }"
-                  :disabled="row.systemManaged"
-                >
-                  <option :value="true">Y</option>
-                  <option :value="false">N</option>
-                </select>
-              </td>
-              <td class="cell--center">{{ row.createdByName ?? '-' }}</td>
-              <td class="tbl__muted cell--center">{{ row.createdAt ?? '-' }}</td>
-              <td class="cell--center">{{ row.updatedByName ?? '-' }}</td>
-              <td class="tbl__muted cell--center">{{ row.updatedAt ?? '-' }}</td>
-            </tr>
-            <tr v-if="!visibleRows.length">
-              <td colspan="11" class="empty">화면코드가 없습니다.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
   </main>
 </template>
 
 <style scoped>
-.menu-mgmt-page { font-size: 13px; }
+.menu-mgmt-page { font-size: calc(13px + var(--font-size-offset)); }
 .tbl__name { font-weight: 600; }
 .tbl__muted { color: var(--lnb-muted); }
 .cell--center { text-align: center; }
@@ -399,4 +388,16 @@ function onExcelDownload() {
 .cell-select--category { width: 170px; min-width: 170px; max-width: 170px; text-overflow: ellipsis; }
 .cell-select--flag { width: 52px; min-width: 52px; max-width: 52px; padding: 0 2px 0 6px; }
 .is-marked-delete { opacity: 0.45; text-decoration: line-through; }
+
+/* 좌측 시스템 목록. 공통코드 관리(CommonCodeView.vue)와 같은 값이다 — 카드는 고정, 안쪽만 스크롤. */
+.admin-side__scroll {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  padding: 4px 4px 8px;
+}
+.admin-side__item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--teal);
+  border-radius: var(--radius-sm, 4px);
+}
 </style>

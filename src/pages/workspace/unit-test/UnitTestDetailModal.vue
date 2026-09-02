@@ -6,14 +6,19 @@ import BaseModal from '@/shared/ui/BaseModal.vue'
 import BaseTooltip from '@/shared/ui/BaseTooltip.vue'
 import {
   actionStatusValues,
+  defectGradeOptions,
   defectStatusClass,
   testResultClass,
 } from '@/shared/lib/testConfig'
-import { unitTestResultSegments } from '@/entities/unit-test/mock/unitTest'
 
 const ATTACH_MAX_COUNT = 3
 const ATTACH_MAX_SIZE = 10 * 1024 * 1024
 const ATTACH_ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+const ATTACH_HINT = '등록 가능 확장자: jpg, png, word, excel, ppt, pptx · 최대 3개, 개당 10MB 이하'
+// 단위테스트 결과 중 사용자가 절차별로 직접 고를 수 있는 값('대기'는 미착수 상태라 되돌리는
+// 선택지를 따로 두지 않는다) — h-pms STEP_RESULT_OPTIONS와 동일 구성.
+const STEP_RESULT_OPTIONS = ['정상', '오류', '테스트불가', '개선필요']
+const DEFECT_GRADES = defectGradeOptions.filter((g) => g !== '전체')
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -24,37 +29,60 @@ const emit = defineEmits(['close', 'save'])
 
 const router = useRouter()
 
-const overallResult = ref('대기')
 const memo = ref('')
 const procedure = ref('')
 const expected = ref('')
+const steps = ref([])
 const attachments = ref([])
 const defects = ref([])
 
+const defectTitle = ref('')
+const defectGrade = ref('Minor')
+const defectContent = ref('')
 const defectActionStatus = ref('')
-const defectResult = ref('')
+
+/** 테스트 제외 처리된 케이스는 조회만 가능하다 — 목록에서 딤 처리되는 것과 같은 조건. */
+const readonly = computed(() => !!props.row?.excluded)
+const readonlyMessage = '이 케이스는 테스트 제외 처리되어 조회만 가능합니다.'
 
 watch(
   () => props.row,
   (row) => {
     if (!row) return
-    overallResult.value = row.testResult || '대기'
     memo.value = row.memo || ''
-    procedure.value = row.steps?.[0]?.procedure || ''
-    expected.value = row.steps?.[0]?.expected || ''
+    steps.value = row.steps?.map((s) => ({ ...s })) || []
+    procedure.value = steps.value[0]?.procedure || ''
+    expected.value = steps.value[0]?.expected || ''
     attachments.value = row.attachments?.map((a) => ({ ...a })) || []
     defects.value = row.defects?.map((d) => ({ ...d })) || []
-    const last = defects.value[defects.value.length - 1]
-    defectActionStatus.value = last?.status || ''
-    defectResult.value = last?.result || ''
+    defectTitle.value = ''
+    defectGrade.value = 'Minor'
+    defectContent.value = ''
+    defectActionStatus.value = ''
   },
   { immediate: true },
 )
 
 const segmentClass = (val) => testResultClass(val)
 
-function setOverallResult(val) {
-  overallResult.value = val
+/** 절차별 결과에서 파생되는 전체 결과 — 전부 정상이면 정상, 오류가 하나라도 있으면 오류 순. */
+const overallResult = computed(() => {
+  const results = steps.value.map((s) => s.result).filter(Boolean)
+  if (!results.length) return props.row?.testResult || '대기'
+  if (results.every((r) => r === '정상')) return '정상'
+  if (results.some((r) => r === '오류')) return '오류'
+  if (results.some((r) => r === '테스트불가')) return '테스트불가'
+  if (results.some((r) => r === '개선필요')) return '개선필요'
+  return '대기'
+})
+
+const hasErrorOrImprove = computed(() =>
+  steps.value.some((s) => s.result === '오류' || s.result === '개선필요'),
+)
+
+function setStepResult(step, val) {
+  if (readonly.value) return
+  step.result = val
 }
 
 function goRequirement() {
@@ -95,45 +123,60 @@ function onAttachmentChange(event) {
 }
 
 function removeAttachment(id) {
+  if (readonly.value) return
   attachments.value = attachments.value.filter((a) => a.id !== id)
 }
 
-const showDefectSection = computed(
-  () => overallResult.value === '오류' || overallResult.value === '개선필요' || defects.value.length > 0,
-)
-
-const newDefect = computed(() => {
-  if (!showDefectSection.value || !defectActionStatus.value) return null
-  return {
-    status: defectActionStatus.value,
-    result: defectResult.value,
-  }
-})
-
 function save() {
-  if (!overallResult.value || overallResult.value === '대기') {
-    window.alert('테스트 결과를 선택해 주세요.')
-    return
+  if (readonly.value) return
+  if (hasErrorOrImprove.value) {
+    if (!defectTitle.value.trim()) {
+      window.alert('오류/개선필요인 경우 결함 제목을 입력해 주세요.')
+      return
+    }
+    if (!defectActionStatus.value) {
+      window.alert('조치상태를 선택해 주세요.')
+      return
+    }
+    if (!defectContent.value.trim()) {
+      window.alert('오류 내용을 입력해 주세요.')
+      return
+    }
   }
-  if (!procedure.value.trim() || !expected.value.trim()) {
+  const proc = procedure.value.trim()
+  const exp = expected.value.trim()
+  if ((proc && !exp) || (!proc && exp)) {
     window.alert('절차와 예상결과를 모두 입력해 주세요.')
     return
   }
-  if (
-    (overallResult.value === '오류' || overallResult.value === '개선필요') &&
-    !defectActionStatus.value
-  ) {
-    window.alert('조치상태를 선택해 주세요.')
+  if (!proc && !steps.value.length) {
+    window.alert('절차와 예상결과를 입력해 주세요.')
     return
   }
   if (!window.confirm('단위테스트 결과를 저장하시겠습니까?')) return
+
+  const nextSteps = steps.value.map((s) => ({ ...s }))
+  if (nextSteps.length) {
+    nextSteps[0].procedure = proc
+    nextSteps[0].expected = exp
+  } else if (proc) {
+    nextSteps.push({ no: 1, procedure: proc, expected: exp, result: '대기' })
+  }
+
   emit('save', {
     testResult: overallResult.value,
     memo: memo.value,
-    steps: [{ no: 1, procedure: procedure.value, expected: expected.value, result: overallResult.value }],
+    steps: nextSteps,
     attachments: attachments.value,
     defects: defects.value,
-    defect: newDefect.value,
+    defect: hasErrorOrImprove.value
+      ? {
+          title: defectTitle.value.trim(),
+          grade: defectGrade.value,
+          status: defectActionStatus.value,
+          content: defectContent.value.trim(),
+        }
+      : null,
   })
   emit('close')
 }
@@ -147,58 +190,66 @@ function save() {
     @close="$emit('close')"
   >
     <template v-if="row">
-      <section class="box">
-        <h4 class="box__title">단위테스트 범위정보</h4>
-        <div class="detail-grid">
-          <div class="detail-item">
-            <span class="detail-label">시스템/업무</span>
-            <span class="detail-value">{{ row.systemPath }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">업무구분</span>
-            <span class="detail-value">{{ row.bizCategory }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">메뉴명</span>
-            <span class="detail-value">{{ row.menuName || '-' }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">화면명</span>
-            <span class="detail-value">{{ row.screenName }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">화면경로</span>
-            <span class="detail-value">{{ row.screenPath }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">요구사항명</span>
-            <button
-              v-if="row.requirementId"
-              type="button"
-              class="link-btn detail-link"
-              @click="goRequirement"
-            >
-              {{ row.requirementName }}
-            </button>
-            <span v-else class="detail-value">{{ row.requirementName || '-' }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">업무유형</span>
-            <span class="detail-value">{{ row.taskType }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">담당자</span>
-            <span class="detail-value">{{ row.assignee }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">난이도</span>
-            <span class="detail-value">{{ row.difficulty }}</span>
-          </div>
+      <p v-if="readonly" class="notice notice--plain">{{ readonlyMessage }}</p>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">화면명</span>
+          <span class="detail-value">{{ row.screenName }}</span>
         </div>
+        <div class="detail-item">
+          <span class="detail-label">화면경로</span>
+          <span class="detail-value">{{ row.screenPath }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">메뉴명</span>
+          <span class="detail-value">{{ row.menuName || '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">요구사항명</span>
+          <button
+            v-if="row.requirementId"
+            type="button"
+            class="link-btn detail-link"
+            @click="goRequirement"
+          >
+            {{ row.requirementName }}
+          </button>
+          <span v-else class="detail-value">{{ row.requirementName || '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">시스템/업무</span>
+          <span class="detail-value">{{ row.systemPath }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">업무구분</span>
+          <span class="detail-value">{{ row.bizCategory }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">업무유형</span>
+          <span class="detail-value">{{ row.taskType }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">담당자</span>
+          <span class="detail-value">{{ row.assignee }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">난이도</span>
+          <span class="detail-value">{{ row.difficulty }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">최종실행일</span>
+          <span class="detail-value">{{ row.lastExecutedAt || '-' }}</span>
+        </div>
+      </div>
+
+      <section class="box">
+        <h4 class="box__title">테스트 결과</h4>
+        <span class="badge" :class="`badge--${segmentClass(overallResult)}`">{{ overallResult }}</span>
       </section>
 
       <section class="box">
-        <h4 class="box__title">테스트내용</h4>
+        <h4 class="box__title">절차 / 예상결과 <span class="req">*</span></h4>
         <div class="form-block">
           <label>절차 <span class="req">*</span></label>
           <textarea
@@ -206,6 +257,7 @@ function save() {
             class="inp textarea"
             rows="2"
             maxlength="1000"
+            :disabled="readonly"
             placeholder="테스트 절차를 입력하세요"
           />
         </div>
@@ -216,35 +268,56 @@ function save() {
             class="inp textarea"
             rows="2"
             maxlength="1000"
+            :disabled="readonly"
             placeholder="예상결과를 입력하세요"
           />
         </div>
+
+        <p v-if="!steps.length" class="empty-hint">
+          절차를 입력하고 저장하면 아래에 결과를 입력할 행이 생깁니다.
+        </p>
+        <table v-else class="step-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>절차</th>
+              <th>예상결과</th>
+              <th>결과</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="step in steps" :key="step.no">
+              <td class="center">{{ step.no }}</td>
+              <td>{{ step.procedure }}</td>
+              <td>{{ step.expected }}</td>
+              <td>
+                <div class="segments">
+                  <button
+                    v-for="opt in STEP_RESULT_OPTIONS"
+                    :key="opt"
+                    type="button"
+                    class="seg"
+                    :class="[`seg--${segmentClass(opt)}`, { active: step.result === opt }]"
+                    :disabled="readonly"
+                    @click="setStepResult(step, opt)"
+                  >
+                    {{ opt }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section class="box">
-        <h4 class="box__title">테스트 수행</h4>
-        <div class="segments">
-          <button
-            v-for="opt in unitTestResultSegments"
-            :key="opt"
-            type="button"
-            class="seg"
-            :class="[`seg--${segmentClass(opt)}`, { active: overallResult === opt }]"
-            @click="setOverallResult(opt)"
-          >
-            {{ opt }}
-          </button>
-        </div>
-
-        <div class="form-block">
-          <label>메모</label>
-          <textarea v-model="memo" class="inp textarea" rows="2" placeholder="테스트 메모" />
-        </div>
-
         <div class="attach-head">
-          <label>첨부파일</label>
-          <BaseTooltip text="등록 가능 확장자: jpg, png, word, excel, ppt, pptx · 최대 3개, 개당 10MB 이하" />
-          <label v-if="attachments.length < ATTACH_MAX_COUNT" class="btn btn--ghost btn--sm attach-add">
+          <h4 class="box__title">첨부파일</h4>
+          <BaseTooltip :text="ATTACH_HINT" />
+          <label
+            v-if="attachments.length < ATTACH_MAX_COUNT && !readonly"
+            class="btn btn--ghost btn--sm attach-add"
+          >
             + 파일 추가
             <input type="file" multiple accept=".jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.ppt,.pptx" class="attach-add__input" @change="onAttachmentChange" />
           </label>
@@ -253,59 +326,99 @@ function save() {
           <li v-for="file in attachments" :key="file.id">
             <span class="attach-name">{{ file.name }}</span>
             <span class="attach-meta">{{ file.size }} · {{ file.uploadedAt }}</span>
-            <button type="button" class="link-btn" @click="removeAttachment(file.id)">삭제</button>
+            <button type="button" class="link-btn" :disabled="readonly" @click="removeAttachment(file.id)">삭제</button>
           </li>
         </ul>
         <p v-else class="empty-hint">첨부된 파일이 없습니다.</p>
       </section>
 
-      <section v-if="showDefectSection" class="box defect-section">
+      <section v-if="hasErrorOrImprove || defects.length" class="box defect-section">
         <h4 class="box__title">결함처리</h4>
 
-        <div class="form-block">
-          <label>조치상태 <span class="req">*</span></label>
-          <div class="segments">
-            <button
-              v-for="s in actionStatusValues"
-              :key="s"
-              type="button"
-              class="seg"
-              :class="[`seg--${defectStatusClass(s)}`, { active: defectActionStatus === s }]"
-              @click="defectActionStatus = s"
-            >
-              {{ s }}
-            </button>
+        <div v-if="hasErrorOrImprove" class="defect-form">
+          <div class="form-block">
+            <label>결함 제목 <span class="req">*</span></label>
+            <input v-model="defectTitle" type="text" class="inp" :disabled="readonly" placeholder="결함 제목" />
           </div>
-        </div>
-        <div class="form-block">
-          <label>결과입력</label>
-          <textarea v-model="defectResult" class="inp textarea" rows="2" placeholder="처리 결과를 입력하세요" />
+          <div class="form-block">
+            <label>등급</label>
+            <div class="segments">
+              <button
+                v-for="g in DEFECT_GRADES"
+                :key="g"
+                type="button"
+                class="seg"
+                :class="{ active: defectGrade === g }"
+                :disabled="readonly"
+                @click="defectGrade = g"
+              >
+                {{ g }}
+              </button>
+            </div>
+          </div>
+          <div class="form-block">
+            <label>내용 <span class="req">*</span></label>
+            <textarea v-model="defectContent" class="inp textarea" rows="2" :disabled="readonly" placeholder="오류 내용을 입력하세요" />
+          </div>
+          <div class="form-block">
+            <label>조치상태 <span class="req">*</span></label>
+            <div class="segments">
+              <button
+                v-for="s in actionStatusValues"
+                :key="s"
+                type="button"
+                class="seg"
+                :class="[`seg--${defectStatusClass(s)}`, { active: defectActionStatus === s }]"
+                :disabled="readonly"
+                @click="defectActionStatus = s"
+              >
+                {{ s }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <table v-if="defects.length" class="defect-table">
           <thead>
             <tr>
+              <th>등급</th>
+              <th>제목</th>
+              <th>내용</th>
               <th>조치상태</th>
-              <th>결과</th>
               <th>등록일</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="d in defects" :key="d.id">
+              <td class="grade">{{ d.grade || '-' }}</td>
+              <td>{{ d.title || '-' }}</td>
+              <td class="defect-table__content">{{ d.content || '-' }}</td>
               <td>
                 <span class="badge" :class="`badge--${defectStatusClass(d.status)}`">{{ d.status }}</span>
               </td>
-              <td>{{ d.result || '-' }}</td>
               <td>{{ d.registeredAt }}</td>
             </tr>
           </tbody>
         </table>
       </section>
+
+      <div class="form-block">
+        <label>메모</label>
+        <textarea v-model="memo" class="inp textarea" rows="3" :disabled="readonly" placeholder="테스트 메모" />
+      </div>
     </template>
 
     <template #footer>
       <button type="button" class="btn btn--ghost" @click="$emit('close')">닫기</button>
-      <button type="button" class="btn btn--primary" @click="save">테스트수행 결과 등록</button>
+      <button
+        type="button"
+        class="btn btn--primary"
+        :disabled="readonly"
+        :title="readonly ? readonlyMessage : ''"
+        @click="save"
+      >
+        저장
+      </button>
     </template>
   </BaseModal>
 </template>
@@ -329,6 +442,7 @@ function save() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 16px;
+  margin-bottom: 16px;
 }
 
 .detail-item {
@@ -362,7 +476,6 @@ function save() {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 10px;
 }
 
 .seg {
@@ -374,6 +487,11 @@ function save() {
   font-family: inherit;
   cursor: pointer;
   color: var(--ink-2);
+}
+
+.seg:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .seg.active {
@@ -414,6 +532,12 @@ function save() {
   font-size: calc(12px + var(--font-size-offset, 0px));
 }
 
+.inp:disabled,
+.textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .textarea {
   height: auto;
   padding: 8px 10px;
@@ -427,10 +551,8 @@ function save() {
   margin-bottom: 8px;
 }
 
-.attach-head label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
+.attach-head .box__title {
+  margin: 0;
 }
 
 .attach-add {
@@ -476,10 +598,7 @@ function save() {
   color: var(--muted);
 }
 
-.defect-section {
-  background: var(--teal-50);
-}
-
+.step-table,
 .defect-table {
   width: 100%;
   border-collapse: collapse;
@@ -487,14 +606,40 @@ function save() {
   margin-top: 4px;
 }
 
+.step-table th,
+.step-table td,
 .defect-table th,
 .defect-table td {
   padding: 6px 8px;
   border: 1px solid var(--line);
 }
 
+.step-table th,
 .defect-table th {
   background: var(--field);
+  font-weight: 600;
+}
+
+.center {
+  text-align: center;
+}
+
+.defect-table__content {
+  max-width: 320px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.defect-section {
+  background: var(--teal-50);
+}
+
+.defect-form {
+  margin-bottom: 10px;
+}
+
+.grade {
+  color: var(--teal-600);
   font-weight: 600;
 }
 
@@ -520,5 +665,10 @@ function save() {
   cursor: pointer;
   font-size: calc(11px + var(--font-size-offset, 0px));
   margin-left: auto;
+}
+
+.link-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

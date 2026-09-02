@@ -1,6 +1,6 @@
 <script setup>
 // PAG-S-WBS-01/08 WBS 관리
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   wbsMeta,
@@ -48,6 +48,8 @@ const filters = ref({
   progressStatus: ['전체'],
   scheduleCompliance: '전체',
   showExcluded: false,
+  // PAG-S-WBS-01 1-8: 공정률 기준일 — 비우면 오늘(wbsMockToday) 기준. "조회"를 눌러야 재계산된다.
+  baseDate: '',
 })
 
 const appliedFilters = ref({
@@ -66,7 +68,24 @@ const restartTarget = ref(null)
 const showBulkScheduleModal = ref(false)
 const bulkTargets = ref([])
 const showCopyAlert = ref(false)
+const copyTargets = ref([])
 const showSaveAlert = ref(false)
+
+// 업무상세 아코디언 — 평소 한 줄 말줄임, 클릭하면 여러 줄로 펼쳐지고 포커스를 잃으면 다시 접힌다.
+const expandedDetailKey = ref(null)
+let detailTextareaEl = null
+function setDetailTextarea(el) {
+  detailTextareaEl = el
+}
+async function expandDetail(row) {
+  if (row.excluded || row.status === '취소') return
+  expandedDetailKey.value = row.id
+  await nextTick()
+  detailTextareaEl?.focus()
+}
+function collapseDetail() {
+  expandedDetailKey.value = null
+}
 
 const calYear = ref(2026)
 const calMonth = ref(4)
@@ -93,6 +112,9 @@ const filterTags = computed(() => {
   }
   if (f.scheduleCompliance && f.scheduleCompliance !== '전체') {
     tags.push({ key: 'scheduleCompliance', label: '계획준수', value: f.scheduleCompliance })
+  }
+  if (f.baseDate) {
+    tags.push({ key: 'baseDate', label: '공정률 기준일', value: f.baseDate })
   }
   if (filters.value.showExcluded) {
     tags.push({ key: 'showExcluded', label: '표시', value: '제외 포함' })
@@ -156,11 +178,22 @@ function resetFilters() {
     progressStatus: ['전체'],
     scheduleCompliance: '전체',
     showExcluded: false,
+    baseDate: '',
   }
   appliedFilters.value = {
     ...filters.value,
     progressStatus: [...filters.value.progressStatus],
   }
+  recomputeExecProgress('')
+}
+
+// 공정률 기준일이 바뀌면 "조회"를 눌러야 실행공정률이 재계산된다(계획일/실행일 필터와 달리
+// 서버 재계산 성격이라 즉시 반영하지 않는다) — calcExecProgress가 이미 기준일 파라미터를 받는다.
+function recomputeExecProgress(baseDate) {
+  const today = baseDate || wbsMockToday
+  tasks.value.forEach((t) => {
+    if (t.status === '진행중') t.execProgress = calcExecProgress(t, today)
+  })
 }
 
 function search() {
@@ -168,6 +201,7 @@ function search() {
     ...filters.value,
     progressStatus: [...filters.value.progressStatus],
   }
+  recomputeExecProgress(filters.value.baseDate)
   statusFilterOpen.value = false
 }
 
@@ -180,6 +214,8 @@ function removeFilterTag(key) {
     filters.value.scheduleCompliance = '전체'
   } else if (key === 'keyword') {
     filters.value.keyword = ''
+  } else if (key === 'baseDate') {
+    filters.value.baseDate = ''
   } else if (key === 'showExcluded') {
     filters.value.showExcluded = false
     return
@@ -311,9 +347,13 @@ function onRestart(row) {
   showRestartModal.value = true
 }
 
-function onRestartConfirm(row) {
+function onRestartConfirm(row, correctedEnd) {
   row.status = '진행중'
-  if (row.correctedPlanEnd) row.planEnd = row.correctedPlanEnd
+  // 모달이 미리보기(correctedText)에 쓴 보정값을 그대로 받아 적용한다 — 예정보다 일찍
+  // 재착수하면 미실현 홀딩일수만큼 당겨야 하는데, row.correctedPlanEnd(홀딩 전량 반영)를
+  // 그대로 쓰면 화면에 보여준 날짜와 실제 반영값이 어긋난다.
+  if (correctedEnd) row.planEnd = correctedEnd
+  else if (row.correctedPlanEnd) row.planEnd = row.correctedPlanEnd
   row.execProgress = calcExecProgress(row)
   row.changedAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
   row.changedBy = '김현대'
@@ -333,6 +373,15 @@ function onScheduleChange() {
   if (selectedRows.value.some((row) => row.status === '완료')) {
     window.alert('완료한 업무의 일정은 변경할 수 없습니다.')
     return
+  }
+  if (selectedRows.value.length > 1) {
+    // h-pms 확정(PAG-S-WBS-01/POP-S-WBS-05 17-2): 계획일정 등록 건과 미등록 건이 섞이면 다건
+    // 일정변경을 막는다 — 미등록 건은 승인 없이 즉시 반영돼 등록 건과 결과가 갈린다.
+    const unregistered = selectedRows.value.filter((row) => !row.planStart && !row.planEnd).length
+    if (unregistered > 0 && unregistered < selectedRows.value.length) {
+      window.alert('일정이 등록된 업무만 변경 가능합니다. 계획일정 미등록 업무를 선택에서 제외한 뒤 다시 시도하세요.')
+      return
+    }
   }
   bulkTargets.value = [...selectedRows.value]
   showBulkScheduleModal.value = true
@@ -354,54 +403,82 @@ function onStatusClick(row) {
   showReasonModal.value = true
 }
 
+// h-pms 확정(WBS_작업계획서.md §2-10): 완료(실행종료일 있음) 업무와 기획·테스트(프로젝트 설정
+// 정본) 업무는 작업제외 대상에서 제외한다 — 종전 목업은 "이미 진행 중" 여부만 물어보고 통과시켰다.
 function onExclude() {
   if (!selectedRows.value.length) {
     window.alert('작업제외할 업무를 선택하세요.')
     return
   }
-  const inProgress = selectedRows.value.filter((row) => row.planStart || row.assignee)
-  if (inProgress.length) {
-    const ok = window.confirm(
-      `선택한 업무 중 ${inProgress.length}건은 이미 진행 중입니다. 작업제외 처리하시겠습니까?`,
+  const eligible = selectedRows.value.filter((row) => !row.excluded && !row.execEnd)
+  const targets = eligible.filter((row) => row.taskType !== '기획' && row.taskType !== '테스트')
+  if (!targets.length) {
+    window.alert(
+      eligible.length ? '기획·테스트 업무는 작업제외 대상이 아닙니다.' : '작업제외 가능한 업무가 없습니다.',
     )
-    if (!ok) return
+    return
   }
-  selectedRows.value.forEach((row) => {
+  if (!window.confirm(`선택한 업무 ${targets.length}건을 작업제외 처리하시겠습니까? (되돌릴 수 없습니다)`)) return
+  targets.forEach((row) => {
     row.excluded = true
     row.status = '취소'
   })
+  filters.value.showExcluded = true
   selectedIds.value = new Set()
 }
 
+// h-pms 확정(BR-16): 담당자가 지정된 업무만 복사할 수 있고, 테스트 업무는 복사 대상이 아니다
+// (담당자별 행은 별도 정책으로 관리된다).
 function onCopy() {
   if (!selectedRows.value.length) {
     window.alert('복사할 업무단위를 선택하세요.')
     return
   }
+  if (selectedRows.value.every((row) => row.taskType === '테스트')) {
+    window.alert('테스트 업무는 복사할 수 없습니다.')
+    return
+  }
+  const targets = selectedRows.value.filter((row) => !!row.assignee && row.taskType !== '테스트')
+  if (!targets.length) {
+    window.alert('담당자가 지정된 업무만 복사할 수 있습니다.')
+    return
+  }
+  copyTargets.value = targets
   showCopyAlert.value = true
 }
 
+// h-pms 확정 — 엑셀 컬럼을 목록 표와 같은 구성(11칸)으로 맞춘다. 계획일/실행일은 미등록·미실행
+// 대체표기까지 화면 셀과 동일해야 보던 표와 파일이 일치한다.
 function onExcelDownload() {
   mockExcelDownload('WBS 관리', filteredTasks.value, [
-    { key: 'wbsId', label: 'WBS ID' },
-    { key: 'systemPath', label: '시스템경로' },
+    { key: 'systemPath', label: '시스템 > 업무구분' },
     { key: 'taskName', label: '업무명' },
     { key: 'taskDetail', label: '업무상세' },
     { key: 'taskType', label: '업무유형' },
     { key: 'assigneeDisplay', label: '담당자' },
-    { key: 'status', label: '상태' },
-    { key: 'planStart', label: '계획시작' },
-    { key: 'planEnd', label: '계획종료' },
-    { key: 'execStart', label: '실행시작' },
-    { key: 'execEnd', label: '실행종료' },
-    { key: 'planProgress', label: '계획공정률(%)' },
-    { key: 'execProgress', label: '실행공정률(%)' },
-    { key: 'scheduleStatus', label: '일정상태' },
+    { key: 'difficulty', label: '난이도' },
+    {
+      key: 'plan',
+      label: '계획일',
+      value: (row) =>
+        !row.planStart && !row.planEnd
+          ? '미등록'
+          : `${formatDateShort(row.planStart)} ~ ${formatDateShort(row.planEnd)}`,
+    },
+    {
+      key: 'exec',
+      label: '실행일',
+      value: (row) =>
+        !row.execStart ? '미실행' : `${formatDateShort(row.execStart)} ~ ${formatDateShort(row.execEnd)}`,
+    },
+    { key: 'planProgress', label: '계획공정률', value: (row) => `${row.planProgress}%` },
+    { key: 'execProgress', label: '실행공정률', value: (row) => `${row.execProgress}%` },
+    { key: 'status', label: '상태', value: (row) => statusLabel(row) },
   ])
 }
 
 function confirmCopy() {
-  const copies = selectedRows.value.map((row, i) => ({
+  const copies = copyTargets.value.map((row, i) => ({
     ...JSON.parse(JSON.stringify(row)),
     id: `w-copy-${Date.now()}-${i}`,
     wbsId: `WBS-${String(tasks.value.length + i + 1).padStart(3, '0')}`,
@@ -421,6 +498,7 @@ function confirmCopy() {
   }))
   tasks.value.push(...copies)
   showCopyAlert.value = false
+  copyTargets.value = []
   selectedIds.value = new Set()
 }
 
@@ -429,9 +507,6 @@ function onSave() {
   showSaveAlert.value = true
 }
 
-function onCalendarSelect(task) {
-  onScheduleClick(task)
-}
 </script>
 
 <template>
@@ -441,29 +516,17 @@ function onCalendarSelect(task) {
         WBS 관리
         <BaseTooltip :text="wbsMeta.hint" />
       </h1>
-      <div class="view-toggle">
+      <div class="view-toggle-row">
+        <!-- h-pms 확정(2026-08-26): 막대 없이 퍼센트 숫자만 크게 보여준다. -->
         <span class="wbs__progress">
           총 공정률
-          <span class="progress-bar">
-            <span class="progress-bar__fill" :style="{ width: `${totalProgress}%` }">{{ totalProgress }}%</span>
-          </span>
+          <span class="wbs__progress-value">{{ totalProgress }}%</span>
         </span>
-        <button
-          type="button"
-          class="view-toggle__btn"
-          :class="{ 'view-toggle__btn--on': viewMode === 'list' }"
-          @click="viewMode = 'list'"
-        >
-          목록형
-        </button>
-        <button
-          type="button"
-          class="view-toggle__btn"
-          :class="{ 'view-toggle__btn--on': viewMode === 'calendar' }"
-          @click="viewMode = 'calendar'"
-        >
-          캘린더형
-        </button>
+        <!-- h-pms 확정(2026-08-26): 내업무(InboxView) 목록/캘린더 토글과 같은 세그먼트 UI로 통일. -->
+        <div class="view-toggle">
+          <button type="button" :class="{ 'is-active': viewMode === 'list' }" @click="viewMode = 'list'">목록형</button>
+          <button type="button" :class="{ 'is-active': viewMode === 'calendar' }" @click="viewMode = 'calendar'">캘린더형</button>
+        </div>
       </div>
     </div>
 
@@ -512,6 +575,15 @@ function onCalendarSelect(task) {
         />
       </template>
       <template #expand>
+        <!-- PAG-S-WBS-01 1-8: 공정률 기준일. 비우면 오늘 기준이며, 다른 필터와 달리 재계산이라
+             "조회"를 눌러야 반영된다. -->
+        <div class="sfb-check-group">
+          <span class="sfb-check-group__label">공정률 기준일</span>
+          <div class="sfb-date-group">
+            <input v-model="filters.baseDate" type="date" class="sfb-date-input" />
+            <button v-if="filters.baseDate" type="button" class="sfb-date-clear" @click="filters.baseDate = ''">오늘로</button>
+          </div>
+        </div>
         <div class="sfb-check-group">
           <span class="sfb-check-group__label">표시</span>
           <label class="sfb-check">
@@ -592,13 +664,30 @@ function onCalendarSelect(task) {
                 />
               </td>
               <td>
+                <!-- h-pms 확정 §2-6 아코디언 — 평소 한 줄 말줄임, 클릭하면 여러 줄로 펼쳐지고
+                     포커스를 잃으면 다시 접힌다. -->
                 <textarea
+                  v-if="expandedDetailKey === row.id"
+                  :ref="setDetailTextarea"
                   v-model="row.taskDetail"
-                  class="task-detail-input"
-                  rows="1"
+                  class="task-detail-input task-detail-input--expanded"
                   maxlength="1000"
+                  rows="3"
                   @change="onTaskFieldChange(row)"
+                  @blur="collapseDetail"
                 />
+                <button
+                  v-else
+                  type="button"
+                  class="task-detail-input task-detail-input--collapsed"
+                  :disabled="row.excluded || row.status === '취소'"
+                  @click="expandDetail(row)"
+                >
+                  {{ row.taskDetail || '' }}
+                </button>
+                <span v-if="expandedDetailKey === row.id" class="task-detail-counter">
+                  {{ row.taskDetail.length }}/1000자
+                </span>
               </td>
               <td>
                 <select
@@ -638,8 +727,11 @@ function onCalendarSelect(task) {
                   :disabled="row.excluded || row.status === '취소'"
                   @click="onScheduleClick(row)"
                 >
-                  <span>{{ formatDateShort(row.planStart) }}</span>
-                  <span>{{ formatDateShort(row.planEnd) }}</span>
+                  <span v-if="!row.planStart && !row.planEnd">미등록</span>
+                  <template v-else>
+                    <span>{{ formatDateShort(row.planStart) }}</span>
+                    <span>{{ formatDateShort(row.planEnd) }}</span>
+                  </template>
                 </button>
               </td>
               <td>
@@ -649,8 +741,11 @@ function onCalendarSelect(task) {
                   :disabled="row.excluded || row.status === '취소'"
                   @click="onScheduleClick(row)"
                 >
-                  <span>{{ formatDateShort(row.execStart) }}</span>
-                  <span>{{ formatDateShort(row.execEnd) }}</span>
+                  <span v-if="!row.execStart">미실행</span>
+                  <template v-else>
+                    <span>{{ formatDateShort(row.execStart) }}</span>
+                    <span>{{ formatDateShort(row.execEnd) }}</span>
+                  </template>
                 </button>
               </td>
               <td>
@@ -686,9 +781,8 @@ function onCalendarSelect(task) {
               </td>
             </tr>
             <tr v-if="!filteredTasks.length">
-              <td colspan="12" class="empty-row">
-                {{ tasks.length ? '조회 결과가 없습니다.' : '등록된 WBS 업무가 없습니다.' }}
-              </td>
+              <!-- CR-COMP-010 공통 Empty State 문구(h-pms 확정) — 다른 목록 화면과 같은 문장을 쓴다. -->
+              <td colspan="12" class="empty-row">조회 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -701,7 +795,6 @@ function onCalendarSelect(task) {
       v-model:year="calYear"
       v-model:month="calMonth"
       :tasks="filteredTasks"
-      @select="onCalendarSelect"
     />
 
     <WbsScheduleModal
@@ -766,29 +859,40 @@ function onCalendarSelect(task) {
   flex-wrap: wrap;
 }
 
-.view-toggle {
+.view-toggle-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.view-toggle__btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--lnb-side);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
-  color: var(--ink-2);
+/* h-pms 확정(2026-08-26) — 내업무(InboxView) 목록/캘린더 토글과 같은 세그먼트 UI. */
+.view-toggle {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--lnb-hover);
+  border: 1px solid var(--lnb-line);
+  border-radius: 999px;
 }
 
-.view-toggle__btn--on {
-  background: var(--teal-50);
-  border-color: var(--teal-100);
-  color: var(--teal-600);
+.view-toggle button {
+  padding: 7px 17px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-size: calc(13.5px + var(--font-size-offset, 0px));
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--lnb-muted);
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.view-toggle button.is-active {
+  background: var(--lnb-side);
+  box-shadow: var(--shadow-sm);
   font-weight: 700;
+  color: var(--lnb-logo);
 }
 
 .wbs__progress {
@@ -804,30 +908,11 @@ function onCalendarSelect(task) {
   white-space: nowrap;
 }
 
-.progress-bar {
-  display: inline-block;
-  position: relative;
-  width: 160px;
-  height: 30px;
-  flex-shrink: 0;
-  border: 1px solid var(--ink-2);
-  border-radius: 10px;
-  background: var(--lnb-side);
-  overflow: hidden;
-}
-
-.progress-bar__fill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-width: 28px;
-  background: linear-gradient(180deg, var(--muted), var(--ink-2));
-  border-right: 1px solid var(--ink-2);
-  color: var(--color-text-inverse, #fff);
-  font-size: calc(13px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  white-space: nowrap;
+/* h-pms 확정(2026-08-26) — 막대 없이 퍼센트 숫자만 크게. */
+.wbs__progress-value {
+  font-size: calc(20px + var(--font-size-offset, 0px));
+  font-weight: 800;
+  color: var(--teal-600);
 }
 
 .card {
@@ -1041,8 +1126,31 @@ function onCalendarSelect(task) {
   resize: vertical;
 }
 
-.task-detail-input:focus {
+/* h-pms 확정 §2-6 아코디언 — 접힘(버튼, 한 줄 말줄임)/펼침(textarea) 상태 */
+.task-detail-input--collapsed {
+  display: block;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.task-detail-input--collapsed:disabled {
+  cursor: default;
+  color: var(--lnb-muted);
+}
+
+.task-detail-input--expanded {
   height: 64px;
+}
+
+.task-detail-counter {
+  display: block;
+  margin-top: 2px;
+  font-size: calc(10px + var(--font-size-offset, 0px));
+  color: var(--muted);
+  text-align: right;
 }
 
 .assignee-select {
@@ -1103,6 +1211,35 @@ function onCalendarSelect(task) {
   font-size: calc(13px + var(--font-size-offset, 0px));
   font-weight: 500;
   color: var(--lnb-logo);
+  cursor: pointer;
+}
+
+.sfb-date-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sfb-date-input {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--sfb-line, var(--line));
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: calc(12px + var(--font-size-offset, 0px));
+  background: var(--lnb-side);
+  color: var(--lnb-logo);
+}
+
+.sfb-date-clear {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--lnb-side);
+  font-family: inherit;
+  font-size: calc(11px + var(--font-size-offset, 0px));
+  color: var(--teal-600);
   cursor: pointer;
 }
 

@@ -11,12 +11,14 @@ import {
   pageSizeOptions,
   defectStatusClass,
 } from '@/shared/lib/testConfig'
-import { getDefectList, matchDefectFilters, computeDefectKpi } from '@/entities/defect/mock/testDefect'
+import { getDefectList, matchDefectFilters } from '@/entities/defect/mock/testDefect'
 import ErrorDetailModal from '@/pages/workspace/test/defects/ErrorDetailModal.vue'
 import ExcelDownloadButton from '@/shared/ui/ExcelDownloadButton.vue'
 import SearchFilterBar from '@/shared/ui/SearchFilterBar.vue'
 import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
 import FilterTextPill from '@/shared/ui/FilterTextPill.vue'
+import FilterDateRange from '@/shared/ui/FilterDateRange.vue'
+import HpPagination from '@/shared/ui/HpPagination.vue'
 import { mockExcelDownload } from '@/shared/file-excel/excelDownload'
 import { useAuthStore } from '@/app/stores/auth'
 
@@ -32,8 +34,12 @@ const filters = ref({
   grade: '전체',
   deployStatus: '전체',
   bizCategory: '전체',
+  system: '전체',
   tester: '',
   assignee: '',
+  title: '',
+  registeredFrom: '',
+  registeredTo: '',
 })
 const appliedFilters = ref({ ...filters.value })
 const pageSize = ref(20)
@@ -43,11 +49,32 @@ const filterExpanded = ref(false)
 const detailTarget = ref(null)
 const showDetail = ref(false)
 
+/** matchDefectFilters(엔티티 mock 소유)가 다루지 않는 조건 — mock 파일은 수정 대상이 아니라
+ * 여기서만 추가로 거른다. system은 systemPath 첫 세그먼트('FO>...')로 판정한다. */
+function matchExtraFilters(row, f) {
+  if (f.system && f.system !== '전체' && (row.systemPath || '').split('>')[0] !== f.system) return false
+  if (f.title?.trim() && !row.title.includes(f.title.trim())) return false
+  if (f.registeredFrom && row.registeredAt.slice(0, 10) < f.registeredFrom) return false
+  if (f.registeredTo && row.registeredAt.slice(0, 10) > f.registeredTo) return false
+  return true
+}
+
 const filteredList = computed(() =>
-  rows.value.filter((row) => matchDefectFilters(row, appliedFilters.value, config.value)),
+  rows.value.filter(
+    (row) =>
+      matchDefectFilters(row, appliedFilters.value, config.value) && matchExtraFilters(row, appliedFilters.value),
+  ),
 )
 
-const kpi = computed(() => computeDefectKpi(filteredList.value))
+/** 목록의 '등록자(최종확인자)' — 등록한 테스터와, 조치확인(수정완료/재처리요청/DEV확인/운영확인)을
+ * 실제로 남긴 사람이 다를 때만 괄호로 덧붙인다. */
+const CONFIRM_ACTIONS = ['수정완료', '재처리요청', 'DEV확인', '운영확인']
+function registrantLabel(row) {
+  const registered = row.tester || '-'
+  const confirmed = (row.history || []).find((h) => CONFIRM_ACTIONS.includes(h.action))?.author
+  if (!confirmed || confirmed === registered) return registered
+  return `${registered} (${confirmed})`
+}
 
 const pagedList = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -84,8 +111,12 @@ function resetFilters() {
     grade: '전체',
     deployStatus: '전체',
     bizCategory: '전체',
+    system: '전체',
     tester: '',
     assignee: '',
+    title: '',
+    registeredFrom: '',
+    registeredTo: '',
   }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
@@ -107,15 +138,27 @@ const filterTags = computed(() => {
   if (config.value.showDeployStatus && f.deployStatus && f.deployStatus !== '전체') {
     tags.push({ key: 'deployStatus', label: '배포상태', value: f.deployStatus })
   }
+  if (f.title?.trim()) tags.push({ key: 'title', label: '오류제목', value: f.title })
   if (f.grade && f.grade !== '전체') tags.push({ key: 'grade', label: '오류등급', value: f.grade })
   if (f.bizCategory && f.bizCategory !== '전체') {
     tags.push({ key: 'bizCategory', label: '업무범주', value: f.bizCategory })
+  }
+  if (f.system && f.system !== '전체') tags.push({ key: 'system', label: '시스템', value: f.system })
+  if (f.registeredFrom || f.registeredTo) {
+    tags.push({
+      key: 'registeredRange',
+      label: '오류등록일',
+      value: `${f.registeredFrom || '…'} ~ ${f.registeredTo || '…'}`,
+    })
   }
   return tags
 })
 
 function removeFilterTag(key) {
-  if (key === 'keyword' || key === 'tester' || key === 'assignee') {
+  if (key === 'registeredRange') {
+    filters.value.registeredFrom = ''
+    filters.value.registeredTo = ''
+  } else if (key === 'keyword' || key === 'tester' || key === 'assignee' || key === 'title') {
     filters.value[key] = ''
   } else {
     filters.value[key] = '전체'
@@ -136,6 +179,7 @@ function onExcelDownload() {
   const label = `결함 관리 (${mode.value === 'uat' ? '운영' : 'DEV'})`
   mockExcelDownload(label, filteredList.value, [
     { key: 'defectId', label: '결함ID' },
+    { key: 'round', label: '차수' },
     { key: 'systemPath', label: '시스템/업무/화면경로' },
     { key: 'caseId', label: '케이스' },
     { key: 'caseName', label: '케이스명' },
@@ -177,29 +221,32 @@ function onExcelDownload() {
         <FilterSelectPill v-model="filters.round" label="차수" :options="config.roundOptions" />
       </template>
       <template #expand>
-        <FilterTextPill v-model="filters.assignee" label="조치자" placeholder="조치자" />
+        <FilterTextPill v-model="filters.title" label="오류제목" placeholder="오류제목" fill />
+        <FilterTextPill v-model="filters.assignee" label="조치자" placeholder="조치자" fill />
         <FilterSelectPill
           v-if="config.showDeployStatus"
           v-model="filters.deployStatus"
           label="배포상태"
+          fill
           :options="deployStatusOptions"
         />
-        <FilterSelectPill v-model="filters.grade" label="오류등급" :options="defectGradeOptions" />
-        <FilterSelectPill v-model="filters.bizCategory" label="업무범주" :options="bizCategoryOptions" />
+        <FilterDateRange
+          label="오류등록일"
+          :from="filters.registeredFrom"
+          :to="filters.registeredTo"
+          fill
+          @update:from="filters.registeredFrom = $event"
+          @update:to="filters.registeredTo = $event"
+        />
+        <FilterSelectPill v-model="filters.grade" label="오류등급" fill :options="defectGradeOptions" />
+        <FilterSelectPill v-model="filters.bizCategory" label="업무범주" fill :options="bizCategoryOptions" />
+        <FilterSelectPill v-model="filters.system" label="시스템" fill :options="config.systemOptions" />
       </template>
     </SearchFilterBar>
 
-    <div class="kpi-row">
-      <div class="kpi-card"><span class="kpi-card__lab">접수</span><span class="kpi-card__num">{{ kpi.received }}</span></div>
-      <div class="kpi-card"><span class="kpi-card__lab">처리예정</span><span class="kpi-card__num">{{ kpi.scheduled }}</span></div>
-      <div class="kpi-card kpi-card--ok"><span class="kpi-card__lab">처리완료</span><span class="kpi-card__num">{{ kpi.done }}</span></div>
-      <div class="kpi-card"><span class="kpi-card__lab">오류아님</span><span class="kpi-card__num">{{ kpi.notError }}</span></div>
-      <div class="kpi-card"><span class="kpi-card__lab">수정제외</span><span class="kpi-card__num">{{ kpi.excluded }}</span></div>
-    </div>
-
     <div class="toolbar">
       <span class="toolbar__count">총 <b>{{ filteredList.length }}</b>건</span>
-      <select v-model="pageSize" class="toolbar__mini" @change="currentPage = 1">
+      <select v-model="pageSize" class="hp-pagesize-select" @change="currentPage = 1">
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
       </select>
       <ExcelDownloadButton class="toolbar__excel" @click="onExcelDownload" />
@@ -211,6 +258,7 @@ function onExcelDownload() {
           <thead>
             <tr>
               <th class="col-no">No</th>
+              <th class="col-round">차수</th>
               <th>시스템/업무/화면경로</th>
               <th>화면명</th>
               <th>케이스ID</th>
@@ -232,36 +280,46 @@ function onExcelDownload() {
           </thead>
           <tbody>
             <tr v-for="(row, idx) in pagedList" :key="row.id">
-              <td class="col-no">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
+              <td class="col-no cell--center">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
+              <td class="col-round cell--center">{{ row.round }}</td>
               <td>{{ row.systemPath || '-' }}</td>
               <td>{{ row.screenName }}</td>
-              <td>{{ row.caseId }}</td>
+              <td class="cell--center">{{ row.caseId }}</td>
               <td>{{ row.caseName }}</td>
-              <td>{{ row.defectId }}</td>
-              <td v-if="config.showOccurrencePhase">{{ row.occurrencePhase }}</td>
-              <td><span class="grade" :class="`grade--${row.grade.toLowerCase()}`">{{ row.grade }}</span></td>
+              <td class="cell--center">{{ row.defectId }}</td>
+              <td v-if="config.showOccurrencePhase" class="cell--center">{{ row.occurrencePhase }}</td>
+              <td class="cell--center">
+                <span class="grade" :class="`grade--${row.grade.toLowerCase()}`">{{ row.grade }}</span>
+              </td>
               <td>
                 <button type="button" class="link-btn" @click="openDetail(row)">{{ row.title }}</button>
               </td>
-              <td>{{ row.tester }}</td>
-              <td>{{ row.registeredAt }}</td>
-              <td>{{ row.result }}</td>
-              <td>
+              <td class="cell--center">{{ registrantLabel(row) }}</td>
+              <td class="cell--center">{{ row.registeredAt }}</td>
+              <td class="cell--center">{{ row.result }}</td>
+              <td class="cell--center">
                 <span class="badge" :class="`badge--${defectStatusClass(row.status)}`">{{ row.status }}</span>
               </td>
-              <td v-if="config.showDeployStatus">{{ row.deployStatus }}</td>
-              <td>{{ row.assignee }}</td>
-              <td>{{ row.dueDate || '-' }}</td>
-              <td>{{ row.updatedBy || '-' }}</td>
-              <td>{{ row.updatedAt || '-' }}</td>
+              <td v-if="config.showDeployStatus" class="cell--center">{{ row.deployStatus }}</td>
+              <td class="cell--center">{{ row.assignee }}</td>
+              <td class="cell--center">{{ row.dueDate || '-' }}</td>
+              <td class="cell--center">{{ row.updatedBy || '-' }}</td>
+              <td class="cell--center">{{ row.updatedAt || '-' }}</td>
             </tr>
             <tr v-if="!pagedList.length">
-              <td :colspan="config.showDeployStatus ? 18 : 17" class="empty">조회 결과가 없습니다.</td>
+              <td
+                :colspan="17 + (config.showOccurrencePhase ? 1 : 0) + (config.showDeployStatus ? 1 : 0)"
+                class="empty"
+              >
+                조회 결과가 없습니다.
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
+    <HpPagination v-model:page="currentPage" :total-pages="totalPages" />
 
     <ErrorDetailModal
       :visible="showDetail"
@@ -272,12 +330,6 @@ function onExcelDownload() {
       @close="showDetail = false"
       @changed="onErrorChanged"
     />
-
-    <div v-if="totalPages > 1" class="pager">
-      <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">이전</button>
-      <span class="pager__info">{{ currentPage }} / {{ totalPages }}</span>
-      <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">다음</button>
-    </div>
   </div>
 </template>
 
@@ -294,37 +346,6 @@ function onExcelDownload() {
   margin: 0 0 14px;
 }
 
-.kpi-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: var(--space-lg);
-}
-
-.kpi-card {
-  flex: 1;
-  min-width: 100px;
-  padding: 10px 14px;
-  background: var(--field);
-  border-radius: 10px;
-}
-
-.kpi-card__lab {
-  display: block;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.kpi-card__num {
-  display: block;
-  font-size: calc(20px + var(--font-size-offset, 0px));
-  font-weight: 700;
-  margin-top: 2px;
-}
-
-.kpi-card--ok .kpi-card__num { color: var(--teal-600); }
-
 .toolbar {
   display: flex;
   align-items: center;
@@ -339,67 +360,25 @@ function onExcelDownload() {
   margin-left: auto;
 }
 
-.toolbar__mini {
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  font-family: inherit;
-}
-
-.listcard {
-  background: var(--lnb-side);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
+/* .listcard/.data-table 배경·테두리·라운드는 shared/styles/components.css 전역 정의를 그대로
+   쓴다 — 가로 스크롤 처리만 이 화면 몫이다. */
 .listcard__scroll { overflow-x: auto; }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-}
-
-.data-table th,
-.data-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.data-table th {
-  background: var(--field);
-  font-weight: 600;
-  text-align: center;
-}
-
-
-.col-no {
-  width: 40px;
-  text-align: center !important;
-}
+.col-no { width: 40px; text-align: center !important; }
+.col-round { width: 52px; text-align: center !important; }
 
 .grade { font-weight: 600; font-size: calc(11px + var(--font-size-offset, 0px)); }
 .grade--critical { color: var(--red); }
 .grade--major { color: var(--orange); }
 .grade--minor { color: var(--gray); }
 
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 600;
-}
-
+/* 조치상태 배지 톤(ok/err/wait/prog/muted)은 defectStatusClass() 전용 이름이라
+   shared/styles/components.css의 공용 뱃지 팔레트(success/warning/danger/info)에는 없다. */
 .badge--ok { background: var(--green-bg); color: var(--green); }
 .badge--err { background: var(--red-bg); color: var(--red); }
 .badge--wait { background: var(--gray-bg); color: var(--gray); }
 .badge--prog { background: var(--blue-bg); color: var(--blue); }
+.badge--muted { background: var(--gray-bg); color: var(--gray); }
 
 .link-btn {
   border: none;
@@ -412,26 +391,4 @@ function onExcelDownload() {
 }
 
 .empty { text-align: center !important; color: var(--muted); padding: 24px !important; }
-
-.pager {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 12px;
-  align-items: center;
-}
-
-.pager__btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--lnb-side);
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.pager__btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.pager__info { font-size: calc(12px + var(--font-size-offset, 0px)); }
 </style>

@@ -33,19 +33,33 @@ const approver = ref('')
 const isDetail = computed(() => props.mode === 'detail')
 const isReadonly = computed(() => props.readonly || isDetail.value)
 
-const planRows = computed(() => rows.value.filter((row) => !row.execEnd))
+// 홀딩 중인 업무는 계획일 변경 탭에서 뺀다(h-pms 2026-08-21 기획 확정 — 재착수 후에만 변경 가능).
+// holdingSince는 "현재 홀딩 중인 상태"(t.holdStart)이고, row.holdStart(아래 built)는 이번에 새로
+// 입력하는 중단 시작일이라 서로 다른 값이다 — 섞어 쓰면 이미 걸린 홀딩 기간이 새 요청 폼에 그대로
+// 떠버린다.
+const planRows = computed(() => rows.value.filter((row) => !row.execEnd && !row.holdingSince))
 const holdRows = computed(() => rows.value.filter((row) => row.execStart && !row.execEnd))
 const activeRows = computed(() => (tab.value === 'plan' ? planRows.value : holdRows.value))
+// 선택 업무에 홀딩 중인 건이 있는지 — 계획일 변경 탭에서 빠진 이유를 안내문으로 알려주기 위함이다.
+const hasHoldingTarget = computed(() => rows.value.some((row) => !row.execEnd && !!row.holdingSince))
 const count = computed(() => activeRows.value.length)
 const isMulti = computed(() => count.value > 1)
 const isOther = computed(() => String(reason.value).includes('기타'))
 const plannerOptions = computed(() => assigneeOptions.기획 || [])
 const collaboratorEnabled = computed(() => !isMulti.value && plannerOptions.value.length >= 2)
+// h-pms BULK_ALLOWED_*_REASON_CODES — 다건 변경은 사전 조율 전제라 사유를 "선행 업무 일정 변경"/
+// "기타"로만 좁힌다. '착수일 미체크'(과거일 허용 예외)는 다건에서 제외돼 다건은 항상 과거 불가가 된다.
+const BULK_ALLOWED_HOLD_REASONS = ['선행 업무 일정 변경', '기타(직접입력)']
 const reasonOptions = computed(() => {
-  if (tab.value === 'hold') return holdChangeReasons
-  return isMulti.value ? bulkPlanChangeReasons : planChangeReasons
+  if (tab.value === 'hold') {
+    return isMulti.value ? holdChangeReasons.filter((r) => BULK_ALLOWED_HOLD_REASONS.includes(r)) : holdChangeReasons
+  }
+  return isMulti.value ? bulkPlanChangeReasons.filter((r) => r !== '착수일 미체크') : planChangeReasons
 })
 const bypassStartLock = computed(() => reason.value === '착수일 미체크')
+// BR-24 — 변경 시작일은 과거로 잡을 수 없다. 예외는 '착수일 미체크' 사유뿐이다.
+const needsFutureStart = computed(() => !bypassStartLock.value)
+const startMinValue = computed(() => (bypassStartLock.value ? undefined : wbsMockToday))
 
 watch(
   () => [props.modelValue, props.tasks, props.mode],
@@ -59,11 +73,14 @@ watch(
       ...t,
       changeStart: t.planStart || '',
       changeEnd: t.planEnd || '',
-      holdStart: t.holdStart || '',
-      holdEnd: t.holdEnd || '',
+      holdStart: '',
+      holdEnd: '',
+      // 이미 걸려 있는 홀딩의 중단 시작일(현재 상태) — 입력값(holdStart)이 아니라 계획일 변경
+      // 탭 제외 판정에만 쓴다.
+      holdingSince: t.status === '홀딩' ? (t.holdStart ?? null) : null,
     }))
     rows.value = built
-    const hasPlanTarget = built.some((row) => !row.execEnd)
+    const hasPlanTarget = built.some((row) => !row.execEnd && !row.holdingSince)
     const hasHoldTarget = built.some((row) => row.execStart && !row.execEnd)
     tab.value = !hasPlanTarget && hasHoldTarget ? 'hold' : 'plan'
   },
@@ -97,6 +114,13 @@ function restartInfo(row) {
 
 function holdStartMin(row) {
   return row.execStart && row.execStart > wbsMockToday ? row.execStart : wbsMockToday
+}
+
+// 중단 시작일 상한 — 중단 종료일과 계획종료일 중 이른 쪽(계획종료일이 지난 뒤 홀딩이 필요하면
+// 계획일정을 먼저 변경해야 한다, 2026-08-21 기획 확정). 중단 종료일에는 상한이 없다.
+function holdStartMax(row) {
+  const limits = [row.holdEnd, row.planEnd].filter(Boolean)
+  return limits.length ? limits.reduce((a, b) => (a < b ? a : b)) : undefined
 }
 
 function onTabChange(next) {
@@ -145,6 +169,11 @@ function submit() {
         window.alert(`${row.wbsId}: 종료일은 시작일 이후여야 합니다.`)
         return
       }
+      // BR-24 이중 방어 — 달력 :min을 우회한 경우(사유를 나중에 바꿈, 수기 입력)를 여기서 막는다.
+      if (!isStartLocked(row) && needsFutureStart.value && start && start < wbsMockToday) {
+        window.alert(`${row.wbsId}: 과거 일자는 '착수일 미체크' 사유에서만 입력할 수 있습니다.`)
+        return
+      }
     }
     if (
       !window.confirm(
@@ -189,6 +218,14 @@ function submit() {
       }
       if (row.holdStart < wbsMockToday) {
         window.alert(`${row.wbsId}: 중단 시작일은 오늘 이전일 수 없습니다.`)
+        return
+      }
+      // 홀딩은 계획일정 안에서 시작해야 한다(2026-08-21 기획 확정). 종료일은 계획종료일을 넘어도
+      // 된다 — 그만큼 밀린다.
+      if (row.planEnd && row.holdStart > row.planEnd) {
+        window.alert(
+          `${row.wbsId}: 중단 시작일은 계획종료일(${row.planEnd}) 이후로 지정할 수 없습니다. 계획일정을 먼저 변경하세요.`,
+        )
         return
       }
     }
@@ -249,7 +286,7 @@ function submit() {
     </div>
     <p v-else class="detail-tab-label">{{ tab === 'hold' ? '실행 홀딩' : '계획일 변경' }}</p>
 
-    <ul class="guide">
+    <ul class="guide notice">
       <template v-if="isDetail">
         <li>승인자를 바꾸려면 요청을 취소하고 다시 요청하세요.</li>
         <li v-if="isReadonly">승인 완료된 요청은 수정할 수 없습니다.</li>
@@ -264,6 +301,10 @@ function submit() {
         <li>
           착수 전 업무는 변경 시작일·종료일 모두 입력 가능하고, 착수 후 업무는 종료일만 변경할 수 있습니다(시작일 칸엔 착수일 표시).
         </li>
+        <li v-if="tab === 'plan' && needsFutureStart">변경 시작일은 오늘 이후만 선택할 수 있습니다. 과거 일자는 '착수일 미체크' 사유에서만 입력 가능합니다.</li>
+        <!-- 홀딩 중 업무가 계획일 변경 탭에서 빠지므로(planRows) 왜 안 보이는지 알려준다. -->
+        <li v-if="tab === 'plan' && hasHoldingTarget">홀딩 중인 업무는 계획일정을 변경할 수 없습니다. 재착수 후 요청하세요.</li>
+        <li v-if="tab === 'hold'">중단 시작일은 계획종료일 이후로 지정할 수 없습니다. 홀딩 일수는 주말·공휴일을 제외한 영업일로 산정됩니다.</li>
       </template>
     </ul>
 
@@ -291,7 +332,7 @@ function submit() {
 
     <h3 class="sec-title">변경 대상 (총 {{ count }}건)</h3>
     <div class="table-wrap">
-      <table v-if="tab === 'plan'" class="tbl">
+      <table v-if="tab === 'plan'" class="rows-table data-table">
         <thead>
           <tr>
             <th>업무명</th>
@@ -318,6 +359,7 @@ function submit() {
                 v-model="row.changeStart"
                 class="inp inp--date"
                 type="date"
+                :min="startMinValue"
                 :disabled="isReadonly"
                 @click="$event.target.showPicker?.()"
               />
@@ -339,7 +381,7 @@ function submit() {
         </tbody>
       </table>
 
-      <table v-else class="tbl">
+      <table v-else class="rows-table data-table">
         <thead>
           <tr>
             <th>업무명</th>
@@ -368,6 +410,7 @@ function submit() {
                 class="inp inp--date"
                 type="date"
                 :min="holdStartMin(row)"
+                :max="holdStartMax(row)"
                 :disabled="isReadonly"
                 @click="$event.target.showPicker?.()"
               />
@@ -462,14 +505,11 @@ function submit() {
   cursor: not-allowed;
 }
 
+/* 안내 박스 자체는 전역 .notice가 준다(h-pms 이식). <ul>이라 불릿 들여쓰기만 더한다. */
 .guide {
-  margin: 0 0 14px;
-  padding: 10px 12px 10px 2.2rem;
-  background: var(--teal-50);
-  border-radius: var(--radius-md);
+  padding-left: 2.2rem;
   font-size: calc(11px + var(--font-size-offset, 0px));
   line-height: 1.6;
-  color: var(--teal-700);
 }
 
 .sec-title {
@@ -512,46 +552,36 @@ function submit() {
   border-radius: var(--radius-md);
 }
 
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: calc(11px + var(--font-size-offset, 0px));
+/* 배경·padding·정렬·글자크기는 전역 .data-table이 준다 — 고정 헤더에 필요한 것만 얹는다. */
+.rows-table {
   white-space: nowrap;
 }
 
-.tbl th,
-.tbl td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--lnb-line);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.tbl th {
+.rows-table th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--lnb-hover);
-  font-weight: 600;
-  color: var(--lnb-txt);
-  text-align: center;
 }
 
-.tbl .name {
+.name {
   max-width: 160px;
   white-space: normal;
   word-break: break-word;
 }
 
 .task-detail-cell {
-  min-width: 12rem;
-  max-width: 22rem;
+  min-width: 18rem;
+  max-width: 26rem;
+  width: 28%;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
 .target-cols {
   background: var(--teal-50);
+  width: 1%;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .inp {
@@ -618,8 +648,8 @@ function submit() {
 }
 
 .approval-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 </style>

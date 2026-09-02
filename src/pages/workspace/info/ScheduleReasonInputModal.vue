@@ -35,7 +35,7 @@ function save() {
 
 <template>
   <BaseModal title="일정 변동 사유 입력" :visible="modelValue" @close="close">
-    <p class="notice">
+    <p class="notice notice--plain">
       오픈일이 오픈예정일을 경과하였습니다.<br />
       사유를 입력해 주세요.
     </p>
@@ -80,14 +80,12 @@ function save() {
 .notice {
   margin: 0 0 14px;
   font-size: calc(13px + var(--font-size-offset, 0px));
-  line-height: 1.6;
-  color: var(--lnb-txt);
 }
 
 .info-dl {
   margin: 0 0 14px;
   background: var(--lnb-hover);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -124,10 +122,11 @@ function save() {
 
 .reason-field__input {
   width: 100%;
+  box-sizing: border-box;
   min-height: 96px;
   padding: 10px 12px;
   border: 1px solid var(--lnb-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-family: inherit;
   font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;

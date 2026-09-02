@@ -1,9 +1,12 @@
 <script setup>
 // POP-S-UAT-06 화면(메뉴) 검색 — 시나리오 테스트대상 신규등록/화면 지정용
-import { computed, ref } from 'vue'
+// 2026-09-02 h-pms 이식 — 검색 필드를 FilterSelectPill + 돋보기 검색창으로 통일하고,
+// 열릴 때마다 이전 검색 상태를 리셋한다(h-pms 원본 동작). 페이지 크기 선택은 없애고
+// h-pms처럼 페이지당 10건 고정 번호형 페이지네이션만 남긴다.
+import { computed, ref, watch } from 'vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
-import { screenSearchSystems, searchScreenMenus } from '@/shared/lib/screenMenuSearch'
-import { pageSizeOptions } from '@/shared/lib/commonOptions'
+import FilterSelectPill from '@/shared/ui/FilterSelectPill.vue'
+import { screenSearchSystems as baseSystems, searchScreenMenus } from '@/shared/lib/screenMenuSearch'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -11,29 +14,42 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'select'])
 
-const filters = ref({ system: screenSearchSystems[0], keyword: '' })
+// h-pms 원본 시스템 옵션엔 '전체'가 포함된다 — 로컬 mock(screenMenuSearch.js)엔 없어 화면에서만 앞에 붙인다.
+const ALL_SYSTEMS = '전체'
+const screenSearchSystems = [ALL_SYSTEMS, ...baseSystems]
+const PAGE_SIZE = 10
+
+const filters = ref({ system: ALL_SYSTEMS, keyword: '' })
 const searched = ref(false)
 const rows = ref([])
 const selectedId = ref('')
 const currentPage = ref(1)
-const pageSize = ref(20)
 
-const totalPages = computed(() => Math.max(1, Math.ceil(rows.value.length / pageSize.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(rows.value.length / PAGE_SIZE)))
 const pagedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return rows.value.slice(start, start + pageSize.value)
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return rows.value.slice(start, start + PAGE_SIZE)
 })
 
-function onPageSizeChange() {
-  currentPage.value = 1
-}
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (!open) return
+    filters.value = { system: ALL_SYSTEMS, keyword: '' }
+    searched.value = false
+    rows.value = []
+    selectedId.value = ''
+    currentPage.value = 1
+  },
+)
 
 function close() {
   emit('update:modelValue', false)
 }
 
 function search() {
-  rows.value = searchScreenMenus(filters.value)
+  const system = filters.value.system === ALL_SYSTEMS ? '' : filters.value.system
+  rows.value = searchScreenMenus({ system, keyword: filters.value.keyword })
   searched.value = true
   selectedId.value = ''
   currentPage.value = 1
@@ -57,17 +73,17 @@ function confirm() {
 <template>
   <BaseModal title="화면(메뉴) 검색" :visible="modelValue" wide @close="close">
     <div class="filter">
-      <div class="fld">
-        <label>시스템구분</label>
-        <select v-model="filters.system" class="inp">
-          <option v-for="s in screenSearchSystems" :key="s" :value="s">{{ s }}</option>
-        </select>
-      </div>
-      <div class="fld fld--grow">
-        <label>화면명</label>
+      <!-- 2026-09-02 h-pms 이식 — 모달 안 시스템 셀렉트도 화면 검색영역과 같은 라벨|값 결합
+           알약(FilterSelectPill)으로 통일한다. -->
+      <FilterSelectPill v-model="filters.system" label="시스템구분" :options="screenSearchSystems" />
+      <div class="sfb__search filter__search">
+        <svg class="sfb__search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+          <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
         <input
           v-model="filters.keyword"
-          class="inp"
+          class="sfb__search-input"
           type="text"
           placeholder="화면명 검색"
           @keyup.enter="search"
@@ -85,11 +101,11 @@ function confirm() {
             <thead>
               <tr>
                 <th class="col-radio" />
+                <th>관리번호</th>
                 <th>시스템</th>
                 <th>업무구분</th>
                 <th>화면경로</th>
                 <th>화면명</th>
-                <th>관리번호</th>
               </tr>
             </thead>
             <tbody>
@@ -102,33 +118,28 @@ function confirm() {
                 <td class="col-radio">
                   <input type="radio" name="scenario-screen-pick" :checked="selectedId === row.id" @change="selectRow(row)" />
                 </td>
+                <td>{{ row.id }}</td>
                 <td>{{ row.system }}</td>
                 <td>{{ row.category }}</td>
                 <td>{{ row.path }}</td>
                 <td class="name">{{ row.name }}</td>
-                <td>{{ row.id }}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div class="pager">
-          <select v-model="pageSize" class="pager__size" @change="onPageSizeChange">
-            <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}건씩 보기</option>
-          </select>
-          <div class="pager__nums">
-            <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">‹</button>
-            <button
-              v-for="p in totalPages"
-              :key="p"
-              type="button"
-              class="pager__btn"
-              :class="{ 'pager__btn--on': p === currentPage }"
-              @click="currentPage = p"
-            >
-              {{ p }}
-            </button>
-            <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">›</button>
-          </div>
+          <button type="button" class="pager__btn" :disabled="currentPage <= 1" @click="currentPage -= 1">‹</button>
+          <button
+            v-for="p in totalPages"
+            :key="p"
+            type="button"
+            class="pager__btn"
+            :class="{ 'pager__btn--on': p === currentPage }"
+            @click="currentPage = p"
+          >
+            {{ p }}
+          </button>
+          <button type="button" class="pager__btn" :disabled="currentPage >= totalPages" @click="currentPage += 1">›</button>
         </div>
       </template>
     </div>
@@ -142,39 +153,16 @@ function confirm() {
 <style scoped>
 .filter {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
-.fld {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 140px;
-}
-
-.fld--grow {
+.filter__search {
   flex: 1;
-  min-width: 180px;
-}
-
-.fld label {
-  font-size: calc(11px + var(--font-size-offset, 0px));
-  font-weight: 600;
-  color: var(--lnb-muted);
-}
-
-.inp {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--lnb-line);
-  border-radius: 7px;
-  font-size: calc(12px + var(--font-size-offset, 0px));
-  font-family: inherit;
-  background: var(--lnb-side);
-  color: var(--lnb-txt);
+  max-width: none;
+  min-width: 200px;
 }
 
 .filter__btn {
@@ -183,26 +171,20 @@ function confirm() {
 }
 
 .result {
-  height: 420px;
-  display: flex;
-  flex-direction: column;
   border: 1px solid var(--lnb-line);
   border-radius: 10px;
   overflow: hidden;
 }
 
 .empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 34px 12px;
   text-align: center;
   font-size: calc(12px + var(--font-size-offset, 0px));
   color: var(--lnb-muted);
 }
 
 .table-wrap {
-  flex: 1;
+  max-height: 420px;
   overflow: auto;
 }
 
@@ -252,26 +234,9 @@ function confirm() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 4px;
   padding: 10px;
   border-top: 1px solid var(--lnb-line);
-}
-
-.pager__size {
-  height: 28px;
-  border: 1px solid var(--lnb-line);
-  border-radius: 6px;
-  padding: 0 8px;
-  font-size: calc(11.5px + var(--font-size-offset, 0px));
-  font-family: inherit;
-  background: var(--lnb-side);
-  color: var(--lnb-txt);
-}
-
-.pager__nums {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .pager__btn {

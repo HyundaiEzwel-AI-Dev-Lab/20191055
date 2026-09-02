@@ -15,6 +15,41 @@ const editForm = reactive({
   isNew: false,
 })
 
+// 코드칸 입력 규칙(H-PMS 대응 화면 기준) — 영문·숫자·밑줄만 허용한다.
+const CODE_PATTERN = /^[A-Za-z0-9_]+$/
+
+// 규칙 위반 칸을 빨간색으로 표시하기 위한 표시 집합.
+const invalidFields = ref(new Set())
+
+function markInvalid(field) {
+  invalidFields.value = new Set([...invalidFields.value, field])
+}
+
+function clearInvalid(field) {
+  if (!invalidFields.value.has(field)) return
+  const next = new Set(invalidFields.value)
+  next.delete(field)
+  invalidFields.value = next
+}
+
+// 코드칸은 영문·숫자·밑줄만 받는다 — 저장 시점이 아니라 타이핑 단계에서 걸러낸다.
+function onCodeInput(event) {
+  const input = event.target
+  const filtered = input.value.replace(/[^A-Za-z0-9_]/g, '')
+  if (filtered !== input.value) {
+    input.value = filtered
+    markInvalid('code')
+  } else {
+    clearInvalid('code')
+  }
+  editForm.code = filtered
+}
+
+// 정렬순서 중복은 막지 않는다 — 겹치는 코드가 있으면 알려주기만 한다.
+const sameSortOrderCodes = computed(() =>
+  rows.value.filter((r) => r.sortOrder === editForm.sortOrder && r.code !== editForm.code).map((r) => r.code),
+)
+
 function normalizeRow(row) {
   return {
     id: row.code,
@@ -77,8 +112,20 @@ function closeEdit() {
 }
 
 function save() {
+  invalidFields.value = new Set()
   if (!editForm.code.trim() || !editForm.name.trim()) {
+    if (!editForm.code.trim()) markInvalid('code')
     window.alert('코드와 값을 입력하세요.')
+    return
+  }
+  if (!CODE_PATTERN.test(editForm.code.trim())) {
+    markInvalid('code')
+    window.alert('코드는 영문·숫자·밑줄만 쓸 수 있습니다.')
+    return
+  }
+  if (!Number.isInteger(editForm.sortOrder) || editForm.sortOrder < 1) {
+    markInvalid('sortOrder')
+    window.alert('정렬순서는 1 이상의 정수여야 합니다.')
     return
   }
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
@@ -212,7 +259,16 @@ function save() {
       <div class="modal-grid">
         <div class="modal-field">
           <label>코드</label>
-          <input v-model="editForm.code" class="filter__input" type="text" :disabled="!editForm.isNew" />
+          <input
+            :value="editForm.code"
+            class="filter__input"
+            :class="{ 'is-invalid': invalidFields.has('code') }"
+            type="text"
+            maxlength="20"
+            placeholder="영문·숫자·밑줄"
+            :disabled="!editForm.isNew"
+            @input="onCodeInput"
+          />
         </div>
         <div class="modal-field">
           <label>값</label>
@@ -220,7 +276,19 @@ function save() {
         </div>
         <div class="modal-field">
           <label>정렬순서</label>
-          <input v-model.number="editForm.sortOrder" class="filter__input" type="number" />
+          <input
+            v-model.number="editForm.sortOrder"
+            class="filter__input"
+            :class="{ 'is-invalid': invalidFields.has('sortOrder') }"
+            type="number"
+            min="1"
+            step="1"
+            @input="clearInvalid('sortOrder')"
+          />
+          <!-- 중복은 허용한다. 누가 겹치는지만 알려 준다. -->
+          <p v-if="sameSortOrderCodes.length" class="modal-field__hint">
+            같은 순번({{ editForm.sortOrder }})을 쓰는 코드: {{ sameSortOrderCodes.join(', ') }}
+          </p>
         </div>
         <div v-if="!editForm.isNew" class="modal-field">
           <label>사용여부</label>
@@ -268,6 +336,17 @@ function save() {
 .modal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .modal-field { display: flex; flex-direction: column; gap: 4px; }
 .modal-field label { font-size: 0.78rem; color: var(--lnb-muted); }
+/* 규칙 위반 칸을 빨간색으로 표시한다. */
+.filter__input.is-invalid {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 6%, transparent);
+}
+/* 정렬순서 중복 안내. 오류가 아니라 사실 전달이라 회색이다. */
+.modal-field__hint {
+  margin: 4px 0 0;
+  font-size: calc(12px + var(--font-size-offset));
+  color: var(--muted);
+}
 
 @media (max-width: 1100px) {
   .admin-side__scroll { max-height: 280px; }

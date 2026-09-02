@@ -75,6 +75,10 @@ function acceptFile(file) {
     window.alert('정해진 양식의 엑셀파일만 업로드할 수 있습니다.')
     return
   }
+  if (file.size > 10 * 1024 * 1024) {
+    window.alert('파일 용량은 최대 10MB까지 첨부할 수 있습니다.')
+    return
+  }
   fileName.value = file.name
   const kb = Math.max(1, Math.round(file.size / 1024))
   fileSizeLabel.value = `${kb}KB`
@@ -147,9 +151,9 @@ function onConfirm() {
 </script>
 
 <template>
-  <BaseModal title="일괄 등록 (엑셀 업로드)" :visible="modelValue" wide @close="close">
+  <BaseModal title="요구사항 일괄 등록 (엑셀 업로드)" :visible="modelValue" wide @close="close">
     <p class="guide">
-      정해진 양식의 엑셀파일만 업로드할 수 있습니다.<br />
+      정해진 양식의 엑셀파일만 업로드할 수 있습니다. 파일당 최대 10MB까지 첨부할 수 있습니다.<br />
       파일 업로드 후 유효성 검사 시 실패 건수가 없어야 요구사항을 등록할 수 있습니다.
     </p>
 

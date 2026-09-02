@@ -18,7 +18,7 @@ import { systemOptions, bizCategoryMap, getRequirementList } from '@/entities/re
 import { getWbsTasks } from '@/entities/wbs/mock/wbs'
 import ScheduleReasonInputModal from '@/pages/workspace/info/ScheduleReasonInputModal.vue'
 import TesterChangeModal from '@/features/tester-change/TesterChangeModal.vue'
-import { isJiraAlreadyRegistered } from '@/entities/project/mock/projectRegister'
+import { isJiraAlreadyRegistered, lookupJira } from '@/entities/project/mock/projectRegister'
 import { notifyMentionsInBody } from '@/app/layouts/headerPopups'
 
 const projectStore = useProjectStore()
@@ -62,9 +62,8 @@ const pendingSave = ref(false)
 
 const showIssueForm = ref(false)
 const issueDraft = ref('')
-const showIssueCancelAlert = ref(false)
-const replyTargetId = ref(null)
-const replyDraft = ref('')
+// 이슈별로 항상 열려 있는 답글 입력칸 — issue.id를 키로 쓴다 (h-pms 이식: 토글형 답글 폼 제거)
+const replyDraft = reactive({})
 
 const editingIssueId = ref(null)
 const editingReplyId = ref(null)
@@ -72,7 +71,7 @@ const editDraft = ref('')
 const assigneeSearch = reactive({})
 const assigneeSearchOpen = reactive({})
 
-const mentionTarget = ref(null) // 'issue' | 'reply'
+const mentionTarget = ref(null) // 'issue' | 답글 대상 issue.id
 const mentionQuery = ref('')
 
 const isReadOnly = computed(() => savedStage.value === '완료' || savedStage.value === '반려')
@@ -80,10 +79,66 @@ const showOpenDate = computed(() => form.stage === '완료')
 const memoCount = computed(() => form.memo.length)
 const issueDraftCount = computed(() => issueDraft.value.length)
 const isDevRoundEnabled = computed(() => form.testUsage.includes('DEV테스트'))
+const isStgRoundEnabled = computed(() => form.testUsage.includes('STG테스트'))
 const isUatRoundEnabled = computed(() => form.testUsage.includes('운영테스트'))
-const testUsageLocked = computed(() => isReadOnly.value || form.hasRegisteredTestCases)
 const canEditJira = computed(() => !isReadOnly.value && (isRegistering.value || form.stage === '접수'))
 const mentionResults = computed(() => (mentionTarget.value ? searchMentions(mentionQuery.value) : []))
+
+/** 오픈예정일은 지난 날짜로 새로 고를 수 없다. 다만 이미 지난 날짜로 저장돼 있던 값은 그대로 둔다 */
+const openDateMin = computed(() => {
+  const today = new Date().toLocaleDateString('en-CA')
+  if (!form.scheduledOpenDate) return today
+  return form.scheduledOpenDate < today ? form.scheduledOpenDate : today
+})
+
+const TEST_ROUND_FIELD = { DEV테스트: 'testRoundDev', STG테스트: 'testRoundStg', 운영테스트: 'testRoundUat' }
+
+/** 진행 중인 테스트 보호 — 케이스가 등록된 유형은 사용 해제·차수 축소를 막는다. 늘리는 방향은 항상 열어 둔다 */
+function startedRoundOf(option) {
+  if (!form.hasRegisteredTestCases || option === '단위테스트') return 0
+  if (!form.testUsage.includes(option)) return 0
+  const field = TEST_ROUND_FIELD[option]
+  return field ? Number.parseInt(form[field], 10) || 1 : 0
+}
+
+function isTestUsageLocked(option) {
+  if (option === '단위테스트') return true // 상시 필수 — 해제 불가
+  return isReadOnly.value || startedRoundOf(option) > 0
+}
+
+function isRoundOptionLocked(option, roundLabel) {
+  return Number.parseInt(roundLabel, 10) < startedRoundOf(option)
+}
+
+const lockedTestUsageHint = computed(() => {
+  const locked = testUsageOptions
+    .filter((opt) => opt !== '단위테스트' && startedRoundOf(opt) > 0)
+    .map((opt) => `${opt} ${startedRoundOf(opt)}차`)
+  return locked.length
+    ? `테스트가 진행 중이라 변경할 수 없습니다 — ${locked.join(', ')}까지 케이스가 등록되어 있습니다. 차수를 늘리는 것은 가능합니다.`
+    : ''
+})
+
+/** 완료·반려만 수기 설정. 자동판정 단계는 시스템이 정하므로 안내문만 다르게 보여준다 */
+function stageTitle(stage) {
+  if (stage !== '완료' && stage !== '반려') {
+    return '요구사항 등록/WBS 착수/테스트 수행 여부에 따라 시스템이 자동으로 전환합니다.'
+  }
+  if (isReadOnly.value) return '완료·반려 후에는 다른 상태로 바꿀 수 없습니다.'
+  if (isRegistering.value) return '기본정보를 저장한 뒤에 처리할 수 있습니다.'
+  return undefined
+}
+
+const manualStageHint = computed(() => {
+  if (isReadOnly.value) return '완료·반려된 프로젝트는 상태를 되돌릴 수 없습니다.'
+  if (isRegistering.value) return '완료·반려는 기본정보를 저장한 뒤에 처리할 수 있습니다.'
+  return ''
+})
+
+/** 소속이 비어 있는 담당자 표기 (조직 비활성 등으로 미소속이 될 수 있다) */
+function deptLabel(dept) {
+  return dept && dept.trim() ? dept : '미소속'
+}
 
 const categoryBizOptions = computed(() => {
   if (!categorySystem.value) return []
@@ -147,6 +202,26 @@ watch(() => form.itVoc, (val) => {
   if (cleaned !== val) form.itVoc = cleaned
 })
 
+/** JIRA 번호로 IT-VOC 번호를 조회해 채운다 (목업) */
+function searchJira() {
+  const jira = form.jira.trim()
+  if (!jira) {
+    window.alert('JIRA 번호를 입력해 주세요.')
+    return
+  }
+  if (isJiraAlreadyRegistered(jira)) {
+    window.alert('이미 등록된 JIRA 번호입니다.')
+    return
+  }
+  const result = lookupJira(jira)
+  if (!result) {
+    window.alert('조회된 정보가 없습니다.')
+    return
+  }
+  form.itVoc = result.itVoc
+  window.alert('JIRA 정보를 조회하여 반영했습니다.')
+}
+
 const isRegistering = computed(() => {
   const id = projectStore.currentProject?.id
   return Boolean(id && projectStore.isRegistering(id))
@@ -169,8 +244,7 @@ function resetForm() {
 }
 
 function toggleTestUsage(option) {
-  if (option === '단위테스트') return
-  if (isReadOnly.value || form.hasRegisteredTestCases) return
+  if (isTestUsageLocked(option)) return
   const idx = form.testUsage.indexOf(option)
   if (idx >= 0) form.testUsage.splice(idx, 1)
   else form.testUsage.push(option)
@@ -193,10 +267,10 @@ function validateBeforeSave() {
     if (isJiraAlreadyRegistered(form.jira)) {
       return '이미 등록된 JIRA 번호입니다. 다른 JIRA를 입력해 주세요.'
     }
-    if (!trim(form.itVoc)) return 'IT-VOC 번호를 입력해 주세요.'
   }
 
   if (!trim(form.name)) return '프로젝트명을 입력해 주세요.'
+  if (!trim(form.itVoc)) return 'IT-VOC 번호를 입력해 주세요.'
   if (!form.scheduledOpenDate) return '오픈예정일을 선택해 주세요.'
   if (!form.workCategories.length) return '업무범주를 1개 이상 추가해 주세요.'
   if (!form.initiator) return '발의주체를 선택해 주세요.'
@@ -452,7 +526,6 @@ function cancelEdit() {
 
 function startEditIssue(issue) {
   if (isReadOnly.value || issue.author !== CURRENT_USER_NAME) return
-  cancelReply()
   editingReplyId.value = null
   editingIssueId.value = issue.id
   editDraft.value = issue.body
@@ -467,7 +540,6 @@ function saveEditIssue(issue) {
 
 function startEditReply(reply) {
   if (isReadOnly.value || reply.author !== CURRENT_USER_NAME) return
-  cancelReply()
   editingIssueId.value = null
   editingReplyId.value = reply.id
   editDraft.value = reply.body
@@ -478,20 +550,6 @@ function saveEditReply(reply) {
   reply.body = editDraft.value.trim()
   reply.updatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
   cancelEdit()
-}
-
-function startReplyIssue(issue) {
-  if (isReadOnly.value) return
-  cancelEdit()
-  showIssueForm.value = false
-  issueDraft.value = ''
-  replyTargetId.value = issue.id
-  replyDraft.value = ''
-}
-
-function cancelReply() {
-  replyTargetId.value = null
-  replyDraft.value = ''
 }
 
 function extractMentionQuery(text, cursorPos) {
@@ -506,9 +564,10 @@ function onIssueDraftInput(e) {
   mentionQuery.value = query || ''
 }
 
-function onReplyDraftInput(e) {
-  const query = extractMentionQuery(replyDraft.value, e.target.selectionStart)
-  mentionTarget.value = query !== null ? 'reply' : null
+// 답글칸은 이슈마다 항상 열려 있다 — mentionTarget에 issue.id를 담아 어느 칸인지 구분한다
+function onReplyDraftInput(e, issue) {
+  const query = extractMentionQuery(replyDraft[issue.id] || '', e.target.selectionStart)
+  mentionTarget.value = query !== null ? issue.id : null
   mentionQuery.value = query || ''
 }
 
@@ -517,15 +576,19 @@ function closeMentionList() {
 }
 
 function selectMention(user) {
-  const draftRef = mentionTarget.value === 'reply' ? replyDraft : issueDraft
-  draftRef.value = draftRef.value.replace(/@([^\s@]*)$/, `@${user.name} `)
+  if (mentionTarget.value === 'issue') {
+    issueDraft.value = issueDraft.value.replace(/@([^\s@]*)$/, `@${user.name} `)
+  } else if (mentionTarget.value) {
+    const id = mentionTarget.value
+    replyDraft[id] = (replyDraft[id] || '').replace(/@([^\s@]*)$/, `@${user.name} `)
+  }
   mentionTarget.value = null
 }
 
 function addReply(issue) {
-  if (!replyDraft.value.trim()) return
+  const body = (replyDraft[issue.id] || '').trim()
+  if (!body) return
   if (!issue.replies) issue.replies = []
-  const body = replyDraft.value.trim()
   issue.replies.push({
     id: `rep-${Date.now()}`,
     author: CURRENT_USER_NAME,
@@ -539,21 +602,10 @@ function addReply(issue) {
     route: '/workspace/info',
     scope: 'project',
   })
-  replyTargetId.value = null
-  replyDraft.value = ''
+  replyDraft[issue.id] = ''
 }
 
 function cancelIssueForm() {
-  if (issueDraft.value.trim()) {
-    showIssueCancelAlert.value = true
-    return
-  }
-  showIssueForm.value = false
-  issueDraft.value = ''
-}
-
-function confirmIssueCancel() {
-  showIssueCancelAlert.value = false
   showIssueForm.value = false
   issueDraft.value = ''
 }
@@ -561,8 +613,6 @@ function confirmIssueCancel() {
 function openIssueForm() {
   if (isReadOnly.value) return
   cancelEdit()
-  replyTargetId.value = null
-  replyDraft.value = ''
   showIssueForm.value = true
   issueDraft.value = ''
 }
@@ -587,14 +637,16 @@ function openIssueForm() {
       <div class="frow frow--2">
         <div class="fld" :class="{ 'fld--req': isRegistering }">
           <label>{{ canEditJira ? 'JIRA' : 'JIRA (수정불가)' }}</label>
-          <input
-            v-if="canEditJira"
-            v-model="form.jira"
-            class="inp inp--edit"
-            type="text"
-            placeholder="JIRA 번호 입력"
-          />
-          <div v-else class="inp inp--ro">{{ form.jira }}</div>
+          <div v-if="canEditJira" class="fld__row">
+            <input
+              v-model="form.jira"
+              class="inp inp--edit"
+              type="text"
+              placeholder="JIRA 번호 입력"
+            />
+            <button type="button" class="btn btn--ghost btn--sm" @click="searchJira">조회</button>
+          </div>
+          <div v-else class="inp inp--ro">{{ form.jira || '-' }}</div>
         </div>
         <div class="fld" :class="{ 'fld--req': isRegistering }">
           <label>{{ isRegistering ? 'IT-VOC 번호' : 'IT-VOC 번호 (수정불가)' }}</label>
@@ -605,7 +657,7 @@ function openIssueForm() {
             type="text"
             placeholder="IT-VOC 번호 입력"
           />
-          <div v-else class="inp inp--ro">{{ form.itVoc }}</div>
+          <div v-else class="inp inp--ro">{{ form.itVoc || '-' }}</div>
         </div>
       </div>
 
@@ -635,13 +687,7 @@ function openIssueForm() {
               (stage !== '완료' && stage !== '반려') ||
               (isRegistering && (stage === '완료' || stage === '반려'))
             "
-            :title="
-              stage !== '완료' && stage !== '반려'
-                ? '요구사항 등록/WBS 착수/테스트 착수 여부에 따라 시스템이 자동으로 전환합니다.'
-                : isRegistering
-                  ? '프로젝트 등록 중에는 선택할 수 없습니다.'
-                  : undefined
-            "
+            :title="stageTitle(stage)"
             @click="onStageClick(stage)"
           >
             <span class="pill__mark">✓</span>{{ stage }}
@@ -697,6 +743,7 @@ function openIssueForm() {
             v-model="form.scheduledOpenDate"
             class="inp inp--edit inp--date"
             type="date"
+            :min="openDateMin"
             :disabled="isReadOnly"
             @click="$event.target.showPicker?.()"
           />
@@ -786,7 +833,7 @@ function openIssueForm() {
               :key="person.id"
               class="chip chip--person"
             >
-              {{ person.name }}({{ person.dept }})
+              {{ person.name }}({{ deptLabel(person.dept) }})
               <button
                 v-if="!isReadOnly"
                 type="button"
@@ -820,12 +867,13 @@ function openIssueForm() {
                   class="assignee-search__item"
                   @mousedown.prevent="addAssignee(role, staff)"
                 >
-                  {{ staff.name }} / {{ staff.dept }} / {{ staff.empId }}
+                  {{ staff.name }} / {{ deptLabel(staff.dept) }} / {{ staff.empId }}
                 </button>
               </li>
             </ul>
           </div>
         </div>
+        <p v-if="manualStageHint" class="field-hint">{{ manualStageHint }}</p>
       </div>
     </section>
     </div>
@@ -842,7 +890,12 @@ function openIssueForm() {
               type="button"
               class="pill"
               :class="{ 'pill--on': form.testUsage.includes(opt) }"
-              :disabled="opt === '단위테스트' || testUsageLocked"
+              :disabled="isTestUsageLocked(opt)"
+              :title="
+                opt !== '단위테스트' && startedRoundOf(opt) > 0
+                  ? `${opt} ${startedRoundOf(opt)}차까지 테스트가 진행 중이라 사용 해제할 수 없습니다.`
+                  : undefined
+              "
               @click="toggleTestUsage(opt)"
             >
               <span class="pill__mark">✓</span>{{ opt }}
@@ -852,9 +905,31 @@ function openIssueForm() {
               <select
                 v-model="form.testRoundDev"
                 class="inp inp--edit test-round__select"
-                :disabled="testUsageLocked"
+                :disabled="isReadOnly"
               >
-                <option v-for="r in testRoundOptions" :key="`dev-${r}`" :value="r">
+                <option
+                  v-for="r in testRoundOptions"
+                  :key="`dev-${r}`"
+                  :value="r"
+                  :disabled="isRoundOptionLocked('DEV테스트', r)"
+                >
+                  {{ r }}
+                </option>
+              </select>
+            </div>
+            <div v-if="opt === 'STG테스트' && isStgRoundEnabled" class="test-round">
+              <span class="test-round__label">STG 차수</span>
+              <select
+                v-model="form.testRoundStg"
+                class="inp inp--edit test-round__select"
+                :disabled="isReadOnly"
+              >
+                <option
+                  v-for="r in testRoundOptions"
+                  :key="`stg-${r}`"
+                  :value="r"
+                  :disabled="isRoundOptionLocked('STG테스트', r)"
+                >
                   {{ r }}
                 </option>
               </select>
@@ -864,18 +939,21 @@ function openIssueForm() {
               <select
                 v-model="form.testRoundUat"
                 class="inp inp--edit test-round__select"
-                :disabled="testUsageLocked"
+                :disabled="isReadOnly"
               >
-                <option v-for="r in testRoundOptions" :key="`uat-${r}`" :value="r">
+                <option
+                  v-for="r in testRoundOptions"
+                  :key="`uat-${r}`"
+                  :value="r"
+                  :disabled="isRoundOptionLocked('운영테스트', r)"
+                >
                   {{ r }}
                 </option>
               </select>
             </div>
           </template>
         </div>
-        <p v-if="form.hasRegisteredTestCases" class="field-hint">
-          테스트 케이스가 등록되어 테스트 사용여부를 변경할 수 없습니다.
-        </p>
+        <p v-if="lockedTestUsageHint" class="field-hint">{{ lockedTestUsageHint }}</p>
       </div>
 
       <div class="fld fld--req">
@@ -1025,49 +1103,8 @@ function openIssueForm() {
             </div>
           </div>
         </div>
-        <div v-if="!isReadOnly && editingIssueId !== issue.id" class="issue-item__actions">
-          <template v-if="issue.author === CURRENT_USER_NAME">
-            <button type="button" class="link-btn" @click="startEditIssue(issue)">수정</button>
-            <span class="issue-item__sep">|</span>
-          </template>
-          <button type="button" class="link-btn" @click="startReplyIssue(issue)">답글</button>
-        </div>
-
-        <div v-if="replyTargetId === issue.id" class="issue-form issue-form--reply">
-          <div class="mention-wrap">
-            <textarea
-              v-model="replyDraft"
-              class="issue-form__input"
-              rows="3"
-              maxlength="2000"
-              placeholder="답글 내용을 입력하세요 (담당자 태그(@) 입력 가능)"
-              @input="onReplyDraftInput"
-              @blur="closeMentionList"
-            />
-            <ul v-if="mentionTarget === 'reply'" class="mention-list">
-              <li v-if="!mentionResults.length" class="mention-list__empty">검색 결과 없습니다.</li>
-              <li v-for="user in mentionResults" :key="user.name">
-                <button type="button" class="mention-list__item" @mousedown.prevent="selectMention(user)">
-                  {{ user.name }} / {{ user.dept }}
-                </button>
-              </li>
-            </ul>
-          </div>
-          <div class="issue-form__foot">
-            <div class="issue-form__actions">
-              <button type="button" class="btn btn--ghost btn--sm" @click="cancelReply">
-                취소
-              </button>
-              <button
-                type="button"
-                class="btn btn--primary btn--sm"
-                :disabled="!replyDraft.trim()"
-                @click="addReply(issue)"
-              >
-                답글 등록
-              </button>
-            </div>
-          </div>
+        <div v-if="!isReadOnly && editingIssueId !== issue.id && issue.author === CURRENT_USER_NAME" class="issue-item__actions">
+          <button type="button" class="link-btn" @click="startEditIssue(issue)">수정</button>
         </div>
 
         <div v-for="reply in issue.replies" :key="reply.id" class="issue-reply">
@@ -1098,6 +1135,28 @@ function openIssueForm() {
           <div v-if="!isReadOnly && editingReplyId !== reply.id && reply.author === CURRENT_USER_NAME" class="issue-item__actions">
             <button type="button" class="link-btn" @click="startEditReply(reply)">수정</button>
           </div>
+        </div>
+
+        <div v-if="!isReadOnly" class="issue-reply-inline">
+          <div class="mention-wrap">
+            <input
+              v-model="replyDraft[issue.id]"
+              type="text"
+              class="assignee-search__input"
+              placeholder="답글 입력"
+              @input="onReplyDraftInput($event, issue)"
+              @blur="closeMentionList"
+            />
+            <ul v-if="mentionTarget === issue.id" class="mention-list">
+              <li v-if="!mentionResults.length" class="mention-list__empty">검색 결과 없습니다.</li>
+              <li v-for="user in mentionResults" :key="user.name">
+                <button type="button" class="mention-list__item" @mousedown.prevent="selectMention(user)">
+                  {{ user.name }} / {{ user.dept }}
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" @click="addReply(issue)">답글</button>
         </div>
       </article>
     </section>
@@ -1151,24 +1210,6 @@ function openIssueForm() {
           </div>
         </div>
       </div>
-
-      <div
-        v-if="showIssueCancelAlert"
-        class="alert-scrim"
-        @mousedown.self="showIssueCancelAlert = false"
-      >
-        <div class="alert-box">
-          <p class="alert-box__msg">취소 시, 입력 내용이 사라집니다.<br />취소 하시겠습니까?</p>
-          <div class="alert-box__actions">
-            <button type="button" class="btn btn--ghost" @click="showIssueCancelAlert = false">
-              취소
-            </button>
-            <button type="button" class="btn btn--primary" @click="confirmIssueCancel">
-              확인
-            </button>
-          </div>
-        </div>
-      </div>
     </Teleport>
   </div>
 </template>
@@ -1188,6 +1229,7 @@ function openIssueForm() {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  color: var(--lnb-logo);
 }
 
 .register-notice {
@@ -1209,10 +1251,9 @@ function openIssueForm() {
   border-radius: 20px;
 }
 
+/* 배경·테두리·라운드는 전역 `.card`(components.css)가 준다 — 여기서 다시 정의하면 컨셉별
+   반경 토큰이 먹지 않는다. 이 화면 고유의 여백만 남긴다 */
 .card {
-  background: var(--lnb-side);
-  border: 1px solid var(--line);
-  border-radius: 10px;
   padding: 22px 24px;
   margin-bottom: 18px;
 }
@@ -1249,6 +1290,7 @@ function openIssueForm() {
   gap: 8px;
   margin: 0 0 18px;
   flex-wrap: wrap;
+  color: var(--lnb-logo);
 }
 
 .sec-h__n {
@@ -1333,7 +1375,9 @@ function openIssueForm() {
 }
 
 .inp {
+  width: 100%;
   height: 32px;
+  box-sizing: border-box;
   background: var(--field);
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1451,6 +1495,11 @@ select.inp--edit {
   opacity: 0.6;
 }
 
+/* 선택된 채로 잠긴 pill(완료·반려 조회 전용, 진행 중인 테스트)은 흐리게 두지 않는다 */
+.pill--on:disabled {
+  opacity: 1;
+}
+
 .pill__mark {
   width: 14px;
   height: 14px;
@@ -1502,11 +1551,11 @@ select.inp--edit {
   gap: 6px;
   height: 26px;
   padding: 0 6px 0 10px;
-  border: 1px solid var(--teal);
-  background: var(--teal);
+  border: 1px solid var(--teal-100);
+  background: var(--teal-50);
   border-radius: 20px;
   font-size: calc(12px + var(--font-size-offset, 0px));
-  color: var(--teal-fg);
+  color: var(--teal-600);
 }
 
 .chip--person {
@@ -1516,7 +1565,7 @@ select.inp--edit {
 .chip__x {
   border: none;
   background: none;
-  color: var(--teal-fg);
+  color: var(--teal-600);
   opacity: 0.6;
   cursor: pointer;
   font-size: calc(11px + var(--font-size-offset, 0px));
@@ -1529,6 +1578,12 @@ select.inp--edit {
 
 .assignee-label {
   margin: 4px 0 8px;
+}
+
+/* .fld--req > label::after만으로는 안 잡힌다 — assignee-label 자신이 label이 아니라 p다 */
+.assignee-label.fld--req::after {
+  content: ' *';
+  color: var(--red);
 }
 
 .assignee-grid {
@@ -1573,11 +1628,13 @@ select.inp--edit {
 
 .assignee-search__input {
   width: 100%;
+  box-sizing: border-box;
   padding: 6px 8px;
   font-size: calc(11px + var(--font-size-offset, 0px));
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--lnb-side);
+  font-family: inherit;
 }
 
 .assignee-search__input:focus {
@@ -1757,6 +1814,7 @@ select.inp--edit {
 
 .memo-input {
   width: 100%;
+  box-sizing: border-box;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1764,6 +1822,8 @@ select.inp--edit {
   font-size: calc(13px + var(--font-size-offset, 0px));
   line-height: 1.5;
   resize: vertical;
+  background: var(--lnb-side);
+  color: var(--ink-2);
 }
 
 .memo-input:focus {
@@ -1777,10 +1837,6 @@ select.inp--edit {
   text-align: right;
   font-size: calc(11px + var(--font-size-offset, 0px));
   color: var(--muted);
-}
-
-.issue-form--reply {
-  margin-top: 10px;
 }
 
 .issue-form--inline {
@@ -1840,6 +1896,7 @@ select.inp--edit {
 
 .issue-form__input {
   width: 100%;
+  box-sizing: border-box;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1911,11 +1968,6 @@ select.inp--edit {
   gap: 6px;
 }
 
-.issue-item__sep {
-  color: var(--line);
-  font-size: calc(11px + var(--font-size-offset, 0px));
-}
-
 .link-btn {
   border: none;
   background: none;
@@ -1927,9 +1979,20 @@ select.inp--edit {
 }
 
 .issue-reply {
-  margin: 10px 0 0 20px;
-  padding: 10px 0 0 14px;
+  margin: 10px 0 0 14px;
+  padding: 10px 0 0 12px;
   border-left: 2px solid var(--line);
+}
+
+.issue-reply-inline {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.issue-reply-inline .mention-wrap {
+  flex: 1;
+  min-width: 0;
 }
 
 .actions {
@@ -2047,5 +2110,18 @@ select.inp--edit {
 
 .alert-box__actions .btn {
   flex: 1;
+}
+
+@media (max-width: 1100px) {
+  .info-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .frow--2,
+  .frow--3 {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
