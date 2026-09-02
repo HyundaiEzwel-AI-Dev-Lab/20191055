@@ -136,10 +136,50 @@ const filteredCardTasks = computed(() => {
   }
 })
 
+/**
+ * 프로젝트 기준 그룹 정렬(h-pms mywork:PAG-M-MY-01:8-2 / 2273, 2026-08-27 확정 이관).
+ * 마감일 오름차순 목록을 안정 그룹핑만 하면 그룹 안 순서는 그대로 마감일 오름차순이 된다.
+ * 그룹 순서는 그룹 안 가장 이른 마감일 순 — 마감일 없는 업무만 있는 그룹은 맨 뒤로 보낸다.
+ */
+const groupedCardTasks = computed(() => {
+  const buckets = new Map()
+  filteredCardTasks.value.forEach((task) => {
+    const bucket = buckets.get(task.projectId)
+    if (bucket) bucket.push(task)
+    else buckets.set(task.projectId, [task])
+  })
+
+  const earliestDue = (tasks) =>
+    tasks.reduce((min, t) => (t.planEnd && (!min || t.planEnd < min) ? t.planEnd : min), null)
+
+  return Array.from(buckets.values())
+    .sort((a, b) => {
+      const da = earliestDue(a)
+      const db = earliestDue(b)
+      if (da === db) return a[0].project.localeCompare(b[0].project, 'ko')
+      if (!da) return 1
+      if (!db) return -1
+      return da < db ? -1 : 1
+    })
+    .flat()
+})
+
 const pagedTasks = computed(() => {
   const start = taskPage.value * TASKS_PER_PAGE
-  return filteredCardTasks.value.slice(start, start + TASKS_PER_PAGE)
+  return groupedCardTasks.value.slice(start, start + TASKS_PER_PAGE)
 })
+
+/** 현재 페이지분을 프로젝트 묶음으로 다시 접는다 — 페이지 경계에서 그룹이 잘려도 헤더가 다시 붙는다. */
+const pagedTaskGroups = computed(() => {
+  const groups = []
+  pagedTasks.value.forEach((task) => {
+    const last = groups[groups.length - 1]
+    if (last && last.projectId === task.projectId) last.tasks.push(task)
+    else groups.push({ projectId: task.projectId, project: task.project, tasks: [task] })
+  })
+  return groups
+})
+
 const maxTaskPage = computed(() =>
   Math.max(0, Math.ceil(filteredCardTasks.value.length / TASKS_PER_PAGE) - 1),
 )
@@ -373,25 +413,32 @@ function nextWaiting() {
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="t in pagedTasks"
-                :key="t.id"
-                class="click"
-                :class="{ 'row--alert': t.delayed || t.weekDue }"
-                @click="onTaskRowClick(t)"
-              >
-                <td>{{ t.name }}</td>
-                <td class="due-cell">
-                  <span :class="{ delay: t.delayed }">{{ t.dueLabel }}</span>
-                  <span v-if="t.dday" class="dday" :class="{ delay: t.delayed }"> ({{ t.dday }})</span>
-                  <span v-if="t.delayed" class="badge badge--err ml">지연</span>
-                </td>
-                <td class="ell">{{ t.project }}</td>
-                <td class="cell--right" :class="{ 'is-unset': t.progress === null }">{{ t.progress === null ? '-%' : t.progress + '%' }}</td>
-                <td class="more-cell" @click.stop>
-                  <button type="button" class="more-btn" @click="toggleMore($event, t)">⋯</button>
-                </td>
-              </tr>
+              <template v-for="g in pagedTaskGroups" :key="g.projectId">
+                <tr class="mw-group">
+                  <th colspan="5" scope="colgroup">
+                    {{ g.project }} <span class="cnt">({{ g.tasks.length }})</span>
+                  </th>
+                </tr>
+                <tr
+                  v-for="t in g.tasks"
+                  :key="t.id"
+                  class="click"
+                  :class="{ 'row--alert': t.delayed || t.weekDue }"
+                  @click="onTaskRowClick(t)"
+                >
+                  <td>{{ t.name }}</td>
+                  <td class="due-cell cell--center">
+                    <span :class="{ delay: t.delayed }">{{ t.dueLabel }}</span>
+                    <span v-if="t.dday" class="dday" :class="{ delay: t.delayed }"> ({{ t.dday }})</span>
+                    <span v-if="t.delayed" class="badge badge--err ml">지연</span>
+                  </td>
+                  <td class="ell">{{ t.project }}</td>
+                  <td class="cell--right" :class="{ 'is-unset': t.progress === null }">{{ t.progress === null ? '-%' : t.progress + '%' }}</td>
+                  <td class="more-cell" @click.stop>
+                    <button type="button" class="more-btn" @click="toggleMore($event, t)">⋯</button>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -599,6 +646,17 @@ function nextWaiting() {
 .mw-tasktable .ell { max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mw-tasktable tbody tr.click { cursor: pointer; }
 .mw-tasktable .is-unset { color: var(--lnb-muted); }
+
+/* 프로젝트 구분 행(h-pms 2273 이관) — 업무 행과 눈으로 구분되게 배경을 깔고 커서/호버는 주지 않는다. */
+.mw-tasktable tbody tr.mw-group > th {
+  padding: 8px 12px;
+  background: var(--lnb-hover);
+  color: var(--lnb-txt);
+  font-size: calc(12.5px + var(--font-size-offset));
+  font-weight: 700;
+  text-align: left;
+}
+.mw-tasktable tbody tr.mw-group .cnt { color: var(--lnb-muted); font-weight: 500; }
 
 /* 대기 카드 */
 .wcard {

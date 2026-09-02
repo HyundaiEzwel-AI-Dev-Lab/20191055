@@ -25,6 +25,7 @@ const rows = computed(() => {
   if (!props.context) return []
   return getDashboardRequirements(props.context.id || props.context.projectId)
 })
+const total = computed(() => rows.value.length)
 
 const expandedIds = ref(new Set())
 const allExpanded = computed(() => rows.value.length > 0 && expandedIds.value.size === rows.value.length)
@@ -51,7 +52,7 @@ function close() {
   emit('update:modelValue', false)
 }
 
-function goRequirement() {
+function goRequirement(reqId) {
   if (!props.context) return
   const id = props.context.id || props.context.projectId
   const name = props.context.name || '프로젝트'
@@ -70,7 +71,11 @@ function goRequirement() {
     route: '/workspace/requirement',
   })
   close()
-  router.push('/workspace/requirement')
+  if (reqId) {
+    router.push({ path: '/workspace/requirement', query: { reqId } })
+  } else {
+    router.push('/workspace/requirement')
+  }
 }
 </script>
 
@@ -85,10 +90,8 @@ function goRequirement() {
       <div class="toolbar">
         <div class="toolbar__meta">
           <p class="toolbar__name">{{ context.name }}</p>
-          <p class="toolbar__sub">
-            <span v-if="context.projectId">{{ context.projectId }} · </span>
-            요청부서 {{ context.requestDept || '—' }}
-          </p>
+          <p class="toolbar__sub">요청부서 {{ context.requestDept || '—' }}</p>
+          <p class="toolbar__sub">총 {{ total }}건</p>
         </div>
         <div class="toolbar__actions">
           <button
@@ -152,6 +155,9 @@ function goRequirement() {
                       <span class="detail-block__lab">요구사항분석</span>
                       <p>{{ row.analysis || '-' }}</p>
                     </div>
+                    <div class="detail-block__actions">
+                      <button type="button" class="btn btn--ghost btn--sm" @click.stop="goRequirement(row.reqId)">상세보기</button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -201,7 +207,7 @@ function goRequirement() {
 }
 
 .tbl thead th {
-  background: var(--lnb-side);
+  background: var(--lnb-hover);
   color: var(--lnb-txt);
   font-weight: 600;
   text-align: center;
@@ -289,5 +295,10 @@ function goRequirement() {
   font-size: calc(11px + var(--font-size-offset, 0px));
   font-weight: 700;
   color: var(--teal-600);
+}
+
+.detail-block__actions {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
