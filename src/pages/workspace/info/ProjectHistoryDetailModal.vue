@@ -1,4 +1,6 @@
 <script setup>
+// 참고: 이 모달은 어디서도 열리지 않는다 — ProjectHistoryView.vue의 "상세보기" 버튼은 이
+// 모달 대신 관련 화면(요구사항/WBS 등)으로 라우팅 이동한다. 구조만 h-pms와 맞춰 둔다.
 import BaseModal from '@/shared/ui/BaseModal.vue'
 
 defineProps({
@@ -20,7 +22,7 @@ defineEmits(['close'])
       <div class="meta">
         <span class="meta__badge">{{ record.category }}</span>
         <span>{{ record.item }}</span>
-        <span class="meta__muted">{{ record.changedAt }} · {{ record.changedBy }}</span>
+        <span class="meta__muted">{{ record.changedAt }} · {{ record.changedBy }} ({{ record.changedByDept }})</span>
       </div>
 
       <p v-if="record.detail?.body" class="body">{{ record.detail.body }}</p>
@@ -75,8 +77,9 @@ defineEmits(['close'])
 
 .body {
   margin: 0 0 14px;
-  font-size: calc(13px + var(--font-size-offset, 0px));
+  font-size: calc(12.8px + var(--font-size-offset, 0px));
   line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .detail-table {
